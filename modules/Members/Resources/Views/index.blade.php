@@ -16,13 +16,12 @@
 {{-- Suche & Filter --}}
 <form method="GET" class="ck-row" style="margin-bottom:16px; flex-wrap:wrap; gap:10px;">
     <input type="text" name="q" value="{{ request('q') }}"
-           placeholder="Name suchen…"
-           class="ck-field__input" style="flex:1; min-width:200px;">
-    <x-ck-field name="status" type="select" :options="[
+           placeholder="Name suchen…" class="ck-field__input" style="flex:1; min-width:200px;">
+    <x-ck-field name="status" type="select" :value="request('status')" :options="[
         ''         => 'Alle Status',
         'active'   => 'Aktiv',
         'inactive' => 'Inaktiv',
-    ]" :value="request('status')" />
+    ]" />
     <x-ck-button type="submit" variant="secondary">Suchen</x-ck-button>
     @if(request('q') || request('status'))
         <x-ck-button :href="route('members.index')" variant="secondary">Zurücksetzen</x-ck-button>
@@ -39,13 +38,12 @@
                 <th>Geschlecht</th>
                 <th>Spielberechtigt</th>
                 <th>Status</th>
-                <th></th>
+                <th style="text-align:right;">Aktionen</th>
             </tr>
         </thead>
         <tbody>
             @forelse($members as $member)
-            <tr class="ck-table-row--clickable"
-                onclick="membersModalOpen('edit', {{ $member->id }})">
+            <tr>
                 <td>
                     <div class="ck-row">
                         <div class="ck-avatar ck-avatar--sm">{{ strtoupper(substr($member->last_name, 0, 1)) }}</div>
@@ -76,21 +74,29 @@
                         {{ $member->status === 'active' ? 'Aktiv' : 'Inaktiv' }}
                     </x-ck-badge>
                 </td>
-                <td onclick="event.stopPropagation()">
-                    <form method="POST" action="{{ route('members.destroy', $member) }}" style="display:inline;">
-                        @csrf @method('DELETE')
-                        <x-ck-button variant="danger" size="sm" type="submit"
-                            :confirm="$member->last_name . ', ' . $member->first_name . ' wirklich löschen?'">
-                            Löschen
+                {{-- Aktionen: Bearbeiten + Löschen (einheitlich) --}}
+                <td>
+                    <div class="ck-row" style="justify-content:flex-end; gap:6px;">
+                        <x-ck-button variant="secondary" size="sm"
+                            onclick="membersModalOpen('edit', {{ $member->id }})">
+                            Bearbeiten
                         </x-ck-button>
-                    </form>
+                        <form method="POST" action="{{ route('members.destroy', $member) }}" style="display:inline;">
+                            @csrf @method('DELETE')
+                            <x-ck-button variant="danger" size="sm" type="submit"
+                                :confirm="$member->last_name . ', ' . $member->first_name . ' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'">
+                                Löschen
+                            </x-ck-button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             @empty
             <tr>
                 <td colspan="6" class="ck-text-muted" style="text-align:center; padding:40px;">
                     Keine Mitglieder gefunden.
-                    <a href="javascript:void(0)" onclick="ckModalOpen('memberModal')" style="color:var(--ck-accent-dark); text-decoration:none; margin-left:6px;">
+                    <a href="javascript:void(0)" onclick="ckModalOpen('memberModal')"
+                       style="color:var(--ck-accent-dark); text-decoration:none; margin-left:6px;">
                         Jetzt anlegen
                     </a>
                 </td>
@@ -103,11 +109,10 @@
     @endif
 </div>
 
-{{-- ══ MODAL ═══════════════════════════════════ --}}
+{{-- ══ MODAL ═════════════════════════════════ --}}
 <x-ck-modal id="memberModal" title="Mitglied" size="lg">
 
     <x-slot:tabs>
-        {{-- Weiterer Tabs folgen mit zusätzlichen Modulen --}}
         <button class="ck-modal-tab ck-modal-tab--active"
                 onclick="ckModalTab('memberModal', 'memberTab-stamm', this)">
             👤 Stammdaten
@@ -120,15 +125,10 @@
             <input type="hidden" name="_method" id="memberFormMethod" value="PATCH">
 
             <div class="ck-form-grid ck-form-grid--2">
-                <x-ck-field label="Vorname" name="first_name" id="mFieldFirstName" :required="true" />
-                <x-ck-field label="Nachname" name="last_name" id="mFieldLastName" :required="true" />
-                <x-ck-field label="Geschlecht" name="gender" type="select" id="mFieldGender"
-                    :options="[
-                        ''        => '– nicht angegeben –',
-                        'male'    => 'Männlich',
-                        'female'  => 'Weiblich',
-                        'diverse' => 'Divers',
-                    ]" />
+                <x-ck-field label="Vorname"    name="first_name"    id="mFieldFirstName" :required="true" />
+                <x-ck-field label="Nachname"   name="last_name"     id="mFieldLastName"  :required="true" />
+                <x-ck-field label="Geschlecht" name="gender"        id="mFieldGender"    type="select"
+                    :options="['' => '– nicht angegeben –', 'male' => 'Männlich', 'female' => 'Weiblich', 'diverse' => 'Divers']" />
                 <x-ck-field label="Geburtsdatum" name="date_of_birth" type="date"
                     id="mFieldDob" :max="now()->subDay()->format('Y-m-d')" />
                 <x-ck-field label="Status" name="status" type="select" id="mFieldStatus"
@@ -140,14 +140,14 @@
 
             <div class="ck-form-actions">
                 <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
-                <x-ck-button type="button" variant="secondary" onclick="ckModalClose(null, 'memberModal')">Abbrechen</x-ck-button>
+                <x-ck-button type="button" variant="secondary"
+                    onclick="ckModalClose(null, 'memberModal')">Abbrechen</x-ck-button>
             </div>
         </form>
     </div>
 
 </x-ck-modal>
 
-{{-- Data Bridge & externes JS --}}
 @push('scripts')
 <script>
     window.CK_Members = {

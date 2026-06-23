@@ -1,97 +1,129 @@
 @extends('core::admin.layout')
-
 @section('title', 'System')
 
 @section('content')
-<div class="space-y-6">
 
-    {{-- Header --}}
+<div class="ck-page-header">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">System-Überblick</h1>
-        <p class="text-sm text-gray-500 mt-1">Status und Konfiguration dieser ClubKit-Installation.</p>
+        <h1 class="ck-page-title">System-Überblick</h1>
+        <p class="ck-page-subtitle">Status und Konfiguration dieser ClubKit-Installation.</p>
+    </div>
+    <form method="POST" action="{{ route('admin.system.migrate') }}">
+        @csrf
+        <x-ck-button type="submit" variant="primary">Migrationen ausführen</x-ck-button>
+    </form>
+</div>
+
+{{-- Stat-Kacheln --}}
+<div class="ck-stat-grid" style="margin-bottom: var(--ck-space-6);">
+
+    <div class="ck-stat-card">
+        <div class="ck-stat-card__label">ClubKit</div>
+        <div class="ck-stat-card__value" style="font-size:20px;">{{ $info['app_version'] ?? '–' }}</div>
+        <div class="ck-stat-card__sub">
+            Installiert: {{ $info['installed_at'] ?? '–' }}
+        </div>
     </div>
 
-    {{-- Info-Grid --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {{-- ClubKit --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">ClubKit</div>
-            <div class="text-2xl font-bold text-gray-900">1.0.3-dev</div>
-            @if($installedAt)
-                <div class="text-xs text-gray-400 mt-1">Installiert: {{ $installedAt }}</div>
+    <div class="ck-stat-card">
+        <div class="ck-stat-card__label">Laravel</div>
+        <div class="ck-stat-card__value" style="font-size:20px;">{{ $info['laravel_version'] ?? '–' }}</div>
+        <div class="ck-stat-card__sub">
+            Umgebung: {{ $info['env'] ?? '–' }}
+            @if($info['debug'] ?? false)
+                <x-ck-badge color="amber" style="margin-left:4px;">DEBUG AN</x-ck-badge>
             @endif
         </div>
-
-        {{-- Laravel --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Laravel</div>
-            <div class="text-2xl font-bold text-gray-900">{{ $laravelVersion }}</div>
-            <div class="text-xs text-gray-400 mt-1">
-                Umgebung: <span class="{{ config('app.env') === 'production' ? 'text-green-600' : 'text-amber-600' }} font-medium">{{ config('app.env') }}</span>
-                @if(config('app.debug'))
-                    <span class="ml-2 text-red-600 font-medium">DEBUG AN</span>
-                @endif
-            </div>
-        </div>
-
-        {{-- PHP --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">PHP</div>
-            <div class="text-2xl font-bold text-gray-900">{{ $phpVersion }}</div>
-            <div class="text-xs text-gray-400 mt-1">SAPI: {{ php_sapi_name() }}</div>
-        </div>
-
-        {{-- Datenbank --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Datenbank</div>
-            <div class="text-2xl font-bold {{ $migrationsStatus['ok'] ? 'text-green-600' : 'text-red-600' }}">
-                {{ $migrationsStatus['ok'] ? 'Aktuell' : $migrationsStatus['pending'] . ' ausstehend' }}
-            </div>
-            <div class="text-xs text-gray-400 mt-1">{{ strtoupper(config('database.default')) }}: {{ $dbName }}</div>
-        </div>
-
-        {{-- App-URL --}}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">App-URL</div>
-            <div class="text-sm font-mono text-gray-900 break-all">{{ $appUrl }}</div>
-        </div>
-
     </div>
 
-    {{-- Installierte Module --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Installierte Module</div>
-        @if(count($installed))
-            <div class="flex flex-wrap gap-2">
-                @foreach($installed as $slug => $module)
-                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium
-                                 {{ $module->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500' }}">
-                        {{ $module->name }}
-                        <span class="text-[10px] opacity-60">{{ $module->version }}</span>
-                    </span>
-                @endforeach
-            </div>
-        @else
-            <p class="text-sm text-gray-400">Keine Module installiert.</p>
-        @endif
+    <div class="ck-stat-card">
+        <div class="ck-stat-card__label">PHP</div>
+        <div class="ck-stat-card__value" style="font-size:20px;">{{ $info['php_version'] ?? '–' }}</div>
+        <div class="ck-stat-card__sub">SAPI: {{ $info['php_sapi'] ?? '–' }}</div>
     </div>
 
-    {{-- Migrations --}}
-    @if(!$migrationsStatus['ok'])
-    <div class="bg-white rounded-xl shadow-sm border border-amber-200 p-5">
-        <div class="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-3">
-            ⚠️ {{ $migrationsStatus['pending'] }} ausstehende Migration(en)
-        </div>
-        <form method="POST" action="{{ route('admin.system.migrate') }}">
-            @csrf
-            <button type="submit"
-                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition-colors">
-                Migrationen ausführen
-            </button>
-        </form>
+    <div class="ck-stat-card {{ ($info['db_status'] ?? '') === 'Aktuell' ? 'ck-stat-card--ok' : 'ck-stat-card--danger' }}">
+        <div class="ck-stat-card__label">Datenbank</div>
+        <div class="ck-stat-card__value" style="font-size:20px;">{{ $info['db_status'] ?? '–' }}</div>
+        <div class="ck-stat-card__sub">{{ $info['db_name'] ?? '–' }}</div>
     </div>
-    @endif
 
 </div>
+
+{{-- Details --}}
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--ck-space-4);">
+
+    <x-ck-card>
+        <x-slot:header>🔧 Konfiguration</x-slot:header>
+        <table class="ck-table" style="margin:-1px;">
+            <tbody>
+                <tr>
+                    <td class="ck-text-muted" style="width:40%;">App-URL</td>
+                    <td>
+                        <a href="{{ $info['app_url'] ?? '#' }}" target="_blank"
+                           style="color:var(--ck-accent-dark); text-decoration:none;">
+                            {{ $info['app_url'] ?? '–' }}
+                        </a>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="ck-text-muted">Umgebung</td>
+                    <td>{{ $info['env'] ?? '–' }}</td>
+                </tr>
+                <tr>
+                    <td class="ck-text-muted">Debug-Modus</td>
+                    <td>
+                        @if($info['debug'] ?? false)
+                            <x-ck-badge color="amber">Aktiv</x-ck-badge>
+                        @else
+                            <x-ck-badge color="green">Inaktiv</x-ck-badge>
+                        @endif
+                    </td>
+                </tr>
+                <tr>
+                    <td class="ck-text-muted">Cache</td>
+                    <td>{{ $info['cache_driver'] ?? '–' }}</td>
+                </tr>
+                <tr>
+                    <td class="ck-text-muted">Session</td>
+                    <td>{{ $info['session_driver'] ?? '–' }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </x-ck-card>
+
+    <x-ck-card>
+        <x-slot:header>🧩 Installierte Module</x-slot:header>
+        @if(empty($installedModules))
+        <p class="ck-text-muted">Keine Module installiert.</p>
+        @else
+        <table class="ck-table" style="margin:-1px;">
+            <thead>
+                <tr>
+                    <th>Modul</th>
+                    <th>Version</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($installedModules as $module)
+                <tr>
+                    <td style="font-weight:600;">{{ $module->name }}</td>
+                    <td class="ck-text-muted">{{ $module->version }}</td>
+                    <td>
+                        @if($module->is_active)
+                            <x-ck-badge color="green">Aktiv</x-ck-badge>
+                        @else
+                            <x-ck-badge color="gray">Inaktiv</x-ck-badge>
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+        @endif
+    </x-ck-card>
+
+</div>
+
 @endsection

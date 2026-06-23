@@ -21,7 +21,7 @@
                 <th>Nutzer</th>
                 <th>Rolle</th>
                 <th>Erstellt</th>
-                <th></th>
+                <th style="text-align:right;">Aktionen</th>
             </tr>
         </thead>
         <tbody>
@@ -48,20 +48,23 @@
                     @endif
                 </td>
                 <td class="ck-text-muted">{{ $user->created_at->format('d.m.Y') }}</td>
-                <td class="ck-row" style="justify-content:flex-end; gap:8px;">
-                    <x-ck-button variant="secondary" size="sm"
-                        onclick="usersModalOpen('edit', {{ $user->id }})">
-                        Bearbeiten
-                    </x-ck-button>
-                    @if($user->id !== auth()->id())
-                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" style="display:inline;">
-                        @csrf @method('DELETE')
-                        <x-ck-button variant="danger" size="sm" type="submit"
-                            :confirm="$user->name . ' wirklich löschen?'">
-                            Löschen
+                {{-- Aktionen: Bearbeiten + Löschen (einheitlich) --}}
+                <td>
+                    <div class="ck-row" style="justify-content:flex-end; gap:6px;">
+                        <x-ck-button variant="secondary" size="sm"
+                            onclick="usersModalOpen('edit', {{ $user->id }})">
+                            Bearbeiten
                         </x-ck-button>
-                    </form>
-                    @endif
+                        @if($user->id !== auth()->id())
+                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" style="display:inline;">
+                            @csrf @method('DELETE')
+                            <x-ck-button variant="danger" size="sm" type="submit"
+                                :confirm="$user->name . ' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'">
+                                Löschen
+                            </x-ck-button>
+                        </form>
+                        @endif
+                    </div>
                 </td>
             </tr>
             @empty
@@ -78,7 +81,7 @@
     @endif
 </div>
 
-{{-- ══ MODAL ═══════════════════════════════════ --}}
+{{-- ══ MODAL ═════════════════════════════════ --}}
 <x-ck-modal id="userModal" title="Nutzer" size="lg">
 
     <x-slot:tabs>
@@ -92,28 +95,27 @@
         </button>
     </x-slot:tabs>
 
-    {{-- Tab 1: Login-Infos --}}
+    {{-- Tab 1: Login --}}
     <div id="userTab-login" class="ck-modal__section ck-modal__section--active">
         <form id="userLoginForm" method="POST">
             @csrf
             <input type="hidden" name="_method" id="userLoginMethod" value="PATCH">
-
             <div class="ck-form-grid ck-form-grid--2">
-                <x-ck-field label="Name" name="name" id="fieldName" :required="true" />
-                <x-ck-field label="E-Mail" name="email" type="email" id="fieldEmail" :required="true" />
-                <x-ck-field label="Neues Passwort" name="password" type="password" id="fieldPassword"
-                    hint="(leer lassen = nicht ändern)" />
+                <x-ck-field label="Name"   name="name"  id="fieldName"  :required="true" />
+                <x-ck-field label="E-Mail" name="email" id="fieldEmail" type="email" :required="true" />
+                <x-ck-field label="Neues Passwort" name="password" type="password"
+                    id="fieldPassword" hint="(leer lassen = nicht ändern)" />
                 <x-ck-field label="Passwort wiederholen" name="password_confirmation" type="password" />
             </div>
-
             <div class="ck-form-actions">
                 <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
-                <x-ck-button type="button" variant="secondary" onclick="ckModalClose(null, 'userModal')">Abbrechen</x-ck-button>
+                <x-ck-button type="button" variant="secondary"
+                    onclick="ckModalClose(null, 'userModal')">Abbrechen</x-ck-button>
             </div>
         </form>
     </div>
 
-    {{-- Tab 2: Rechte & Rollen --}}
+    {{-- Tab 2: Rechte --}}
     <div id="userTab-rights" class="ck-modal__section">
         <form id="userRightsForm" method="POST">
             @csrf
@@ -126,8 +128,7 @@
                 @foreach($roles as $role)
                 <label class="ck-role-option" id="roleOption-{{ $role->name }}">
                     <input type="radio" name="role" value="{{ $role->name }}"
-                           id="roleRadio-{{ $role->name }}"
-                           onchange="usersRoleChanged(this)">
+                           id="roleRadio-{{ $role->name }}" onchange="usersRoleChanged(this)">
                     <div>
                         <div class="ck-role-option__title">{{ ucfirst($role->name) }}</div>
                         <div class="ck-role-option__desc">
@@ -140,11 +141,9 @@
                     </div>
                 </label>
                 @endforeach
-
                 <label class="ck-role-option" id="roleOption-custom">
                     <input type="radio" name="role" value="custom"
-                           id="roleRadio-custom"
-                           onchange="usersRoleChanged(this)">
+                           id="roleRadio-custom" onchange="usersRoleChanged(this)">
                     <div>
                         <div class="ck-role-option__title" style="color:var(--ck-purple);">Benutzerdefiniert</div>
                         <div class="ck-role-option__desc">Individuelle Rechte vergeben</div>
@@ -152,14 +151,12 @@
                 </label>
             </div>
 
-            {{-- Custom Permissions --}}
             <div id="customPermissions" class="is-hidden" style="margin-top:20px;">
                 @if($permissions->isEmpty())
                 <div class="ck-flash ck-flash--warning" style="border-radius:var(--ck-radius);">
                     Keine Permissions vorhanden. Module installieren.
                 </div>
                 @else
-
                 @php
                     $grouped = [];
                     foreach ($permissions as $perm) {
@@ -168,16 +165,13 @@
                         $grouped[$module][] = $perm;
                     }
                 @endphp
-
                 @foreach($grouped as $module => $perms)
                 <div class="ck-perm-group">
                     <div class="ck-perm-group__title">{{ ucfirst($module) }}</div>
                     <div class="ck-perm-grid">
                         @foreach($perms as $perm)
-                        <label class="ck-perm-item" id="permItem-{{ $perm->id }}">
-                            <input type="checkbox" name="permissions[]"
-                                   value="{{ $perm->name }}"
-                                   id="perm-{{ $perm->id }}">
+                        <label class="ck-perm-item">
+                            <input type="checkbox" name="permissions[]" value="{{ $perm->name }}">
                             {{ $perm->name }}
                         </label>
                         @endforeach
@@ -189,14 +183,14 @@
 
             <div class="ck-form-actions">
                 <x-ck-button type="submit" variant="primary">Rechte speichern</x-ck-button>
-                <x-ck-button type="button" variant="secondary" onclick="ckModalClose(null, 'userModal')">Abbrechen</x-ck-button>
+                <x-ck-button type="button" variant="secondary"
+                    onclick="ckModalClose(null, 'userModal')">Abbrechen</x-ck-button>
             </div>
         </form>
     </div>
 
 </x-ck-modal>
 
-{{-- Data Bridge & externes JS --}}
 @push('scripts')
 <script>
     window.CK_Users = {
