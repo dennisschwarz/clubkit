@@ -8,7 +8,9 @@
         <h1 class="ck-page-title">Teams</h1>
         <p class="ck-page-subtitle">{{ $teams->count() }} Teams gesamt</p>
     </div>
-    <x-ck-button variant="primary" onclick="ckModalOpen('teamModal')">
+    {{-- FIX: teamsModalOpen('create') – nicht ckModalOpen() direkt.
+         ckModalOpen() setzt keine action/method → PATCH an aktuelle URL --}}
+    <x-ck-button variant="primary" onclick="teamsModalOpen('create')">
         + Team anlegen
     </x-ck-button>
 </div>
@@ -23,20 +25,19 @@
                 <th>Altersklasse</th>
                 <th>Spieler</th>
                 <th>Status</th>
-                <th style="text-align:right;">Aktionen</th>
+                <th class="ck-table__actions">Aktionen</th>
             </tr>
         </thead>
         <tbody>
             @forelse($teams as $team)
             <tr>
-                <td style="font-weight:600;">
-                    <a href="{{ route('teams.show', $team) }}"
-                       style="color:var(--ck-text); text-decoration:none;">
+                <td class="ck-table__bold">
+                    <a href="{{ route('teams.show', $team) }}" class="ck-table__link">
                         {{ $team->name }}
                     </a>
                 </td>
-                <td class="ck-text-muted">{{ $team->season ?? '–' }}</td>
-                <td class="ck-text-muted">{{ $team->league   ?? '–' }}</td>
+                <td class="ck-text-muted">{{ $team->season    ?? '–' }}</td>
+                <td class="ck-text-muted">{{ $team->league    ?? '–' }}</td>
                 <td class="ck-text-muted">{{ $team->age_class ?? '–' }}</td>
                 <td>
                     <x-ck-badge color="blue">{{ $team->members_count }}</x-ck-badge>
@@ -47,12 +48,12 @@
                     </x-ck-badge>
                 </td>
                 <td>
-                    <div class="ck-row" style="justify-content:flex-end; gap:6px;">
+                    <div class="ck-table__action-cell">
                         <x-ck-button variant="secondary" size="sm"
                             onclick="teamsModalOpen('edit', {{ $team->id }})">
                             Bearbeiten
                         </x-ck-button>
-                        <form method="POST" action="{{ route('teams.destroy', $team) }}" style="display:inline;">
+                        <form method="POST" action="{{ route('teams.destroy', $team) }}" class="ck-inline-form">
                             @csrf @method('DELETE')
                             <x-ck-button variant="danger" size="sm" type="submit"
                                 :confirm="'Team »' . $team->name . '« wirklich löschen? Alle Spielerzuordnungen werden entfernt.'">
@@ -64,12 +65,9 @@
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="ck-text-muted" style="text-align:center; padding:40px;">
+                <td colspan="7" class="ck-empty-state">
                     Noch keine Teams angelegt.
-                    <a href="javascript:void(0)" onclick="ckModalOpen('teamModal')"
-                       style="color:var(--ck-accent-dark); text-decoration:none; margin-left:6px;">
-                        Jetzt anlegen
-                    </a>
+                    <a href="javascript:void(0)" onclick="teamsModalOpen('create')">Jetzt anlegen</a>
                 </td>
             </tr>
             @endforelse
@@ -77,24 +75,23 @@
     </table>
 </div>
 
-{{-- MODAL: Team anlegen / bearbeiten --}}
+{{-- Modal: Team anlegen / bearbeiten --}}
 <x-ck-modal id="teamModal" title="Team" size="md">
 
     <div id="teamTab-form" class="ck-modal__section ck-modal__section--active">
         <form id="teamForm" method="POST">
             @csrf
-            <input type="hidden" name="_method" id="teamFormMethod" value="PATCH">
+            {{-- Wird von teamsModalOpen() auf 'POST' oder 'PATCH' gesetzt --}}
+            <input type="hidden" name="_method" id="teamFormMethod" value="POST">
 
             <div class="ck-form-grid ck-form-grid--2">
-                <x-ck-field label="Teamname" name="name" id="tFieldName" :required="true" />
-                <x-ck-field label="Saison" name="season" id="tFieldSeason"
-                    placeholder="z.B. 2026/27" hint="(optional)" />
-                <x-ck-field label="Liga" name="league" id="tFieldLeague"
-                    placeholder="z.B. Kreisliga A" hint="(optional)" />
-                <x-ck-field label="Altersklasse" name="age_class" id="tFieldAgeClass"
-                    placeholder="z.B. D-Jugend" hint="(optional)" />
+                <x-ck-field label="Teamname"    name="name"      id="tFieldName"     :required="true" />
+                <x-ck-field label="Saison"      name="season"    id="tFieldSeason"   placeholder="z.B. 2026/27"   hint="(optional)" />
+                <x-ck-field label="Liga"        name="league"    id="tFieldLeague"   placeholder="z.B. Kreisliga A" hint="(optional)" />
+                <x-ck-field label="Altersklasse" name="age_class" id="tFieldAgeClass" placeholder="z.B. D-Jugend"  hint="(optional)" />
             </div>
-            <div class="ck-form-grid" style="margin-top:var(--ck-space-4);">
+
+            <div class="ck-form-grid ck-mt-4">
                 <x-ck-field type="checkbox" name="is_active" id="tFieldActive" :checked="true">
                     Team ist aktiv
                 </x-ck-field>

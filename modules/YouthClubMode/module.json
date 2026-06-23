@@ -1,0 +1,10 @@
+{
+    "name":     "YouthClubMode",
+    "slug":     "youth-club-mode",
+    "version":  "1.0.0",
+    "requires": ["core", "members"],
+    "tables":   ["member_parents"],
+    "provides": {
+        "member_parent_links": true
+    }
+}

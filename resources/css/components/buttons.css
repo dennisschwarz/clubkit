@@ -13,11 +13,12 @@
   transition: background 0.15s, opacity 0.15s;
   padding: 10px 20px;
   line-height: 1;
+  position: relative;
 }
 .ck-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.ck-btn--primary   { background: var(--ck-primary);    color: var(--ck-text-white); }
-.ck-btn--primary:not(:disabled):hover { background: var(--ck-primary-hover); }
+.ck-btn--primary   { background: var(--ck-brand-bar-bg); color: var(--ck-text-white); }
+.ck-btn--primary:not(:disabled):hover { opacity: 0.85; }
 
 .ck-btn--secondary {
   background: var(--ck-bg-subtle);
@@ -42,3 +43,25 @@
 .ck-btn--sm   { font-size: var(--ck-font-sm); padding: 6px 12px; }
 .ck-btn--lg   { font-size: var(--ck-font-lg); padding: 12px 24px; }
 .ck-btn--icon { padding: 8px; }
+
+/* ── Ladezustand (Spinner) ──────────────────────────────────────────── */
+.ck-btn--loading {
+  pointer-events: none;
+  opacity: 0.75;
+}
+/* Spinner über dem Button-Text – Text bleibt lesbar */
+.ck-btn--loading::after {
+  content: '';
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: var(--ck-radius-full);
+  animation: ck-spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ck-spin {
+  to { transform: rotate(360deg); }
+}

@@ -8,7 +8,9 @@
         <h1 class="ck-page-title">Nutzer</h1>
         <p class="ck-page-subtitle">{{ $users->total() }} Nutzer registriert</p>
     </div>
-    <x-ck-button variant="primary" onclick="ckModalOpen('userModal')">
+    {{-- FIX: usersModalOpen('create') – nicht ckModalOpen() direkt.
+         ckModalOpen() setzt keine action/method → PATCH an aktuelle URL --}}
+    <x-ck-button variant="primary" onclick="usersModalOpen('create')">
         + Nutzer anlegen
     </x-ck-button>
 </div>
@@ -21,7 +23,7 @@
                 <th>Nutzer</th>
                 <th>Rolle</th>
                 <th>Erstellt</th>
-                <th style="text-align:right;">Aktionen</th>
+                <th class="ck-table__actions">Aktionen</th>
             </tr>
         </thead>
         <tbody>
@@ -29,9 +31,9 @@
             <tr>
                 <td>
                     <div class="ck-row">
-                        <div class="ck-avatar ck-avatar--md">{{ strtoupper(substr($user->name, 0, 1)) }}</div>
+                        <div class="ck-avatar">{{ strtoupper(substr($user->name, 0, 1)) }}</div>
                         <div>
-                            <div style="font-weight:600;">{{ $user->name }}</div>
+                            <div class="ck-table__bold">{{ $user->name }}</div>
                             <div class="ck-text-muted">{{ $user->email }}</div>
                         </div>
                     </div>
@@ -48,15 +50,14 @@
                     @endif
                 </td>
                 <td class="ck-text-muted">{{ $user->created_at->format('d.m.Y') }}</td>
-                {{-- Aktionen: Bearbeiten + Löschen (einheitlich) --}}
                 <td>
-                    <div class="ck-row" style="justify-content:flex-end; gap:6px;">
+                    <div class="ck-table__action-cell">
                         <x-ck-button variant="secondary" size="sm"
                             onclick="usersModalOpen('edit', {{ $user->id }})">
                             Bearbeiten
                         </x-ck-button>
                         @if($user->id !== auth()->id())
-                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" style="display:inline;">
+                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="ck-inline-form">
                             @csrf @method('DELETE')
                             <x-ck-button variant="danger" size="sm" type="submit"
                                 :confirm="$user->name . ' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'">
@@ -69,7 +70,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="4" class="ck-text-muted" style="text-align:center; padding:40px;">
+                <td colspan="4" class="ck-empty-state">
                     Keine Nutzer vorhanden.
                 </td>
             </tr>
@@ -81,7 +82,7 @@
     @endif
 </div>
 
-{{-- ══ MODAL ═════════════════════════════════ --}}
+{{-- Modal ──────────────────────────────────────────────────────────── --}}
 <x-ck-modal id="userModal" title="Nutzer" size="lg">
 
     <x-slot:tabs>
@@ -89,17 +90,19 @@
                 onclick="ckModalTab('userModal', 'userTab-login', this)">
             🔑 Login-Infos
         </button>
+        {{-- Rights-Tab: wird in create-Modus deaktiviert (usersModalOpen setzt ck-modal-tab--disabled) --}}
         <button id="userTab-rights-btn" class="ck-modal-tab"
                 onclick="ckModalTab('userModal', 'userTab-rights', this)">
             🔒 Rechte &amp; Rollen
         </button>
     </x-slot:tabs>
 
-    {{-- Tab 1: Login --}}
+    {{-- Tab 1: Login-Infos --}}
     <div id="userTab-login" class="ck-modal__section ck-modal__section--active">
         <form id="userLoginForm" method="POST">
             @csrf
-            <input type="hidden" name="_method" id="userLoginMethod" value="PATCH">
+            {{-- Wird von usersModalOpen() auf 'POST' (create) oder 'PATCH' (edit) gesetzt --}}
+            <input type="hidden" name="_method" id="userLoginMethod" value="POST">
             <div class="ck-form-grid ck-form-grid--2">
                 <x-ck-field label="Name"   name="name"  id="fieldName"  :required="true" />
                 <x-ck-field label="E-Mail" name="email" id="fieldEmail" type="email" :required="true" />
@@ -115,16 +118,23 @@
         </form>
     </div>
 
-    {{-- Tab 2: Rechte --}}
+    {{-- Tab 2: Rechte & Rollen --}}
     <div id="userTab-rights" class="ck-modal__section">
+
+        {{-- Hinweis in create-Modus (wird von JS eingeblendet) --}}
+        <div id="userRightsCreateHint" class="ck-flash ck-flash--warning is-hidden">
+            Zuerst den Nutzer anlegen (Tab „Login-Infos"), dann Rechte vergeben.
+        </div>
+
         <form id="userRightsForm" method="POST">
             @csrf
-            <input type="hidden" name="_method" value="PATCH">
+            {{-- Wird von usersModalOpen() auf 'PATCH' (edit) gesetzt --}}
+            <input type="hidden" name="_method" id="userRightsMethod" value="PATCH">
             <input type="hidden" name="rights_only" value="1">
 
-            <div class="ck-section-label" style="margin-bottom:12px;">System-Rolle</div>
+            <div class="ck-section-label ck-mt-4">System-Rolle</div>
 
-            <div class="ck-space-y-4">
+            <div class="ck-space-y-4 ck-mt-4">
                 @foreach($roles as $role)
                 <label class="ck-role-option" id="roleOption-{{ $role->name }}">
                     <input type="radio" name="role" value="{{ $role->name }}"
@@ -133,27 +143,28 @@
                         <div class="ck-role-option__title">{{ ucfirst($role->name) }}</div>
                         <div class="ck-role-option__desc">
                             @switch($role->name)
-                                @case('admin') Vollzugriff auf alle Module und Einstellungen @break
+                                @case('admin')   Vollzugriff auf alle Module und Einstellungen @break
                                 @case('trainer') Spieltage, Training, Teams, Mitglieder (lesend/schreibend) @break
-                                @default {{ ucfirst($role->name) }}-Zugriff
+                                @default         {{ ucfirst($role->name) }}-Zugriff
                             @endswitch
                         </div>
                     </div>
                 </label>
                 @endforeach
+
                 <label class="ck-role-option" id="roleOption-custom">
                     <input type="radio" name="role" value="custom"
                            id="roleRadio-custom" onchange="usersRoleChanged(this)">
                     <div>
-                        <div class="ck-role-option__title" style="color:var(--ck-purple);">Benutzerdefiniert</div>
+                        <div class="ck-role-option__title ck-text-purple">Benutzerdefiniert</div>
                         <div class="ck-role-option__desc">Individuelle Rechte vergeben</div>
                     </div>
                 </label>
             </div>
 
-            <div id="customPermissions" class="is-hidden" style="margin-top:20px;">
+            <div id="customPermissions" class="is-hidden ck-mt-5">
                 @if($permissions->isEmpty())
-                <div class="ck-flash ck-flash--warning" style="border-radius:var(--ck-radius);">
+                <div class="ck-flash ck-flash--warning">
                     Keine Permissions vorhanden. Module installieren.
                 </div>
                 @else

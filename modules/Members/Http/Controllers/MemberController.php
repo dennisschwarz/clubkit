@@ -1,14 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Members\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Modules\Members\Models\Member;
 
+/**
+ * Verwaltet Mitglieder-CRUD.
+ *
+ * Dieses Controller weiß nichts über andere Module.
+ * Erweiterungen (z. B. Erziehungsberechtigte durch YouthClubMode)
+ * werden über View Composers und das Hook-System eingebunden.
+ */
 class MemberController extends Controller
 {
     public function index(Request $request): View
@@ -28,7 +37,7 @@ class MemberController extends Controller
 
         $members = $query->orderBy('last_name')->paginate(25)->withQueryString();
 
-        // JS-Daten: foreach, keine Closures
+        // JS data bridge – foreach only, keine Closures (Coding Standard)
         $membersJs = [];
         foreach ($members as $m) {
             $membersJs[$m->id] = [
@@ -45,6 +54,9 @@ class MemberController extends Controller
             ];
         }
 
+        // Hinweis: $membersJs und die View können durch View Composers
+        // anderer Module (z. B. YouthClubMode) angereichert werden –
+        // dieser Controller weiß davon nichts.
         return view('members::index', compact('members', 'membersJs'));
     }
 
@@ -56,7 +68,7 @@ class MemberController extends Controller
 
         Member::create($data);
 
-        return redirect()->route('members.index')->with('success', 'Mitglied angelegt.');
+        return redirect()->route('members.index')->with('success', 'Mitglied erstellt.');
     }
 
     public function update(Request $request, Member $member): RedirectResponse
@@ -72,17 +84,15 @@ class MemberController extends Controller
 
     public function destroy(Member $member): RedirectResponse
     {
-        // Profilbild vom Server löschen
         if ($member->profile_image) {
             Storage::disk('public')->delete($member->profile_image);
         }
-
         $member->delete();
 
         return redirect()->route('members.index')->with('success', 'Mitglied gelöscht.');
     }
 
-    // ── Private Helpers ──────────────────────────────────────────────────────
+    // ── Private Helpers ─────────────────────────────────────────────────────
 
     private function validateMember(Request $request, ?int $ignoreId = null): array
     {
@@ -93,7 +103,6 @@ class MemberController extends Controller
             'date_of_birth'    => ['nullable', 'date', 'before:today'],
             'status'           => ['required', 'in:active,inactive'],
             'eligible_to_play' => ['nullable', 'boolean'],
-            'profile_image'    => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:3072'],
         ]);
     }
 
@@ -115,8 +124,7 @@ class MemberController extends Controller
             return $data;
         }
 
-        // Altes Bild löschen
-        if ($member && $member->profile_image) {
+        if ($member?->profile_image) {
             Storage::disk('public')->delete($member->profile_image);
         }
 

@@ -4,103 +4,133 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'ClubKit') – {{ config('app.name') }}</title>
+    <title>@yield('title', 'ClubKit') – {{ $ckSettings['club_name'] ?? config('app.name') }}</title>
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- ══════════════════════════════════════════════════════════════
+         Dynamische CSS-Variablen aus der settings-Tabelle.
+         id="ck-dynamic-css" → wird von appearance-modal.js gelesen
+         und bei AJAX-Speichern aktualisiert (kein el.style.*, kein Reload).
+    ══════════════════════════════════════════════════════════════ --}}
+    @php $s = $ckSettings ?? []; @endphp
+    <style id="ck-dynamic-css">
+    :root {
+        /* Brand-Bar */
+        --ck-brand-bar-bg:          {{ $s['header_bg']           ?? '#0a1628' }};
+        --ck-brand-bar-text:        {{ $s['brand_bar_text']      ?? '#ffffff' }};
+        --ck-brand-bar-hover:       {{ $s['brand_bar_hover']     ?? '#e2e8f0' }};
+        /* Navigationsleiste */
+        --ck-nav-bar-bg:            {{ $s['nav_bar_bg']          ?? '#132238' }};
+        --ck-nav-bar-text:          {{ $s['nav_bar_text']        ?? '#a0aec0' }};
+        --ck-nav-bar-hover:         {{ $s['nav_bar_hover']       ?? '#e2e8f0' }};
+        --ck-nav-bar-active-bar:    {{ $s['nav_bar_active_bar']  ?? '#60a5fa' }};
+        --ck-nav-bar-font-size:     {{ ($s['nav_bar_font_size']  ?? '14') }}px;
+        /* Sub-Tab-Leiste */
+        --ck-subtab-bg:             {{ $s['subtab_bg']           ?? '#ffffff' }};
+        --ck-subtab-text:           {{ $s['subtab_text']         ?? '#64748b' }};
+        --ck-subtab-hover:          {{ $s['subtab_hover']        ?? '#1e293b' }};
+        --ck-subtab-active-bar:     {{ $s['subtab_active_bar']   ?? '#60a5fa' }};
+        --ck-subtab-font-size:      {{ ($s['subtab_font_size']   ?? '14') }}px;
+        /* Allgemein */
+        --ck-bg:                    {{ $s['body_bg']             ?? '#f0f3f8' }};
+    }
+    </style>
 </head>
 <body>
 
 @php
     $moduleLoader = app(\App\Services\ModuleLoader::class);
-    $navItems = collect($moduleLoader->getNavItems())->sortBy('nav_order')->values();
-    $hasSubtabs = request()->routeIs('admin.*');
+    $navItems     = collect($moduleLoader->getNavItems())->sortBy('nav_order')->values();
+    $hasSubtabs   = request()->routeIs('admin.*');
+
+    $showNavEmojis = ($s['nav_bar_show_emojis'] ?? '1') === '1';
+    $showSubEmojis = ($s['subtab_show_emojis']  ?? '1') === '1';
+
+    $noEmoji = function(string $text): string {
+        return trim(preg_replace('/^[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}]\s*/u', '', $text));
+    };
 @endphp
 
 {{-- ══════════════════════════════════════════════════════════════
      HEADER
-     Zeile 1: Brand-Bar (Logo | User + Logout)
-     Zeile 2: Nav-Bar (Dashboard + Module | Einstellungen)
 ══════════════════════════════════════════════════════════════ --}}
 <div class="ck-header">
 
     {{-- Zeile 1: Brand-Bar --}}
     <div class="ck-brand-bar">
-
-        {{-- LINKS: Logo + App-Name --}}
         <a href="{{ route('dashboard') }}" class="ck-header__brand">
-            <div class="ck-header__logo">CK</div>
+            <div class="ck-header__logo">
+                @if(!empty($s['logo_path']))
+                    <img src="{{ asset('storage/' . $s['logo_path']) }}"
+                         alt="{{ $s['club_name'] ?? config('app.name') }}">
+                @else
+                    CK
+                @endif
+            </div>
             <div>
-                <div class="ck-header__app-name">{{ config('app.name') }}</div>
+                <div class="ck-header__app-name">{{ $s['club_name'] ?? config('app.name') }}</div>
                 <div class="ck-header__app-sub">Verwaltungssystem</div>
             </div>
         </a>
-
-        {{-- RECHTS: Username (→ Profil) + Abmelden --}}
         <div class="ck-header__user">
-            @if(Route::has('profile.edit'))
-                <a href="{{ route('profile.edit') }}" class="ck-header__username">
-                    {{ auth()->user()->name }}
-                </a>
-            @else
-                <span class="ck-header__username">{{ auth()->user()->name }}</span>
-            @endif
+            <span class="ck-header__username">{{ auth()->user()->name }}</span>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" class="ck-header__logout">Abmelden</button>
             </form>
         </div>
-
-    </div>{{-- /.ck-brand-bar --}}
+    </div>
 
     {{-- Zeile 2: Nav-Bar --}}
     <div class="ck-nav-bar">
         <div class="ck-nav-bar__inner">
-
-            {{-- LINKS: Dashboard + Modul-Tabs (sortiert nach nav_order) --}}
             <div class="ck-nav-bar__left">
                 <a href="{{ route('dashboard') }}"
                    class="ck-nav-tab {{ request()->routeIs('dashboard') ? 'ck-nav-tab--active' : '' }}">
-                    🏠 Dashboard
+                    {{ $showNavEmojis ? '🏠 ' : '' }}Dashboard
                 </a>
                 @foreach($navItems as $item)
                     @if(auth()->user()->hasRole('admin') || auth()->user()->can($item['permission'] ?? 'view ' . $item['module']))
                         <a href="{{ route($item['route']) }}"
                            class="ck-nav-tab {{ request()->routeIs($item['module'] . '.*') ? 'ck-nav-tab--active' : '' }}">
-                            {{ $item['label'] }}
+                            {{ $showNavEmojis ? $item['label'] : $noEmoji($item['label']) }}
                         </a>
                     @endif
                 @endforeach
             </div>
-
-            {{-- RECHTS: Einstellungen --}}
             <div class="ck-nav-bar__right">
                 @role('admin')
                 <a href="{{ route('admin.system.index') }}"
                    class="ck-nav-tab {{ request()->routeIs('admin.*') ? 'ck-nav-tab--active' : '' }}">
-                    ⚙️ Einstellungen
+                    {{ $showNavEmojis ? '⚙️ ' : '' }}Einstellungen
                 </a>
                 @endrole
             </div>
-
         </div>
-    </div>{{-- /.ck-nav-bar --}}
+    </div>
 
-</div>{{-- /.ck-header --}}
+</div>
 
-{{-- Sub-Tabs (nur unter /admin/*) --}}
+{{-- Sub-Tabs --}}
 @if($hasSubtabs)
 <div class="ck-subtabbar-wrap">
     <nav class="ck-subtabbar">
         <a href="{{ route('admin.system.index') }}"
            class="ck-subtab {{ request()->routeIs('admin.system.*') ? 'ck-subtab--active' : '' }}">
-            🖥️ System
+            {{ $showSubEmojis ? '🖥️ ' : '' }}System
         </a>
         <a href="{{ route('admin.users.index') }}"
            class="ck-subtab {{ request()->routeIs('admin.users.*') ? 'ck-subtab--active' : '' }}">
-            👤 Nutzer
+            {{ $showSubEmojis ? '👤 ' : '' }}Nutzer
         </a>
         <a href="{{ route('admin.modules.index') }}"
            class="ck-subtab {{ request()->routeIs('admin.modules.*') ? 'ck-subtab--active' : '' }}">
-            🧩 Module
+            {{ $showSubEmojis ? '🧩 ' : '' }}Module
+        </a>
+        <a href="{{ route('admin.appearance.index') }}"
+           class="ck-subtab {{ request()->routeIs('admin.appearance.*') ? 'ck-subtab--active' : '' }}">
+            {{ $showSubEmojis ? '🎨 ' : '' }}Erscheinungsbild
         </a>
     </nav>
 </div>
@@ -108,18 +138,19 @@
 
 {{-- Body --}}
 <div class="ck-body {{ $hasSubtabs ? 'ck-body--with-subtabs' : '' }}">
-
     @if(session('success'))
     <div class="ck-flash ck-flash--success" data-flash>✅ {{ session('success') }}</div>
     @endif
     @if(session('error'))
     <div class="ck-flash ck-flash--error" data-flash>⚠️ {{ session('error') }}</div>
     @endif
+    @if(session('warning'))
+    <div class="ck-flash ck-flash--warning" data-flash>🔔 {{ session('warning') }}</div>
+    @endif
 
     <main class="ck-content">
         @yield('content')
     </main>
-
 </div>
 
 @stack('scripts')

@@ -1,10 +1,38 @@
-/* ── Design Tokens ─────────────────────────────── */
+/* ── Design Tokens ──────────────────────────────── */
 :root {
-  --ck-primary:          #0a1628;
-  --ck-primary-hover:    #1a2d4a;
-  --ck-accent:           #60a5fa;
-  --ck-accent-dark:      #1a6fc4;
 
+  /* ══ Dynamisch konfigurierbare Farben ══════════════════════════════════
+     Diese Variablen werden bei Bedarf durch den <style>-Block in layout.blade.php
+     mit Werten aus der settings-Tabelle überschrieben.
+  ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Brand-Bar */
+  --ck-brand-bar-bg:           #0a1628;   /* → settings: header_bg       */
+  --ck-brand-bar-text:         #ffffff;   /* → settings: brand_bar_text  */
+  --ck-brand-bar-hover:        #e2e8f0;   /* → settings: brand_bar_hover */
+
+  /* Navigationsleiste (2. Zeile im Header) */
+  --ck-nav-bar-bg:             #132238;   /* → settings: nav_bar_bg            */
+  --ck-nav-bar-text:           #a0aec0;   /* → settings: nav_bar_text          */
+  --ck-nav-bar-hover:          #e2e8f0;   /* → settings: nav_bar_hover         */
+  --ck-nav-bar-active-bar:     #60a5fa;   /* → settings: nav_bar_active_bar    */
+  --ck-nav-bar-font-size:      14px;      /* → settings: nav_bar_font_size     */
+
+  /* Sub-Tab-Leiste */
+  --ck-subtab-bg:              #ffffff;   /* → settings: subtab_bg             */
+  --ck-subtab-text:            #64748b;   /* → settings: subtab_text           */
+  --ck-subtab-hover:           #1e293b;   /* → settings: subtab_hover          */
+  --ck-subtab-active-bar:      #60a5fa;   /* → settings: subtab_active_bar     */
+  --ck-subtab-font-size:       14px;      /* → settings: subtab_font_size      */
+
+  /* Seitenhintergrund */
+  --ck-bg:                     #f0f3f8;   /* → settings: body_bg               */
+
+  /* Akzentfarbe */
+  --ck-accent:                 #60a5fa;   /* → settings: accent_color          */
+  --ck-accent-dark:            #1a6fc4;
+
+  /* ══ Feste semantische Farben (nicht konfigurierbar) ══════════════════ */
   --ck-danger:           #dc2626;
   --ck-danger-bg:        #fef2f2;
   --ck-danger-border:    #fca5a5;
@@ -24,28 +52,32 @@
   --ck-purple-bg:        #faf5ff;
   --ck-purple-text:      #7e22ce;
 
+  /* Text */
   --ck-text:             #1e293b;
   --ck-text-secondary:   #64748b;
   --ck-text-muted:       #94a3b8;
   --ck-text-white:       #ffffff;
 
-  --ck-bg:               #f0f3f8;
+  /* Flächen */
   --ck-bg-subtle:        #f8fafc;
   --ck-border:           #e2e8f0;
   --ck-border-light:     #f1f5f9;
   --ck-white:            #ffffff;
 
+  /* Radien */
   --ck-radius-sm:        6px;
   --ck-radius:           8px;
   --ck-radius-lg:        12px;
   --ck-radius-xl:        16px;
   --ck-radius-full:      9999px;
 
+  /* Schatten */
   --ck-shadow-sm:        0 1px 3px rgba(0,0,0,0.08);
   --ck-shadow:           0 2px 8px rgba(0,0,0,0.1);
   --ck-shadow-lg:        0 20px 60px rgba(0,0,0,0.3);
   --ck-header-shadow:    0 2px 12px rgba(0,0,0,0.4);
 
+  /* Spacing */
   --ck-space-1:  4px;
   --ck-space-2:  8px;
   --ck-space-3:  12px;
@@ -53,6 +85,7 @@
   --ck-space-5:  20px;
   --ck-space-6:  24px;
 
+  /* Typografie */
   --ck-font:     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --ck-font-xs:  11px;
   --ck-font-sm:  12px;
@@ -61,9 +94,12 @@
   --ck-font-lg:  15px;
   --ck-font-xl:  18px;
   --ck-font-2xl: 22px;
+
+  /* Layout – EINHEITLICHE maximale Breite für Header, Sub-Tabs und Content */
+  --ck-max-width: 1280px;
 }
 
-/* ── Reset ─────────────────────────────────────── */
+/* ── Reset ──────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -74,7 +110,7 @@ body {
   line-height: 1.5;
 }
 
-/* Utility */
+/* ── Utility-Klassen ────────────────────────────── */
 .is-hidden         { display: none !important; }
 .ck-no-scroll      { overflow: hidden; }
 .ck-text-muted     { color: var(--ck-text-muted); font-size: var(--ck-font-md); }
@@ -85,10 +121,13 @@ body {
 .ck-row            { display: flex; align-items: center; gap: var(--ck-space-2); }
 .ck-row--between   { justify-content: space-between; }
 .ck-spacer         { flex: 1; }
-.ck-space-y-4 > * + * { margin-top: var(--ck-space-4); }
+.ck-space-y-4      > * + * { margin-top: var(--ck-space-4); }
+.ck-space-y-5      > * + * { margin-top: var(--ck-space-5); }
+.ck-mt-4           { margin-top: var(--ck-space-4); }
+.ck-mt-5           { margin-top: var(--ck-space-5); }
 
 .ck-section-label {
-  font-size: var(--ck-font-sm);           /* war xs (11px), jetzt sm (12px) */
+  font-size: var(--ck-font-sm);
   font-weight: 700;
   color: var(--ck-text-muted);
   text-transform: uppercase;

@@ -5,13 +5,22 @@
   box-shadow: var(--ck-shadow-sm);
   overflow: hidden;
 }
+
+/* Header: flex mit Abstand – Titel LINKS, Action (z. B. Speichern-Button) RECHTS */
 .ck-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ck-space-4);
   padding: var(--ck-space-4) var(--ck-space-5);
   border-bottom: 1px solid var(--ck-border);
   font-size: var(--ck-font-sm);
   font-weight: 700;
   color: var(--ck-text);
 }
+.ck-card__header-title  { flex: 1; }
+.ck-card__header-action { flex-shrink: 0; display: flex; align-items: center; gap: var(--ck-space-3); }
+
 .ck-card__body   { padding: var(--ck-space-5); }
 .ck-card__footer {
   padding: var(--ck-space-3) var(--ck-space-5);
@@ -33,7 +42,7 @@
   box-shadow: var(--ck-shadow-sm);
 }
 .ck-stat-card__label {
-  font-size: var(--ck-font-sm);           /* war xs (11px), jetzt sm (12px) */
+  font-size: var(--ck-font-sm);
   font-weight: 700;
   color: var(--ck-text-muted);
   text-transform: uppercase;
@@ -42,6 +51,6 @@
 }
 .ck-stat-card__value { font-size: 28px; font-weight: 800; color: var(--ck-text); line-height: 1; }
 .ck-stat-card__sub   { font-size: var(--ck-font-sm); color: var(--ck-text-muted); margin-top: var(--ck-space-1); }
-.ck-stat-card--ok    .ck-stat-card__value { color: var(--ck-success); }
-.ck-stat-card--warn  .ck-stat-card__value { color: var(--ck-warning); }
-.ck-stat-card--danger .ck-stat-card__value{ color: var(--ck-danger); }
+.ck-stat-card--ok     .ck-stat-card__value { color: var(--ck-success); }
+.ck-stat-card--warn   .ck-stat-card__value { color: var(--ck-warning); }
+.ck-stat-card--danger .ck-stat-card__value { color: var(--ck-danger); }

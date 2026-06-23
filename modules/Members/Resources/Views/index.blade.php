@@ -8,14 +8,15 @@
         <h1 class="ck-page-title">Mitglieder</h1>
         <p class="ck-page-subtitle">{{ $members->total() }} Mitglieder gesamt</p>
     </div>
-    <x-ck-button variant="primary" onclick="ckModalOpen('memberModal')">
+    <x-ck-button variant="primary" onclick="membersModalOpen('create')">
         + Mitglied hinzufügen
     </x-ck-button>
 </div>
 
-<form method="GET" class="ck-row" style="margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+{{-- Suchleiste --}}
+<form method="GET" class="ck-row ck-mb-4">
     <input type="text" name="q" value="{{ request('q') }}"
-           placeholder="Name suchen…" class="ck-field__input" style="flex:1; min-width:200px;">
+           placeholder="Nach Name suchen…" class="ck-field__input ck-search-input">
     <x-ck-field name="status" type="select" :value="request('status')" :options="[
         '' => 'Alle Status', 'active' => 'Aktiv', 'inactive' => 'Inaktiv',
     ]" />
@@ -30,11 +31,13 @@
         <thead>
             <tr>
                 <th>Name</th>
-                <th>Geb. / Alter</th>
+                <th>Geburtsdatum / Alter</th>
                 <th>Geschlecht</th>
                 <th>Spielberechtigt</th>
+                {{-- Extension Point: andere Module können hier Spalten hinzufügen --}}
+                @ckHook('member.table.header')
                 <th>Status</th>
-                <th style="text-align:right;">Aktionen</th>
+                <th class="ck-table__actions">Aktionen</th>
             </tr>
         </thead>
         <tbody>
@@ -42,7 +45,6 @@
             <tr>
                 <td>
                     <div class="ck-row">
-                        {{-- Foto oder Avatar --}}
                         @if($member->profile_image)
                             <img src="{{ asset('storage/' . $member->profile_image) }}"
                                  alt="{{ $member->last_name }}"
@@ -52,7 +54,7 @@
                                 {{ strtoupper(substr($member->last_name, 0, 1)) }}
                             </div>
                         @endif
-                        <span style="font-weight:600;">{{ $member->last_name }}, {{ $member->first_name }}</span>
+                        <span class="ck-table__bold">{{ $member->last_name }}, {{ $member->first_name }}</span>
                     </div>
                 </td>
                 <td class="ck-text-muted">
@@ -61,9 +63,9 @@
                 </td>
                 <td class="ck-text-muted">
                     @switch($member->gender)
-                        @case('male')    Männlich @break
-                        @case('female')  Weiblich @break
-                        @case('diverse') Divers   @break
+                        @case('male')    Männlich  @break
+                        @case('female')  Weiblich  @break
+                        @case('diverse') Divers    @break
                         @default –
                     @endswitch
                 </td>
@@ -74,21 +76,23 @@
                         <x-ck-badge color="gray">Nein</x-ck-badge>
                     @endif
                 </td>
+                {{-- Extension Point: $member ist hier im Scope – wird automatisch übergeben --}}
+                @ckHook('member.table.row')
                 <td>
                     <x-ck-badge :color="$member->status === 'active' ? 'green' : 'gray'">
                         {{ $member->status === 'active' ? 'Aktiv' : 'Inaktiv' }}
                     </x-ck-badge>
                 </td>
                 <td>
-                    <div class="ck-row" style="justify-content:flex-end; gap:6px;">
+                    <div class="ck-table__action-cell">
                         <x-ck-button variant="secondary" size="sm"
                             onclick="membersModalOpen('edit', {{ $member->id }})">
                             Bearbeiten
                         </x-ck-button>
-                        <form method="POST" action="{{ route('members.destroy', $member) }}" style="display:inline;">
+                        <form method="POST" action="{{ route('members.destroy', $member) }}" class="ck-inline-form">
                             @csrf @method('DELETE')
                             <x-ck-button variant="danger" size="sm" type="submit"
-                                :confirm="$member->last_name . ', ' . $member->first_name . ' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'">
+                                :confirm="'Mitglied ' . $member->last_name . ', ' . $member->first_name . ' wirklich löschen?'">
                                 Löschen
                             </x-ck-button>
                         </form>
@@ -97,12 +101,9 @@
             </tr>
             @empty
             <tr>
-                <td colspan="6" class="ck-text-muted" style="text-align:center; padding:40px;">
+                <td colspan="99" class="ck-empty-state">
                     Keine Mitglieder gefunden.
-                    <a href="javascript:void(0)" onclick="ckModalOpen('memberModal')"
-                       style="color:var(--ck-accent-dark); text-decoration:none; margin-left:6px;">
-                        Jetzt anlegen
-                    </a>
+                    <a href="javascript:void(0)" onclick="membersModalOpen('create')">Jetzt hinzufügen</a>
                 </td>
             </tr>
             @endforelse
@@ -113,7 +114,11 @@
     @endif
 </div>
 
-{{-- MODAL --}}
+{{-- ════════════════════════════════════════════════════════
+     MODAL: Mitglied erstellen / bearbeiten
+     Das Modal enthält nur die Kern-Tabs (Details, Foto).
+     Weitere Tabs werden über @ckHook von anderen Modulen ergänzt.
+════════════════════════════════════════════════════════ --}}
 <x-ck-modal id="memberModal" title="Mitglied" size="lg">
 
     <x-slot:tabs>
@@ -121,22 +126,25 @@
                 onclick="ckModalTab('memberModal', 'memberTab-stamm', this)">
             👤 Stammdaten
         </button>
-        <button class="ck-modal-tab"
+        {{-- Foto-Tab: wird in create-Modus via JS deaktiviert --}}
+        <button id="memberPhotoTabBtn" class="ck-modal-tab"
                 onclick="ckModalTab('memberModal', 'memberTab-photo', this)">
             📷 Foto
         </button>
+        {{-- Extension Point: Andere Module hängen hier ihre Tabs ein --}}
+        @ckHook('member.modal.tabs')
     </x-slot:tabs>
 
-    {{-- Tab 1: Stammdaten --}}
+    {{-- Tab 1: Stammdaten ───────────────────────────── --}}
     <div id="memberTab-stamm" class="ck-modal__section ck-modal__section--active">
         <form id="memberForm" method="POST" enctype="multipart/form-data">
             @csrf
-            <input type="hidden" name="_method" id="memberFormMethod" value="PATCH">
+            <input type="hidden" name="_method" id="memberFormMethod" value="POST">
 
             <div class="ck-form-grid ck-form-grid--2">
-                <x-ck-field label="Vorname"    name="first_name"    id="mFieldFirstName" :required="true" />
-                <x-ck-field label="Nachname"   name="last_name"     id="mFieldLastName"  :required="true" />
-                <x-ck-field label="Geschlecht" name="gender"        id="mFieldGender"    type="select"
+                <x-ck-field label="Vorname"     name="first_name"    id="mFieldFirstName" :required="true" />
+                <x-ck-field label="Nachname"    name="last_name"     id="mFieldLastName"  :required="true" />
+                <x-ck-field label="Geschlecht"  name="gender"        id="mFieldGender"    type="select"
                     :options="['' => '– nicht angegeben –', 'male' => 'Männlich', 'female' => 'Weiblich', 'diverse' => 'Divers']" />
                 <x-ck-field label="Geburtsdatum" name="date_of_birth" type="date"
                     id="mFieldDob" :max="now()->subDay()->format('Y-m-d')" />
@@ -155,33 +163,26 @@
         </form>
     </div>
 
-    {{-- Tab 2: Foto --}}
+    {{-- Tab 2: Foto ─────────────────────────────────── --}}
     <div id="memberTab-photo" class="ck-modal__section">
+        <div id="memberPhotoCreateHint" class="ck-flash ck-flash--warning is-hidden">
+            Bitte zuerst das Mitglied speichern (Tab Stammdaten), dann ein Foto hochladen.
+        </div>
         <form id="memberPhotoForm" method="POST" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="_method" value="PATCH">
-
-            <div class="ck-row" style="gap:20px; margin-bottom:20px; flex-wrap:wrap;">
-                {{-- Vorschau --}}
-                <div id="photoPreviewWrap">
-                    <div id="photoPreviewPlaceholder"
-                         class="ck-avatar ck-avatar--lg ck-field__file-preview--placeholder"
-                         style="width:72px; height:72px; font-size:28px;">
-                        👤
-                    </div>
+            <div class="ck-row ck-mb-5">
+                <div>
+                    <div id="photoPreviewPlaceholder" class="ck-avatar ck-avatar--lg">👤</div>
                     <img id="photoPreview" src="" alt="Vorschau"
-                         class="ck-avatar ck-field__file-preview is-hidden"
-                         style="width:72px; height:72px;">
+                         class="ck-avatar ck-avatar--lg ck-avatar--photo is-hidden">
                 </div>
-                <div style="flex:1;">
-                    <x-ck-field label="Neues Foto hochladen"
-                        name="profile_image" type="file"
-                        id="mFieldPhoto"
-                        accept="image/jpeg,image/jpg,image/png"
+                <div class="ck-spacer">
+                    <x-ck-field label="Neues Foto hochladen" name="profile_image" type="file"
+                        id="mFieldPhoto" accept="image/jpeg,image/jpg,image/png"
                         hint="JPEG oder PNG, max. 3 MB" />
                 </div>
             </div>
-
             <div class="ck-form-actions">
                 <x-ck-button type="submit" variant="primary">Foto speichern</x-ck-button>
                 <x-ck-button type="button" variant="secondary"
@@ -189,6 +190,10 @@
             </div>
         </form>
     </div>
+
+    {{-- Extension Point: Weitere Sections (Tabs) werden hier eingehängt.
+         Alle View-Variablen ($members, $membersJs etc.) stehen automatisch zur Verfügung. --}}
+    @ckHook('member.modal.sections')
 
 </x-ck-modal>
 
@@ -203,6 +208,8 @@
     };
 </script>
 <script src="{{ asset('js/modules/members-modal.js') }}"></script>
+{{-- Extension Point: Andere Module laden hier ihre JS-Dateien --}}
+@ckHook('member.page.scripts')
 @endpush
 
 @endsection

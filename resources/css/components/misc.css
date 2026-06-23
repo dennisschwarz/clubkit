@@ -1,1 +1,103 @@
-/* Sonstiges: was in keine andere Datei passt */
+/* ── Avatar / Initialen-Kreis ───────────────────── */
+.ck-avatar {
+  width: 36px; height: 36px;
+  border-radius: var(--ck-radius-full);
+  background: var(--ck-accent);
+  color: var(--ck-text-white);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: var(--ck-font-xs);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.ck-avatar img   { width: 100%; height: 100%; object-fit: cover; }
+.ck-avatar--sm   { width: 28px; height: 28px; font-size: 9px; }
+.ck-avatar--lg   { width: 56px; height: 56px; font-size: var(--ck-font-md); }
+
+/* ── Leerer Zustand ─────────────────────────────── */
+.ck-empty-state {
+  text-align: center;
+  padding: var(--ck-space-6) var(--ck-space-5);
+  color: var(--ck-text-muted);
+  font-size: var(--ck-font-md);
+}
+.ck-empty-state a { color: var(--ck-accent-dark); text-decoration: underline; }
+
+/* ── Thumbnail in Tabellenzeile ─────────────────── */
+.ck-table-thumb {
+  width: 32px; height: 32px;
+  border-radius: var(--ck-radius);
+  object-fit: cover;
+  border: 1px solid var(--ck-border);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Einstellungen-Seite: 2-spaltige Zeilen-Layout
+   <div class="ck-settings-section" data-section>
+     <div class="ck-settings-row">
+       <div class="ck-settings-row__label">Name</div>
+       <div class="ck-settings-row__input">…input…</div>
+     </div>
+   </div>
+══════════════════════════════════════════════════════════════════════ */
+.ck-settings-section {
+  display: flex;
+  flex-direction: column;
+}
+.ck-settings-row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0 var(--ck-space-5);
+  align-items: center;
+  padding: var(--ck-space-3) 0;
+  border-bottom: 1px solid var(--ck-border-light);
+}
+.ck-settings-row:last-child { border-bottom: none; }
+.ck-settings-row__label {
+  font-size: var(--ck-font-base);
+  font-weight: 500;
+  color: var(--ck-text);
+}
+.ck-settings-row__hint {
+  font-size: var(--ck-font-xs);
+  color: var(--ck-text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.ck-settings-row__input { display: flex; align-items: center; gap: var(--ck-space-3); }
+
+/* Farb-Inputs */
+.ck-field__input[type="color"] {
+  width: 48px;
+  height: 36px;
+  padding: 2px 3px;
+  border-radius: var(--ck-radius);
+  border: 1px solid var(--ck-border);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Logo-Vorschau */
+.ck-appearance__logo-preview {
+  width: 48px; height: 48px;
+  object-fit: contain;
+  border-radius: var(--ck-radius);
+  border: 1px solid var(--ck-border);
+  background: var(--ck-bg-subtle);
+  padding: var(--ck-space-1);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Speichern-Rückmeldung im Card-Header
+══════════════════════════════════════════════════════════════════════ */
+.ck-save-status {
+  font-size: var(--ck-font-sm);
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.ck-save-status--visible { opacity: 1; }
+.ck-save-status--success { color: var(--ck-success); }
+.ck-save-status--error   { color: var(--ck-danger-text); }
+.ck-save-status--reload  { color: var(--ck-warning); }

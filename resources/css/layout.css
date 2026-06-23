@@ -1,36 +1,36 @@
-/* ── Design: Header 2 Zeilen ────────────────────────────────────────────────
-   Zeile 1 (brand-bar): Logo LINKS  |  User + Logout RECHTS    Höhe: 52px
-   Zeile 2 (nav-bar):   Dashboard + Module LINKS  |  Einstellungen RECHTS  Höhe: 44px
-   Zeile 3 (subtab-bar): nur /admin/*                           Höhe: 38px
-────────────────────────────────────────────────────────────────────────── */
+/* ── Design: Header 2 Zeilen + Sub-Tabs ────────────────────────────────
+   Alle Farben über CSS-Variablen aus base.css – dynamisch überschreibbar
+   durch layout.blade.php <head> <style>-Block (settings aus DB).
+   Alle inner Container: max-width: var(--ck-max-width) – EINHEITLICH.
+───────────────────────────────────────────────────────────────────────── */
 :root {
-  --ck-brand-bar-height:  52px;
-  --ck-nav-bar-height:    44px;
-  --ck-header-height:     calc(var(--ck-brand-bar-height) + var(--ck-nav-bar-height));
-  --ck-subtab-height:     38px;
+  --ck-brand-bar-height: 52px;
+  --ck-nav-bar-height:   44px;
+  --ck-header-height:    calc(var(--ck-brand-bar-height) + var(--ck-nav-bar-height));
+  --ck-subtab-height:    38px;
 }
 
-/* ── Wrapper ─────────────────────────────────────────────────────────────── */
+/* ── Header-Wrapper ──────────────────────────────────────────────────── */
 .ck-header {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 999;
-  background: var(--ck-primary);
+  background: var(--ck-brand-bar-bg);
   box-shadow: var(--ck-header-shadow);
 }
 
-/* ── Zeile 1: Brand-Bar ─────────────────────────────────────────────────── */
+/* ── Zeile 1: Brand-Bar ──────────────────────────────────────────────── */
 .ck-brand-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: var(--ck-brand-bar-height);
   padding: 0 var(--ck-space-5);
-  /*max-width: 1280px;*/
+  max-width: var(--ck-max-width);
   margin: 0 auto;
 }
 
-/* Logo + Name */
+/* Logo + Vereinsname */
 .ck-header__brand {
   display: flex;
   align-items: center;
@@ -38,43 +38,48 @@
   text-decoration: none;
 }
 .ck-header__logo {
-  width: 32px; height: 32px;
+  width: 36px; height: 36px;
   border-radius: var(--ck-radius-full);
   background: var(--ck-white);
   display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 10px;
-  color: var(--ck-primary);
+  font-weight: 900; font-size: 11px;
+  color: var(--ck-brand-bar-bg);   /* Textfarbe = Hintergrundfarbe des Headers (invertiert) */
   flex-shrink: 0;
+  overflow: hidden;
+}
+.ck-header__logo img {
+  width: 100%; height: 100%;
+  object-fit: contain;
 }
 .ck-header__app-name {
   font-size: var(--ck-font-base);
   font-weight: 700;
-  color: var(--ck-text-white);
+  color: var(--ck-brand-bar-text);
   white-space: nowrap;
 }
 .ck-header__app-sub {
   font-size: 10px;
-  color: rgba(255,255,255,0.4);
+  color: color-mix(in srgb, var(--ck-brand-bar-text) 45%, transparent);
   white-space: nowrap;
   line-height: 1.2;
 }
 
-/* User + Logout */
+/* User + Abmelden */
 .ck-header__user {
   display: flex;
   align-items: center;
   gap: var(--ck-space-3);
 }
 .ck-header__username {
-  color: rgba(255,255,255,0.55);
+  color: color-mix(in srgb, var(--ck-brand-bar-text) 55%, transparent);
   font-size: var(--ck-font-sm);
   text-decoration: none;
   white-space: nowrap;
   transition: color 0.15s;
 }
-.ck-header__username:hover { color: rgba(255,255,255,0.9); }
+.ck-header__username:hover { color: var(--ck-brand-bar-hover); }
 .ck-header__logout {
-  color: rgba(255,255,255,0.35);
+  color: color-mix(in srgb, var(--ck-brand-bar-text) 35%, transparent);
   font-size: var(--ck-font-sm);
   background: none; border: none;
   cursor: pointer; padding: 0;
@@ -82,62 +87,61 @@
   white-space: nowrap;
   transition: color 0.15s;
 }
-.ck-header__logout:hover { color: rgba(255,255,255,0.7); }
+.ck-header__logout:hover { color: var(--ck-brand-bar-hover); }
 
-/* ── Zeile 2: Nav-Bar ───────────────────────────────────────────────────── */
+/* ── Zeile 2: Nav-Bar ────────────────────────────────────────────────── */
 .ck-nav-bar {
-  background: rgba(255,255,255,0.06);
-  border-top: 1px solid rgba(255,255,255,0.08);
+  background: var(--ck-nav-bar-bg);
+  border-top: 1px solid color-mix(in srgb, var(--ck-brand-bar-text) 10%, transparent);
 }
 .ck-nav-bar__inner {
   display: flex;
   align-items: stretch;
   justify-content: space-between;
   height: var(--ck-nav-bar-height);
-  max-width: 1280px;
+  max-width: var(--ck-max-width);
   margin: 0 auto;
   padding: 0 var(--ck-space-5);
 }
-
-/* Linke Gruppe: Dashboard + Module */
 .ck-nav-bar__left  { display: flex; align-items: stretch; overflow-x: auto; scrollbar-width: none; }
 .ck-nav-bar__left::-webkit-scrollbar { display: none; }
-
-/* Rechte Gruppe: Einstellungen */
 .ck-nav-bar__right { display: flex; align-items: stretch; flex-shrink: 0; }
 
-/* Einzelner Tab */
 .ck-nav-tab {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
   padding: 0 var(--ck-space-4);
   height: 100%;
-  font-size: var(--ck-font-sm);
+  font-size: var(--ck-nav-bar-font-size);
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
-  color: rgba(255,255,255,0.5);
+  color: var(--ck-nav-bar-text);
   border-bottom: 2px solid transparent;
   transition: color 0.15s;
 }
-.ck-nav-tab:hover   { color: rgba(255,255,255,0.85); }
-.ck-nav-tab--active { color: var(--ck-text-white); border-bottom-color: var(--ck-accent); font-weight: 600; }
+.ck-nav-tab:hover   { color: var(--ck-nav-bar-hover); }
+.ck-nav-tab--active {
+  color: var(--ck-nav-bar-hover);
+  border-bottom-color: var(--ck-nav-bar-active-bar);
+  font-weight: 600;
+}
 
-/* ── Zeile 3: Sub-Tab-Bar ───────────────────────────────────────────────── */
+/* ── Zeile 3: Sub-Tab-Bar ────────────────────────────────────────────── */
 .ck-subtabbar-wrap {
   position: fixed;
   top: var(--ck-header-height);
   left: 0; right: 0;
   z-index: 998;
-  background: var(--ck-white);
+  background: var(--ck-subtab-bg);
   border-bottom: 2px solid var(--ck-border);
 }
 .ck-subtabbar {
   display: flex;
   overflow-x: auto;
   scrollbar-width: none;
-  max-width: 1280px;
+  max-width: var(--ck-max-width);
   margin: 0 auto;
   padding: 0 var(--ck-space-5);
 }
@@ -146,29 +150,30 @@
 .ck-subtab {
   flex-shrink: 0;
   padding: var(--ck-space-2) var(--ck-space-4);
-  font-size: var(--ck-font-sm);
+  font-size: var(--ck-subtab-font-size);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
-  color: var(--ck-text-secondary);
+  color: var(--ck-subtab-text);
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
   transition: color 0.15s;
 }
-.ck-subtab:hover   { color: var(--ck-text); }
-.ck-subtab--active { color: var(--ck-primary); border-bottom-color: var(--ck-primary); }
+.ck-subtab:hover   { color: var(--ck-subtab-hover); }
+.ck-subtab--active { color: var(--ck-subtab-hover); border-bottom-color: var(--ck-subtab-active-bar); }
 
-/* ── Body-Abstand ───────────────────────────────────────────────────────── */
-.ck-body              { padding-top: var(--ck-header-height); min-height: 100vh; }
-.ck-body--with-subtabs{ padding-top: calc(var(--ck-header-height) + var(--ck-subtab-height)); }
+/* ── Body-Abstand (Header + optionale Sub-Tabs kompensieren) ──────────── */
+.ck-body               { padding-top: var(--ck-header-height); min-height: 100vh; }
+.ck-body--with-subtabs { padding-top: calc(var(--ck-header-height) + var(--ck-subtab-height)); }
 
+/* Content-Bereich: gleiche max-width wie alle anderen Container */
 .ck-content {
-  max-width: 1040px;
+  max-width: var(--ck-max-width);
   margin: 0 auto;
   padding: var(--ck-space-6) var(--ck-space-5) 60px;
 }
 
-/* ── Flash Messages ─────────────────────────────────────────────────────── */
+/* ── Flash Messages ──────────────────────────────────────────────────── */
 .ck-flash {
   padding: var(--ck-space-2) var(--ck-space-5);
   font-size: var(--ck-font-sm);
@@ -181,7 +186,7 @@
 .ck-flash--warning { background: var(--ck-warning-bg); border-color: var(--ck-warning-border); color: var(--ck-warning-text); }
 .ck-flash--hiding  { opacity: 0; }
 
-/* ── Page Header ────────────────────────────────────────────────────────── */
+/* ── Page Header ─────────────────────────────────────────────────────── */
 .ck-page-header {
   display: flex;
   align-items: flex-start;
