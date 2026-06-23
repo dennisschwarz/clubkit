@@ -1,0 +1,98 @@
+/* ── Design Tokens ─────────────────────────────── */
+:root {
+  --ck-primary:          #0a1628;
+  --ck-primary-hover:    #1a2d4a;
+  --ck-accent:           #60a5fa;
+  --ck-accent-dark:      #1a6fc4;
+
+  --ck-danger:           #dc2626;
+  --ck-danger-bg:        #fef2f2;
+  --ck-danger-border:    #fca5a5;
+  --ck-danger-text:      #991b1b;
+
+  --ck-success:          #16a34a;
+  --ck-success-bg:       #f0fdf4;
+  --ck-success-border:   #86efac;
+  --ck-success-text:     #166534;
+
+  --ck-warning:          #d97706;
+  --ck-warning-bg:       #fef9c3;
+  --ck-warning-border:   #fde047;
+  --ck-warning-text:     #854d0e;
+
+  --ck-purple:           #7c3aed;
+  --ck-purple-bg:        #faf5ff;
+  --ck-purple-text:      #7e22ce;
+
+  --ck-text:             #1e293b;
+  --ck-text-secondary:   #64748b;
+  --ck-text-muted:       #94a3b8;
+  --ck-text-white:       #ffffff;
+
+  --ck-bg:               #f0f3f8;
+  --ck-bg-subtle:        #f8fafc;
+  --ck-border:           #e2e8f0;
+  --ck-border-light:     #f1f5f9;
+  --ck-white:            #ffffff;
+
+  --ck-radius-sm:        6px;
+  --ck-radius:           8px;
+  --ck-radius-lg:        12px;
+  --ck-radius-xl:        16px;
+  --ck-radius-full:      9999px;
+
+  --ck-shadow-sm:        0 1px 3px rgba(0,0,0,0.08);
+  --ck-shadow:           0 2px 8px rgba(0,0,0,0.1);
+  --ck-shadow-lg:        0 20px 60px rgba(0,0,0,0.3);
+  --ck-header-shadow:    0 2px 12px rgba(0,0,0,0.4);
+
+  --ck-space-1:  4px;
+  --ck-space-2:  8px;
+  --ck-space-3:  12px;
+  --ck-space-4:  16px;
+  --ck-space-5:  20px;
+  --ck-space-6:  24px;
+
+  --ck-font:     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ck-font-xs:  11px;
+  --ck-font-sm:  12px;
+  --ck-font-md:  13px;
+  --ck-font-base: 14px;
+  --ck-font-lg:  15px;
+  --ck-font-xl:  18px;
+  --ck-font-2xl: 22px;
+
+  --ck-header-height:  60px;
+  --ck-subtab-height:  38px;
+}
+
+/* ── Reset ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--ck-font);
+  background: var(--ck-bg);
+  color: var(--ck-text);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* Utility */
+.is-hidden        { display: none !important; }
+.ck-no-scroll     { overflow: hidden; }
+.ck-text-muted    { color: var(--ck-text-muted); font-size: var(--ck-font-md); }
+.ck-text-secondary{ color: var(--ck-text-secondary); }
+.ck-text-danger   { color: var(--ck-danger-text); }
+.ck-text-success  { color: var(--ck-success-text); }
+.ck-divider       { border: none; border-top: 1px solid var(--ck-border); margin: var(--ck-space-5) 0; }
+.ck-row           { display: flex; align-items: center; gap: var(--ck-space-2); }
+.ck-row--between  { justify-content: space-between; }
+.ck-spacer        { flex: 1; }
+.ck-space-y-4 > * + * { margin-top: var(--ck-space-4); }
+.ck-section-label {
+  font-size: var(--ck-font-xs);
+  font-weight: 700;
+  color: var(--ck-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}

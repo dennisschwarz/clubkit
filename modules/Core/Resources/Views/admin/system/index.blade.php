@@ -8,44 +8,52 @@
         <h1 class="ck-page-title">System-Überblick</h1>
         <p class="ck-page-subtitle">Status und Konfiguration dieser ClubKit-Installation.</p>
     </div>
+    @if(!$migrationsStatus['ok'])
     <form method="POST" action="{{ route('admin.system.migrate') }}">
         @csrf
-        <x-ck-button type="submit" variant="primary">Migrationen ausführen</x-ck-button>
+        <x-ck-button type="submit" variant="primary">
+            {{ $migrationsStatus['pending'] }} Migration(en) ausführen
+        </x-ck-button>
     </form>
+    @endif
 </div>
 
 {{-- Stat-Kacheln --}}
-<div class="ck-stat-grid" style="margin-bottom: var(--ck-space-6);">
+<div class="ck-stat-grid" style="margin-bottom:var(--ck-space-6);">
 
     <div class="ck-stat-card">
         <div class="ck-stat-card__label">ClubKit</div>
-        <div class="ck-stat-card__value" style="font-size:20px;">{{ $info['app_version'] ?? '–' }}</div>
+        <div class="ck-stat-card__value" style="font-size:20px;">
+            {{ $installed->first()?->version ?? '–' }}
+        </div>
         <div class="ck-stat-card__sub">
-            Installiert: {{ $info['installed_at'] ?? '–' }}
+            Installiert: {{ $installedAt ?? '–' }}
         </div>
     </div>
 
     <div class="ck-stat-card">
         <div class="ck-stat-card__label">Laravel</div>
-        <div class="ck-stat-card__value" style="font-size:20px;">{{ $info['laravel_version'] ?? '–' }}</div>
+        <div class="ck-stat-card__value" style="font-size:20px;">{{ $laravelVersion }}</div>
         <div class="ck-stat-card__sub">
-            Umgebung: {{ $info['env'] ?? '–' }}
-            @if($info['debug'] ?? false)
-                <x-ck-badge color="amber" style="margin-left:4px;">DEBUG AN</x-ck-badge>
+            Umgebung: {{ config('app.env') }}
+            @if(config('app.debug'))
+                <x-ck-badge color="amber">DEBUG AN</x-ck-badge>
             @endif
         </div>
     </div>
 
     <div class="ck-stat-card">
         <div class="ck-stat-card__label">PHP</div>
-        <div class="ck-stat-card__value" style="font-size:20px;">{{ $info['php_version'] ?? '–' }}</div>
-        <div class="ck-stat-card__sub">SAPI: {{ $info['php_sapi'] ?? '–' }}</div>
+        <div class="ck-stat-card__value" style="font-size:20px;">{{ $phpVersion }}</div>
+        <div class="ck-stat-card__sub">SAPI: {{ PHP_SAPI }}</div>
     </div>
 
-    <div class="ck-stat-card {{ ($info['db_status'] ?? '') === 'Aktuell' ? 'ck-stat-card--ok' : 'ck-stat-card--danger' }}">
+    <div class="ck-stat-card {{ $migrationsStatus['ok'] ? 'ck-stat-card--ok' : 'ck-stat-card--warn' }}">
         <div class="ck-stat-card__label">Datenbank</div>
-        <div class="ck-stat-card__value" style="font-size:20px;">{{ $info['db_status'] ?? '–' }}</div>
-        <div class="ck-stat-card__sub">{{ $info['db_name'] ?? '–' }}</div>
+        <div class="ck-stat-card__value" style="font-size:20px;">
+            {{ $migrationsStatus['ok'] ? 'Aktuell' : $migrationsStatus['pending'] . ' ausstehend' }}
+        </div>
+        <div class="ck-stat-card__sub">{{ $dbName }}</div>
     </div>
 
 </div>
@@ -55,49 +63,53 @@
 
     <x-ck-card>
         <x-slot:header>🔧 Konfiguration</x-slot:header>
-        <table class="ck-table" style="margin:-1px;">
+        <table class="ck-table">
             <tbody>
                 <tr>
                     <td class="ck-text-muted" style="width:40%;">App-URL</td>
                     <td>
-                        <a href="{{ $info['app_url'] ?? '#' }}" target="_blank"
+                        <a href="{{ $appUrl }}" target="_blank"
                            style="color:var(--ck-accent-dark); text-decoration:none;">
-                            {{ $info['app_url'] ?? '–' }}
+                            {{ $appUrl }}
                         </a>
                     </td>
                 </tr>
                 <tr>
                     <td class="ck-text-muted">Umgebung</td>
-                    <td>{{ $info['env'] ?? '–' }}</td>
+                    <td>{{ config('app.env') }}</td>
                 </tr>
                 <tr>
-                    <td class="ck-text-muted">Debug-Modus</td>
+                    <td class="ck-text-muted">Debug</td>
                     <td>
-                        @if($info['debug'] ?? false)
-                            <x-ck-badge color="amber">Aktiv</x-ck-badge>
+                        @if(config('app.debug'))
+                            <x-ck-badge color="amber">Aktiv – in Produktion deaktivieren!</x-ck-badge>
                         @else
                             <x-ck-badge color="green">Inaktiv</x-ck-badge>
                         @endif
                     </td>
                 </tr>
                 <tr>
-                    <td class="ck-text-muted">Cache</td>
-                    <td>{{ $info['cache_driver'] ?? '–' }}</td>
+                    <td class="ck-text-muted">Cache-Treiber</td>
+                    <td>{{ config('cache.default') }}</td>
                 </tr>
                 <tr>
-                    <td class="ck-text-muted">Session</td>
-                    <td>{{ $info['session_driver'] ?? '–' }}</td>
+                    <td class="ck-text-muted">Session-Treiber</td>
+                    <td>{{ config('session.driver') }}</td>
+                </tr>
+                <tr>
+                    <td class="ck-text-muted">Datenbank</td>
+                    <td>{{ $dbName }}</td>
                 </tr>
             </tbody>
         </table>
     </x-ck-card>
 
     <x-ck-card>
-        <x-slot:header>🧩 Installierte Module</x-slot:header>
-        @if(empty($installedModules))
+        <x-slot:header>🧩 Installierte Module ({{ $installed->count() }})</x-slot:header>
+        @if($installed->isEmpty())
         <p class="ck-text-muted">Keine Module installiert.</p>
         @else
-        <table class="ck-table" style="margin:-1px;">
+        <table class="ck-table">
             <thead>
                 <tr>
                     <th>Modul</th>
@@ -106,7 +118,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($installedModules as $module)
+                @foreach($installed as $module)
                 <tr>
                     <td style="font-weight:600;">{{ $module->name }}</td>
                     <td class="ck-text-muted">{{ $module->version }}</td>

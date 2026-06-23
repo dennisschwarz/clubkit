@@ -1,0 +1,73 @@
+.ck-field { display: flex; flex-direction: column; gap: var(--ck-space-1); }
+
+.ck-field__label {
+  font-size: var(--ck-font-xs);
+  font-weight: 700;
+  color: var(--ck-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ck-field__required { color: var(--ck-danger); margin-left: 2px; }
+.ck-field__hint     { font-weight: 400; color: var(--ck-text-muted); text-transform: none; margin-left: var(--ck-space-2); }
+
+.ck-field__input {
+  width: 100%;
+  border: 1px solid var(--ck-border);
+  border-radius: var(--ck-radius);
+  padding: 10px 14px;
+  font-size: var(--ck-font-base);
+  font-family: var(--ck-font);
+  color: var(--ck-text);
+  background: var(--ck-white);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+}
+.ck-field__input:focus {
+  outline: none;
+  border-color: var(--ck-accent-dark);
+  box-shadow: 0 0 0 3px rgba(26,111,196,0.1);
+}
+.ck-field--error .ck-field__input { border-color: var(--ck-danger); }
+.ck-field__error { font-size: var(--ck-font-xs); color: var(--ck-danger); margin-top: 2px; }
+
+.ck-field__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 14px;
+  background: var(--ck-bg-subtle);
+  border: 1px solid var(--ck-border);
+  border-radius: var(--ck-radius);
+  font-size: var(--ck-font-base);
+  font-weight: 600;
+  color: var(--ck-text);
+}
+.ck-field__checkbox input[type="checkbox"] {
+  width: 18px; height: 18px;
+  accent-color: var(--ck-success);
+  cursor: pointer; flex-shrink: 0;
+}
+
+/* Grid-Layouts */
+.ck-form-grid    { display: grid; gap: var(--ck-space-4); }
+.ck-form-grid--2 { grid-template-columns: 1fr 1fr; }
+.ck-form-grid--3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 640px) {
+  .ck-form-grid--2, .ck-form-grid--3 { grid-template-columns: 1fr; }
+}
+.ck-form-actions { display: flex; gap: var(--ck-space-2); margin-top: var(--ck-space-6); }
+
+/* Bild-Upload */
+.ck-field__file-preview {
+  width: 72px; height: 72px;
+  border-radius: var(--ck-radius-full);
+  object-fit: cover;
+  border: 2px solid var(--ck-border);
+}
+.ck-field__file-preview--placeholder {
+  background: var(--ck-bg-subtle);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ck-text-muted);
+  font-size: 24px;
+}

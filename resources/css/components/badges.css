@@ -1,0 +1,15 @@
+.ck-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--ck-font-xs);
+  font-weight: 700;
+  padding: 2px var(--ck-space-2);
+  border-radius: var(--ck-radius-sm);
+  white-space: nowrap;
+}
+.ck-badge--green  { background: #dcfce7; color: var(--ck-success-text); }
+.ck-badge--blue   { background: #dbeafe; color: #1d4ed8; }
+.ck-badge--gray   { background: var(--ck-bg-subtle); color: var(--ck-text-secondary); border: 1px solid var(--ck-border); }
+.ck-badge--purple { background: #f3e8ff; color: var(--ck-purple-text); }
+.ck-badge--red    { background: var(--ck-danger-bg); color: var(--ck-danger-text); }
+.ck-badge--amber  { background: var(--ck-warning-bg); color: var(--ck-warning-text); }

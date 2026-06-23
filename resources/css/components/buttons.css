@@ -1,0 +1,44 @@
+.ck-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ck-space-2);
+  border: none;
+  border-radius: var(--ck-radius);
+  font-family: var(--ck-font);
+  font-size: var(--ck-font-base);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s, opacity 0.15s;
+  padding: 10px 20px;
+  line-height: 1;
+}
+.ck-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ck-btn--primary   { background: var(--ck-primary);    color: var(--ck-text-white); }
+.ck-btn--primary:not(:disabled):hover { background: var(--ck-primary-hover); }
+
+.ck-btn--secondary {
+  background: var(--ck-bg-subtle);
+  color: var(--ck-text-secondary);
+  border: 1px solid var(--ck-border);
+}
+.ck-btn--secondary:not(:disabled):hover { background: var(--ck-border-light); }
+
+.ck-btn--danger {
+  background: var(--ck-danger-bg);
+  color: var(--ck-danger-text);
+  border: 1px solid var(--ck-danger-border);
+}
+.ck-btn--danger:not(:disabled):hover { background: #fee2e2; }
+
+.ck-btn--success {
+  background: var(--ck-success-bg);
+  color: var(--ck-success-text);
+  border: 1px solid var(--ck-success-border);
+}
+
+.ck-btn--sm   { font-size: var(--ck-font-sm); padding: 6px 12px; }
+.ck-btn--lg   { font-size: var(--ck-font-lg); padding: 12px 24px; }
+.ck-btn--icon { padding: 8px; }

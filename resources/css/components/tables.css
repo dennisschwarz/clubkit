@@ -1,0 +1,48 @@
+.ck-table-wrap {
+  background: var(--ck-white);
+  border: 1px solid var(--ck-border);
+  border-radius: var(--ck-radius-lg);
+  overflow: hidden;
+}
+.ck-table { width: 100%; border-collapse: collapse; }
+.ck-table thead { background: var(--ck-bg-subtle); border-bottom: 1px solid var(--ck-border); }
+.ck-table th {
+  text-align: left;
+  padding: 12px var(--ck-space-4);
+  font-size: var(--ck-font-xs);
+  font-weight: 700;
+  color: var(--ck-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.ck-table td {
+  padding: 14px var(--ck-space-4);
+  font-size: var(--ck-font-base);
+  color: var(--ck-text);
+  border-bottom: 1px solid var(--ck-border-light);
+}
+.ck-table tbody tr:last-child td { border-bottom: none; }
+.ck-table tbody tr:hover         { background: var(--ck-bg-subtle); }
+.ck-table__pagination {
+  padding: 12px var(--ck-space-4);
+  border-top: 1px solid var(--ck-border-light);
+}
+
+/* Avatar in Tabellen */
+.ck-avatar {
+  border-radius: var(--ck-radius-full);
+  background: var(--ck-primary);
+  color: var(--ck-text-white);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ck-avatar--sm { width: 32px; height: 32px; font-size: var(--ck-font-sm); }
+.ck-avatar--md { width: 36px; height: 36px; font-size: var(--ck-font-md); }
+.ck-avatar--lg { width: 48px; height: 48px; font-size: var(--ck-font-base); }
+
+/* Mitglieder-Foto */
+.ck-avatar--photo {
+  object-fit: cover;
+  border: 2px solid var(--ck-border);
+}
