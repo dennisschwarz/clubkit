@@ -44,7 +44,11 @@ class ModuleController extends Controller
         }
 
         try {
-            Artisan::call('migrate', ['--force' => true]);
+            // Migrations direkt aus dem Modulpfad ausführen – ServiceProvider muss nicht registriert sein
+            Artisan::call('migrate', [
+                '--path'  => 'modules/' . $this->slugToFolder($slug) . '/Database/Migrations',
+                '--force' => true,
+            ]);
 
             DB::table('installed_modules')->insert([
                 'slug'         => $slug,
@@ -57,6 +61,7 @@ class ModuleController extends Controller
             ]);
 
             Artisan::call('optimize:clear');
+
         } catch (\Throwable $e) {
             return back()->with('error', 'Fehler bei Installation: ' . $e->getMessage());
         }
@@ -103,8 +108,9 @@ class ModuleController extends Controller
         }
 
         // Abhängige aktive Module prüfen
-        $available  = $this->moduleLoader->detectAvailable();
-        $dependents = [];
+        $available   = $this->moduleLoader->detectAvailable();
+        $dependents  = [];
+
         foreach ($available as $s => $cfg) {
             if ($s === $slug) continue;
             if (in_array($slug, $cfg['requires'] ?? [], true)) {
@@ -116,24 +122,24 @@ class ModuleController extends Controller
 
         if (!empty($dependents)) {
             return back()->with('error',
-                "Kann nicht entfernt werden. Folgende Module sind abhängig: " . implode(', ', $dependents)
+                'Kann nicht entfernt werden. Folgende Module sind abhängig: ' . implode(', ', $dependents)
             );
         }
 
         try {
-            // 1. Tabellen direkt droppen (aus module.json "tables"-Array)
+            // 1. Tabellen direkt droppen (Reihenfolge umkehren wegen FKs)
             $tables = $available[$slug]['tables'] ?? [];
             foreach (array_reverse($tables) as $table) {
                 Schema::dropIfExists($table);
             }
 
             // 2. Migrations-Einträge aus der migrations-Tabelle entfernen
-            $migrationPath = base_path("modules/" . $this->slugToFolder($slug) . "/Database/Migrations");
+            $migrationPath = base_path('modules/' . $this->slugToFolder($slug) . '/Database/Migrations');
             if (File::isDirectory($migrationPath)) {
-                $files = File::files($migrationPath);
-                foreach ($files as $file) {
-                    $migrationName = $file->getFilenameWithoutExtension();
-                    DB::table('migrations')->where('migration', $migrationName)->delete();
+                foreach (File::files($migrationPath) as $file) {
+                    DB::table('migrations')
+                        ->where('migration', $file->getFilenameWithoutExtension())
+                        ->delete();
                 }
             }
 

@@ -9,7 +9,7 @@
 .ck-table th {
   text-align: left;
   padding: 12px var(--ck-space-4);
-  font-size: var(--ck-font-xs);
+  font-size: var(--ck-font-sm);           /* war xs (11px), jetzt sm (12px) */
   font-weight: 700;
   color: var(--ck-text-muted);
   text-transform: uppercase;
@@ -28,7 +28,7 @@
   border-top: 1px solid var(--ck-border-light);
 }
 
-/* Avatar in Tabellen */
+/* Avatar */
 .ck-avatar {
   border-radius: var(--ck-radius-full);
   background: var(--ck-primary);
@@ -38,11 +38,6 @@
   flex-shrink: 0;
 }
 .ck-avatar--sm { width: 32px; height: 32px; font-size: var(--ck-font-sm); }
-.ck-avatar--md { width: 36px; height: 36px; font-size: var(--ck-font-md); }
+.ck-avatar--md { width: 36px; height: 36px; font-size: var(--ck-font-sm); }
 .ck-avatar--lg { width: 48px; height: 48px; font-size: var(--ck-font-base); }
-
-/* Mitglieder-Foto */
-.ck-avatar--photo {
-  object-fit: cover;
-  border: 2px solid var(--ck-border);
-}
+.ck-avatar--photo { object-fit: cover; border: 2px solid var(--ck-border); }

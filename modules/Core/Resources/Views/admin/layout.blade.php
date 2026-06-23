@@ -9,55 +9,85 @@
 </head>
 <body>
 
-{{-- ══ HEADER: 1 Zeile (Logo | Nav | User) ══ --}}
-<div class="ck-header">
-    <div class="ck-header__row">
+@php
+    $moduleLoader = app(\App\Services\ModuleLoader::class);
+    $navItems = collect($moduleLoader->getNavItems())->sortBy('nav_order')->values();
+    $hasSubtabs = request()->routeIs('admin.*');
+@endphp
 
-        {{-- LINKS: Logo + Name --}}
-        <div class="ck-header__brand">
+{{-- ══════════════════════════════════════════════════════════════
+     HEADER
+     Zeile 1: Brand-Bar (Logo | User + Logout)
+     Zeile 2: Nav-Bar (Dashboard + Module | Einstellungen)
+══════════════════════════════════════════════════════════════ --}}
+<div class="ck-header">
+
+    {{-- Zeile 1: Brand-Bar --}}
+    <div class="ck-brand-bar">
+
+        {{-- LINKS: Logo + App-Name --}}
+        <a href="{{ route('dashboard') }}" class="ck-header__brand">
             <div class="ck-header__logo">CK</div>
             <div>
                 <div class="ck-header__app-name">{{ config('app.name') }}</div>
                 <div class="ck-header__app-sub">Verwaltungssystem</div>
             </div>
-        </div>
+        </a>
 
-        {{-- MITTE: Tabs --}}
-        <nav class="ck-header__nav">
-            <a href="{{ route('dashboard') }}"
-               class="ck-nav-tab {{ request()->routeIs('dashboard') ? 'ck-nav-tab--active' : '' }}">
-                🏠 Dashboard
-            </a>
-            @foreach(app(\App\Services\ModuleLoader::class)->getNavItems() as $item)
-                @if(auth()->user()->hasRole('admin') || auth()->user()->can($item['permission'] ?? 'view ' . $item['module']))
-                    <a href="{{ route($item['route']) }}"
-                       class="ck-nav-tab {{ request()->routeIs($item['module'] . '.*') ? 'ck-nav-tab--active' : '' }}">
-                        {{ $item['label'] }}
-                    </a>
-                @endif
-            @endforeach
-            @role('admin')
-            <a href="{{ route('admin.system.index') }}"
-               class="ck-nav-tab {{ request()->routeIs('admin.*') ? 'ck-nav-tab--active' : '' }}">
-                ⚙️ Einstellungen
-            </a>
-            @endrole
-        </nav>
-
-        {{-- RECHTS: User --}}
+        {{-- RECHTS: Username (→ Profil) + Abmelden --}}
         <div class="ck-header__user">
-            <span class="ck-header__username">{{ auth()->user()->name }}</span>
+            @if(Route::has('profile.edit'))
+                <a href="{{ route('profile.edit') }}" class="ck-header__username">
+                    {{ auth()->user()->name }}
+                </a>
+            @else
+                <span class="ck-header__username">{{ auth()->user()->name }}</span>
+            @endif
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" class="ck-header__logout">Abmelden</button>
             </form>
         </div>
 
-    </div>
-</div>
+    </div>{{-- /.ck-brand-bar --}}
 
-{{-- Sub-Tabs (nur Einstellungen) --}}
-@if(request()->routeIs('admin.*'))
+    {{-- Zeile 2: Nav-Bar --}}
+    <div class="ck-nav-bar">
+        <div class="ck-nav-bar__inner">
+
+            {{-- LINKS: Dashboard + Modul-Tabs (sortiert nach nav_order) --}}
+            <div class="ck-nav-bar__left">
+                <a href="{{ route('dashboard') }}"
+                   class="ck-nav-tab {{ request()->routeIs('dashboard') ? 'ck-nav-tab--active' : '' }}">
+                    🏠 Dashboard
+                </a>
+                @foreach($navItems as $item)
+                    @if(auth()->user()->hasRole('admin') || auth()->user()->can($item['permission'] ?? 'view ' . $item['module']))
+                        <a href="{{ route($item['route']) }}"
+                           class="ck-nav-tab {{ request()->routeIs($item['module'] . '.*') ? 'ck-nav-tab--active' : '' }}">
+                            {{ $item['label'] }}
+                        </a>
+                    @endif
+                @endforeach
+            </div>
+
+            {{-- RECHTS: Einstellungen --}}
+            <div class="ck-nav-bar__right">
+                @role('admin')
+                <a href="{{ route('admin.system.index') }}"
+                   class="ck-nav-tab {{ request()->routeIs('admin.*') ? 'ck-nav-tab--active' : '' }}">
+                    ⚙️ Einstellungen
+                </a>
+                @endrole
+            </div>
+
+        </div>
+    </div>{{-- /.ck-nav-bar --}}
+
+</div>{{-- /.ck-header --}}
+
+{{-- Sub-Tabs (nur unter /admin/*) --}}
+@if($hasSubtabs)
 <div class="ck-subtabbar-wrap">
     <nav class="ck-subtabbar">
         <a href="{{ route('admin.system.index') }}"
@@ -77,7 +107,7 @@
 @endif
 
 {{-- Body --}}
-<div class="ck-body {{ request()->routeIs('admin.*') ? 'ck-body--with-subtabs' : '' }}">
+<div class="ck-body {{ $hasSubtabs ? 'ck-body--with-subtabs' : '' }}">
 
     @if(session('success'))
     <div class="ck-flash ck-flash--success" data-flash>✅ {{ session('success') }}</div>

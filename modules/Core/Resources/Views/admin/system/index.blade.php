@@ -24,7 +24,7 @@
     <div class="ck-stat-card">
         <div class="ck-stat-card__label">ClubKit</div>
         <div class="ck-stat-card__value" style="font-size:20px;">
-            {{ $installed->first()?->version ?? '–' }}
+            {{ $installed[0]->version ?? '–' }}
         </div>
         <div class="ck-stat-card__sub">
             Installiert: {{ $installedAt ?? '–' }}
@@ -105,8 +105,8 @@
     </x-ck-card>
 
     <x-ck-card>
-        <x-slot:header>🧩 Installierte Module ({{ $installed->count() }})</x-slot:header>
-        @if($installed->isEmpty())
+        <x-slot:header>🧩 Installierte Module ({{ count($installed) }})</x-slot:header>
+        @if(empty($installed))
         <p class="ck-text-muted">Keine Module installiert.</p>
         @else
         <table class="ck-table">

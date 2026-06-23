@@ -5,6 +5,7 @@ namespace Modules\Members\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Modules\Members\Models\Member;
 
@@ -14,30 +15,33 @@ class MemberController extends Controller
     {
         $query = Member::query();
 
-        if ($search = $request->input('q')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%$search%")
-                  ->orWhere('last_name',  'like', "%$search%");
+        if ($request->filled('q')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('first_name', 'like', '%' . $request->q . '%')
+                  ->orWhere('last_name',  'like', '%' . $request->q . '%');
             });
         }
 
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
         }
 
-        $members = $query->orderBy('last_name')->orderBy('first_name')->paginate(25)->withQueryString();
+        $members = $query->orderBy('last_name')->paginate(25)->withQueryString();
 
-        // JS-Daten sauber im Controller aufbereiten
+        // JS-Daten: foreach, keine Closures
         $membersJs = [];
         foreach ($members as $m) {
             $membersJs[$m->id] = [
                 'id'               => $m->id,
                 'first_name'       => $m->first_name,
                 'last_name'        => $m->last_name,
-                'gender'           => $m->gender ?? '',
-                'date_of_birth'    => $m->date_of_birth?->format('Y-m-d') ?? '',
+                'gender'           => $m->gender,
+                'date_of_birth'    => $m->date_of_birth?->format('Y-m-d'),
                 'status'           => $m->status,
                 'eligible_to_play' => (bool) $m->eligible_to_play,
+                'profile_image'    => $m->profile_image
+                    ? asset('storage/' . $m->profile_image)
+                    : null,
             ];
         }
 
@@ -46,43 +50,79 @@ class MemberController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'first_name'       => ['required', 'string', 'max:100'],
-            'last_name'        => ['required', 'string', 'max:100'],
-            'gender'           => ['nullable', 'in:male,female,diverse'],
-            'date_of_birth'    => ['nullable', 'date', 'before:today'],
-            'eligible_to_play' => ['boolean'],
-        ]);
+        $validated = $this->validateMember($request);
+        $data      = $this->prepareData($validated);
+        $data      = $this->handleImageUpload($request, $data);
 
-        $validated['eligible_to_play'] = $request->boolean('eligible_to_play');
-        $validated['status']           = 'active';
-
-        Member::create($validated);
+        Member::create($data);
 
         return redirect()->route('members.index')->with('success', 'Mitglied angelegt.');
     }
 
     public function update(Request $request, Member $member): RedirectResponse
     {
-        $validated = $request->validate([
-            'first_name'       => ['required', 'string', 'max:100'],
-            'last_name'        => ['required', 'string', 'max:100'],
-            'gender'           => ['nullable', 'in:male,female,diverse'],
-            'date_of_birth'    => ['nullable', 'date', 'before:today'],
-            'eligible_to_play' => ['boolean'],
-            'status'           => ['required', 'in:active,inactive'],
-        ]);
+        $validated = $this->validateMember($request, $member->id);
+        $data      = $this->prepareData($validated);
+        $data      = $this->handleImageUpload($request, $data, $member);
 
-        $validated['eligible_to_play'] = $request->boolean('eligible_to_play');
-        $member->update($validated);
+        $member->update($data);
 
         return redirect()->route('members.index')->with('success', 'Mitglied aktualisiert.');
     }
 
     public function destroy(Member $member): RedirectResponse
     {
+        // Profilbild vom Server löschen
+        if ($member->profile_image) {
+            Storage::disk('public')->delete($member->profile_image);
+        }
+
         $member->delete();
 
         return redirect()->route('members.index')->with('success', 'Mitglied gelöscht.');
+    }
+
+    // ── Private Helpers ──────────────────────────────────────────────────────
+
+    private function validateMember(Request $request, ?int $ignoreId = null): array
+    {
+        return $request->validate([
+            'first_name'       => ['required', 'string', 'max:100'],
+            'last_name'        => ['required', 'string', 'max:100'],
+            'gender'           => ['nullable', 'in:male,female,diverse'],
+            'date_of_birth'    => ['nullable', 'date', 'before:today'],
+            'status'           => ['required', 'in:active,inactive'],
+            'eligible_to_play' => ['nullable', 'boolean'],
+            'profile_image'    => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:3072'],
+        ]);
+    }
+
+    private function prepareData(array $validated): array
+    {
+        return [
+            'first_name'       => $validated['first_name'],
+            'last_name'        => $validated['last_name'],
+            'gender'           => $validated['gender'] ?? null,
+            'date_of_birth'    => $validated['date_of_birth'] ?? null,
+            'status'           => $validated['status'],
+            'eligible_to_play' => (bool) ($validated['eligible_to_play'] ?? false),
+        ];
+    }
+
+    private function handleImageUpload(Request $request, array $data, ?Member $member = null): array
+    {
+        if (!$request->hasFile('profile_image')) {
+            return $data;
+        }
+
+        // Altes Bild löschen
+        if ($member && $member->profile_image) {
+            Storage::disk('public')->delete($member->profile_image);
+        }
+
+        $data['profile_image'] = $request->file('profile_image')
+            ->store('members', 'public');
+
+        return $data;
     }
 }

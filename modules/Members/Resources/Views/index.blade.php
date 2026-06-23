@@ -13,14 +13,11 @@
     </x-ck-button>
 </div>
 
-{{-- Suche & Filter --}}
 <form method="GET" class="ck-row" style="margin-bottom:16px; flex-wrap:wrap; gap:10px;">
     <input type="text" name="q" value="{{ request('q') }}"
            placeholder="Name suchen…" class="ck-field__input" style="flex:1; min-width:200px;">
     <x-ck-field name="status" type="select" :value="request('status')" :options="[
-        ''         => 'Alle Status',
-        'active'   => 'Aktiv',
-        'inactive' => 'Inaktiv',
+        '' => 'Alle Status', 'active' => 'Aktiv', 'inactive' => 'Inaktiv',
     ]" />
     <x-ck-button type="submit" variant="secondary">Suchen</x-ck-button>
     @if(request('q') || request('status'))
@@ -28,7 +25,6 @@
     @endif
 </form>
 
-{{-- Tabelle --}}
 <div class="ck-table-wrap">
     <table class="ck-table">
         <thead>
@@ -46,7 +42,16 @@
             <tr>
                 <td>
                     <div class="ck-row">
-                        <div class="ck-avatar ck-avatar--sm">{{ strtoupper(substr($member->last_name, 0, 1)) }}</div>
+                        {{-- Foto oder Avatar --}}
+                        @if($member->profile_image)
+                            <img src="{{ asset('storage/' . $member->profile_image) }}"
+                                 alt="{{ $member->last_name }}"
+                                 class="ck-avatar ck-avatar--sm ck-avatar--photo">
+                        @else
+                            <div class="ck-avatar ck-avatar--sm">
+                                {{ strtoupper(substr($member->last_name, 0, 1)) }}
+                            </div>
+                        @endif
                         <span style="font-weight:600;">{{ $member->last_name }}, {{ $member->first_name }}</span>
                     </div>
                 </td>
@@ -74,7 +79,6 @@
                         {{ $member->status === 'active' ? 'Aktiv' : 'Inaktiv' }}
                     </x-ck-badge>
                 </td>
-                {{-- Aktionen: Bearbeiten + Löschen (einheitlich) --}}
                 <td>
                     <div class="ck-row" style="justify-content:flex-end; gap:6px;">
                         <x-ck-button variant="secondary" size="sm"
@@ -109,7 +113,7 @@
     @endif
 </div>
 
-{{-- ══ MODAL ═════════════════════════════════ --}}
+{{-- MODAL --}}
 <x-ck-modal id="memberModal" title="Mitglied" size="lg">
 
     <x-slot:tabs>
@@ -117,10 +121,15 @@
                 onclick="ckModalTab('memberModal', 'memberTab-stamm', this)">
             👤 Stammdaten
         </button>
+        <button class="ck-modal-tab"
+                onclick="ckModalTab('memberModal', 'memberTab-photo', this)">
+            📷 Foto
+        </button>
     </x-slot:tabs>
 
+    {{-- Tab 1: Stammdaten --}}
     <div id="memberTab-stamm" class="ck-modal__section ck-modal__section--active">
-        <form id="memberForm" method="POST">
+        <form id="memberForm" method="POST" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="_method" id="memberFormMethod" value="PATCH">
 
@@ -140,6 +149,41 @@
 
             <div class="ck-form-actions">
                 <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
+                <x-ck-button type="button" variant="secondary"
+                    onclick="ckModalClose(null, 'memberModal')">Abbrechen</x-ck-button>
+            </div>
+        </form>
+    </div>
+
+    {{-- Tab 2: Foto --}}
+    <div id="memberTab-photo" class="ck-modal__section">
+        <form id="memberPhotoForm" method="POST" enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" name="_method" value="PATCH">
+
+            <div class="ck-row" style="gap:20px; margin-bottom:20px; flex-wrap:wrap;">
+                {{-- Vorschau --}}
+                <div id="photoPreviewWrap">
+                    <div id="photoPreviewPlaceholder"
+                         class="ck-avatar ck-avatar--lg ck-field__file-preview--placeholder"
+                         style="width:72px; height:72px; font-size:28px;">
+                        👤
+                    </div>
+                    <img id="photoPreview" src="" alt="Vorschau"
+                         class="ck-avatar ck-field__file-preview is-hidden"
+                         style="width:72px; height:72px;">
+                </div>
+                <div style="flex:1;">
+                    <x-ck-field label="Neues Foto hochladen"
+                        name="profile_image" type="file"
+                        id="mFieldPhoto"
+                        accept="image/jpeg,image/jpg,image/png"
+                        hint="JPEG oder PNG, max. 3 MB" />
+                </div>
+            </div>
+
+            <div class="ck-form-actions">
+                <x-ck-button type="submit" variant="primary">Foto speichern</x-ck-button>
                 <x-ck-button type="button" variant="secondary"
                     onclick="ckModalClose(null, 'memberModal')">Abbrechen</x-ck-button>
             </div>
