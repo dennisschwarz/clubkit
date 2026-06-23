@@ -1,70 +1,64 @@
 /**
  * ClubKit Members – Modal Logic
- * Erwartet window.CK_Members (gesetzt vom Blade-Data-Bridge-Script)
+ * Erwartet window.CK_Members (Data Bridge aus Blade-View).
+ * Regel: NUR classList-Operationen, keine el.style.*
  */
 (function () {
     'use strict';
 
-    var data   = window.CK_Members || {};
-    var routes = data.routes || {};
-    var members = data.members || {};
+    var cfg     = window.CK_Members || {};
+    var members = cfg.members || {};
+    var routes  = cfg.routes  || {};
 
-    // ── DOM-Refs ────────────────────────────────────────────────────────────
-    var modal      = document.getElementById('memberModal');
-    var titleEl    = document.getElementById('memberModalTitle');
-    var form       = document.getElementById('memberForm');
-    var methodInput= document.getElementById('memberFormMethod');
+    var form        = document.getElementById('memberForm');
+    var methodInput = document.getElementById('memberFormMethod');
+    var titleEl     = document.getElementById('memberModal-title');
 
-    var fFirstName = document.getElementById('mFieldFirstName');
-    var fLastName  = document.getElementById('mFieldLastName');
-    var fGender    = document.getElementById('mFieldGender');
-    var fDob       = document.getElementById('mFieldDob');
-    var fStatus    = document.getElementById('mFieldStatus');
-    var fEligible  = document.getElementById('mFieldEligible');
+    /**
+     * Modal öffnen und mit Daten befüllen
+     * @param {string}     mode     – 'create' | 'edit'
+     * @param {number|null} memberId
+     */
+    window.membersModalOpen = function (mode, memberId) {
+        memberId = memberId || null;
 
-    // ── Öffnen ──────────────────────────────────────────────────────────────
-    window.openMemberModal = function (mode, memberId) {
         if (mode === 'create') {
-            titleEl.textContent     = 'Neues Mitglied anlegen';
-            fFirstName.value        = '';
-            fLastName.value         = '';
-            fGender.value           = '';
-            fDob.value              = '';
-            fStatus.value           = 'active';
-            fEligible.checked       = false;
-            methodInput.value       = 'POST';
-            form.action             = routes.store || '';
+            if (titleEl) titleEl.textContent = 'Neues Mitglied anlegen';
+            _setField('mFieldFirstName', '');
+            _setField('mFieldLastName',  '');
+            _setField('mFieldGender',    '');
+            _setField('mFieldDob',       '');
+            _setField('mFieldStatus',    'active');
+            _setChecked('mFieldEligible', false);
+            methodInput.value = 'POST';
+            form.action       = routes.store || '';
         } else {
             var m = members[memberId];
             if (!m) return;
-            titleEl.textContent = m.last_name + ', ' + m.first_name + ' bearbeiten';
-            fFirstName.value    = m.first_name;
-            fLastName.value     = m.last_name;
-            fGender.value       = m.gender;
-            fDob.value          = m.date_of_birth;
-            fStatus.value       = m.status;
-            fEligible.checked   = m.eligible_to_play;
-            methodInput.value   = 'PATCH';
-            form.action         = (routes.update || '') + '/' + memberId;
+            if (titleEl) titleEl.textContent = m.last_name + ', ' + m.first_name + ' bearbeiten';
+            _setField('mFieldFirstName', m.first_name);
+            _setField('mFieldLastName',  m.last_name);
+            _setField('mFieldGender',    m.gender);
+            _setField('mFieldDob',       m.date_of_birth);
+            _setField('mFieldStatus',    m.status);
+            _setChecked('mFieldEligible', m.eligible_to_play);
+            methodInput.value = 'PATCH';
+            form.action       = (routes.update || '') + '/' + memberId;
         }
 
-        modal.style.display     = 'flex';
-        document.body.style.overflow = 'hidden';
+        ckModalOpen('memberModal');
     };
 
-    // ── Schließen ───────────────────────────────────────────────────────────
-    window.closeMemberModal = function (e) {
-        if (e && e.target !== modal) return;
-        modal.style.display          = 'none';
-        document.body.style.overflow = '';
-    };
+    // ── Private Helpers ──────────────────────────────────────────────────────
 
-    // ESC
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && modal.style.display === 'flex') {
-            modal.style.display          = 'none';
-            document.body.style.overflow = '';
-        }
-    });
+    function _setField(id, value) {
+        var el = document.getElementById(id);
+        if (el) el.value = value;
+    }
+
+    function _setChecked(id, checked) {
+        var el = document.getElementById(id);
+        if (el) el.checked = !!checked;
+    }
 
 }());

@@ -1,136 +1,126 @@
 /**
  * ClubKit Users – Modal Logic
- * Erwartet window.CK_Users (gesetzt vom Blade-Data-Bridge-Script)
+ * Erwartet window.CK_Users (Data Bridge aus Blade-View).
+ * Regel: NUR classList-Operationen, keine el.style.*
  */
 (function () {
     'use strict';
 
-    var data    = window.CK_Users || {};
-    var routes  = data.routes  || {};
-    var users   = data.users   || {};
+    var cfg    = window.CK_Users || {};
+    var users  = cfg.users  || {};
+    var routes = cfg.routes || {};
 
-    // ── DOM-Refs ────────────────────────────────────────────────────────────
-    var modal      = document.getElementById('userModal');
-    var titleEl    = document.getElementById('modalTitle');
+    var loginForm   = document.getElementById('userLoginForm');
+    var rightsForm  = document.getElementById('userRightsForm');
+    var loginMethod = document.getElementById('userLoginMethod');
+    var titleEl     = document.getElementById('userModal-title');
 
-    var loginForm  = document.getElementById('userLoginForm');
-    var rightsForm = document.getElementById('userRightsForm');
-    var loginMethod= document.getElementById('loginFormMethod');
-
-    var fName      = document.getElementById('fieldName');
-    var fEmail     = document.getElementById('fieldEmail');
-    var fPassword  = document.getElementById('fieldPassword');
-    var pwHint     = document.getElementById('passwordHint');
-    var pwConfirmRow = document.getElementById('passwordConfirmRow');
-
-    // ── Öffnen ──────────────────────────────────────────────────────────────
-    window.openUserModal = function (mode, userId) {
+    /**
+     * Modal öffnen
+     * @param {string}     mode   – 'create' | 'edit'
+     * @param {number|null} userId
+     */
+    window.usersModalOpen = function (mode, userId) {
         userId = userId || null;
 
         if (mode === 'create') {
-            titleEl.textContent     = 'Neuen Nutzer anlegen';
-            fName.value             = '';
-            fEmail.value            = '';
-            fPassword.value         = '';
-            fPassword.required      = true;
-            if (pwHint) pwHint.style.display = 'none';
-            loginMethod.value       = 'POST';
-            loginForm.action        = routes.store  || '';
-            rightsForm.action       = routes.store  || '';
+            if (titleEl) titleEl.textContent = 'Neuen Nutzer anlegen';
+            _setField('fieldName',     '');
+            _setField('fieldEmail',    '');
+            _setField('fieldPassword', '');
+            document.getElementById('fieldPassword').required = true;
+            loginMethod.value   = 'POST';
+            loginForm.action    = routes.store || '';
+            rightsForm.action   = routes.store || '';
         } else {
             var u = users[userId];
             if (!u) return;
-            titleEl.textContent     = u.name + ' bearbeiten';
-            fName.value             = u.name;
-            fEmail.value            = u.email;
-            fPassword.value         = '';
-            fPassword.required      = false;
-            if (pwHint) pwHint.style.display = '';
-            loginMethod.value       = 'PATCH';
-            loginForm.action        = routes.update + '/' + userId;
-            rightsForm.action       = routes.update + '/' + userId;
+            if (titleEl) titleEl.textContent = u.name + ' bearbeiten';
+            _setField('fieldName',     u.name);
+            _setField('fieldEmail',    u.email);
+            _setField('fieldPassword', '');
+            document.getElementById('fieldPassword').required = false;
+            loginMethod.value   = 'PATCH';
+            loginForm.action    = (routes.update || '') + '/' + userId;
+            rightsForm.action   = (routes.update || '') + '/' + userId;
 
-            // Rollen vorauswählen
-            document.querySelectorAll('input[name="role"]').forEach(function (r) { r.checked = false; });
-            document.querySelectorAll('input[name="permissions[]"]').forEach(function (p) { p.checked = false; });
-            document.getElementById('customPermissions').style.display = 'none';
+            _applyRights(u);
+        }
 
-            if (u.roles.length > 0) {
-                var roleInput = document.getElementById('role_' + u.roles[0]);
-                if (roleInput) { roleInput.checked = true; highlightRole(u.roles[0]); }
-            } else if (u.permissions.length > 0) {
-                var custom = document.getElementById('role_custom');
-                if (custom) { custom.checked = true; highlightRole('custom'); }
-                document.getElementById('customPermissions').style.display = '';
-                u.permissions.forEach(function (pName) {
-                    document.querySelectorAll('input[name="permissions[]"]').forEach(function (cb) {
-                        if (cb.value === pName) cb.checked = true;
-                    });
-                });
+        // Ersten Tab aktivieren
+        var firstTabBtn = document.getElementById('userTab-login-btn');
+        if (firstTabBtn) ckModalTab('userModal', 'userTab-login', firstTabBtn);
+
+        ckModalOpen('userModal');
+    };
+
+    /**
+     * Rollen-Radio onChange
+     */
+    window.usersRoleChanged = function (input) {
+        // Alle Rollen-Labels zurücksetzen
+        document.querySelectorAll('.ck-role-option').forEach(function (el) {
+            el.classList.remove('ck-role-option--selected');
+            el.classList.remove('ck-role-option--selected-custom');
+        });
+
+        // Aktives Label markieren
+        var label = document.getElementById('roleOption-' + input.value);
+        if (label) {
+            if (input.value === 'custom') {
+                label.classList.add('ck-role-option--selected-custom');
+            } else {
+                label.classList.add('ck-role-option--selected');
             }
         }
 
-        switchUserTab('login');
-        modal.style.display          = 'flex';
-        document.body.style.overflow = 'hidden';
-    };
-
-    // ── Schließen ───────────────────────────────────────────────────────────
-    window.closeUserModal = function (e) {
-        if (e && e.target !== modal) return;
-        modal.style.display          = 'none';
-        document.body.style.overflow = '';
-    };
-
-    // ── Tab-Wechsel ─────────────────────────────────────────────────────────
-    window.switchUserTab = function (tab) {
-        var loginTab   = document.getElementById('tabLogin');
-        var rightsTab  = document.getElementById('tabRights');
-        var loginBtn   = document.getElementById('tabLoginBtn');
-        var rightsBtn  = document.getElementById('tabRightsBtn');
-
-        if (tab === 'login') {
-            loginTab.style.display       = '';
-            rightsTab.style.display      = 'none';
-            loginBtn.style.color         = '#0a1628';
-            loginBtn.style.borderBottom  = '2px solid #0a1628';
-            rightsBtn.style.color        = '#64748b';
-            rightsBtn.style.borderBottom = '2px solid transparent';
-        } else {
-            loginTab.style.display       = 'none';
-            rightsTab.style.display      = '';
-            loginBtn.style.color         = '#64748b';
-            loginBtn.style.borderBottom  = '2px solid transparent';
-            rightsBtn.style.color        = '#0a1628';
-            rightsBtn.style.borderBottom = '2px solid #0a1628';
+        // Custom-Permissions anzeigen/verstecken
+        var customBlock = document.getElementById('customPermissions');
+        if (customBlock) {
+            if (input.value === 'custom') {
+                customBlock.classList.remove('is-hidden');
+            } else {
+                customBlock.classList.add('is-hidden');
+            }
         }
     };
 
-    // ── Rollen-Highlight ────────────────────────────────────────────────────
-    window.onRoleChange = function (input) {
-        highlightRole(input.value);
-        document.getElementById('customPermissions').style.display =
-            input.value === 'custom' ? '' : 'none';
-    };
+    // ── Private Helpers ──────────────────────────────────────────────────────
 
-    function highlightRole(value) {
-        document.querySelectorAll('[id^="roleLabel_"]').forEach(function (el) {
-            el.style.borderColor     = '#e2e8f0';
-            el.style.backgroundColor = '#f8fafc';
-        });
-        var target = document.getElementById('roleLabel_' + value);
-        if (target) {
-            target.style.borderColor     = value === 'custom' ? '#7c3aed' : '#1a6fc4';
-            target.style.backgroundColor = value === 'custom' ? '#faf5ff' : '#eff6ff';
-        }
+    function _setField(id, value) {
+        var el = document.getElementById(id);
+        if (el) el.value = value;
     }
 
-    // ESC
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
-            modal.style.display          = 'none';
-            document.body.style.overflow = '';
+    function _applyRights(user) {
+        // Alle Radios zurücksetzen
+        document.querySelectorAll('input[name="role"]').forEach(function (r) { r.checked = false; });
+        document.querySelectorAll('input[name="permissions[]"]').forEach(function (p) { p.checked = false; });
+        document.querySelectorAll('.ck-role-option').forEach(function (el) {
+            el.classList.remove('ck-role-option--selected', 'ck-role-option--selected-custom');
+        });
+
+        var customBlock = document.getElementById('customPermissions');
+        if (customBlock) customBlock.classList.add('is-hidden');
+
+        if (user.roles.length > 0) {
+            var roleInput = document.getElementById('roleRadio-' + user.roles[0]);
+            if (roleInput) {
+                roleInput.checked = true;
+                usersRoleChanged(roleInput);
+            }
+        } else if (user.permissions.length > 0) {
+            var customInput = document.getElementById('roleRadio-custom');
+            if (customInput) {
+                customInput.checked = true;
+                usersRoleChanged(customInput);
+            }
+            user.permissions.forEach(function (pName) {
+                document.querySelectorAll('input[name="permissions[]"]').forEach(function (cb) {
+                    if (cb.value === pName) cb.checked = true;
+                });
+            });
         }
-    });
+    }
 
 }());

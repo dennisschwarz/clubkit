@@ -16,6 +16,10 @@ class CoreServiceProvider extends ServiceProvider
     {
         $this->loadRoutes();
         $this->loadViews();
+        \Illuminate\Support\Facades\Blade::anonymousComponentPath(
+            __DIR__ . '/Resources/Views/components',
+            'ck'
+        );
     }
 
     private function loadRoutes(): void
