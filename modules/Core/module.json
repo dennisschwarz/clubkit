@@ -1,0 +1,14 @@
+{
+    "name": "Core",
+    "slug": "core",
+    "version": "1.0.0",
+    "description": "Kern-Modul: Auth, User-Verwaltung, System-Admin",
+    "requires": [],
+    "provides": {
+        "migrations": false,
+        "routes": true,
+        "views": true,
+        "nav": []
+    },
+    "author": "ClubKit"
+}

@@ -1,0 +1,21 @@
+{
+    "name": "Mitglieder",
+    "slug": "members",
+    "version": "1.0.0",
+    "description": "Mitgliederverwaltung: Vorname, Nachname, Geschlecht, Geburtsdatum, Spielberechtigt",
+    "requires": ["core"],
+    "tables": ["members"],
+    "provides": {
+        "migrations": true,
+        "routes": true,
+        "views": true,
+        "nav": [
+            {
+                "label": "👥 Mitglieder",
+                "route": "members.index",
+                "module": "members"
+            }
+        ]
+    },
+    "author": "ClubKit"
+}
