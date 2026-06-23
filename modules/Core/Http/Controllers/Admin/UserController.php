@@ -20,42 +20,48 @@ class UserController extends Controller
         $roles       = Role::orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
 
-        return view('core::admin.users.index', compact('users', 'roles', 'permissions'));
+        // JS-Daten sauber im Controller aufbereiten
+        $usersJs = [];
+        foreach ($users as $u) {
+            $usersJs[$u->id] = [
+                'id'          => $u->id,
+                'name'        => $u->name,
+                'email'       => $u->email,
+                'roles'       => $u->roles->pluck('name')->toArray(),
+                'permissions' => $u->permissions->pluck('name')->toArray(),
+            ];
+        }
+
+        return view('core::admin.users.index', compact('users', 'roles', 'permissions', 'usersJs'));
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $rules = [
+        $validated = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
             'email'    => ['required', 'email', 'unique:users,email'],
             'password' => ['required', Password::min(8)->letters()->numbers(), 'confirmed'],
-        ];
+        ]);
 
-        if (!$request->boolean('rights_only')) {
-            $validated = $request->validate($rules);
+        $user = User::create([
+            'name'              => $validated['name'],
+            'email'             => $validated['email'],
+            'password'          => Hash::make($validated['password']),
+            'email_verified_at' => now(),
+        ]);
 
-            $user = User::create([
-                'name'              => $validated['name'],
-                'email'             => $validated['email'],
-                'password'          => Hash::make($validated['password']),
-                'email_verified_at' => now(),
-            ]);
-
-            $this->syncRightsFromRequest($request, $user);
-        }
+        $this->syncRights($request, $user);
 
         return redirect()->route('admin.users.index')->with('success', 'Nutzer angelegt.');
     }
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        // Nur Rechte aktualisieren
         if ($request->boolean('rights_only')) {
-            $this->syncRightsFromRequest($request, $user);
+            $this->syncRights($request, $user);
             return redirect()->route('admin.users.index')->with('success', 'Rechte aktualisiert.');
         }
 
-        // Login-Infos aktualisieren
         $rules = [
             'name'  => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email,' . $user->id],
@@ -65,9 +71,8 @@ class UserController extends Controller
             $rules['password'] = ['required', Password::min(8)->letters()->numbers(), 'confirmed'];
         }
 
-        $validated = $request->validate($rules);
-
-        $updateData = ['name' => $validated['name'], 'email' => $validated['email']];
+        $validated   = $request->validate($rules);
+        $updateData  = ['name' => $validated['name'], 'email' => $validated['email']];
 
         if ($request->filled('password')) {
             $updateData['password'] = Hash::make($validated['password']);
@@ -89,21 +94,16 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'Nutzer gelöscht.');
     }
 
-    // ── Hilfsmethode ─────────────────────────────────────────────────────────
-
-    private function syncRightsFromRequest(Request $request, User $user): void
+    private function syncRights(Request $request, User $user): void
     {
         $role = $request->input('role');
 
         if ($role && $role !== 'custom') {
-            // Feste Systemrolle
             $user->syncPermissions([]);
             $user->syncRoles([$role]);
         } elseif ($role === 'custom') {
-            // Benutzerdefiniert: keine Rolle, nur direkte Permissions
             $user->syncRoles([]);
             $user->syncPermissions($request->input('permissions', []));
         }
-        // Wenn role leer → keine Änderung an Rechten (z.B. reiner Login-Update)
     }
 }
