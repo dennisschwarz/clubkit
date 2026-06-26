@@ -4,11 +4,19 @@
     "version": "1.0.0",
     "description": "Kern-Modul: Auth, User-Verwaltung, System-Admin",
     "requires": [],
+    "tables": ["settings"],
     "provides": {
-        "migrations": false,
+        "migrations": true,
         "routes": true,
         "views": true,
-        "nav": []
+        "nav": [],
+        "permissions": [
+            "core.users.view",
+            "core.users.manage",
+            "core.roles.manage",
+            "core.settings.manage",
+            "core.modules.manage"
+        ]
     },
     "author": "ClubKit"
 }

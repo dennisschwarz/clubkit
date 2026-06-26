@@ -25,13 +25,42 @@ namespace Modules\Core\Services;
  *
  * Alle aktuellen View-Variablen werden automatisch an die Hook-Views übergeben.
  *
- * ─── Definierte Extension Points ──────────────────────────────────────────────
+ * ─── Alle definierten Extension Points ────────────────────────────────────────
  *
+ * Mitglieder (members::index):
+ *   member.page.actions    → Buttons neben "+ Mitglied hinzufügen" (z.B. Import-Button)
  *   member.table.header    → Extra <th>-Elemente in der Mitglieder-Tabelle
  *   member.table.row       → Extra <td>-Elemente pro Zeile ($member verfügbar)
+ *   member.table.expandrow → [Geplant] Aufklappbare Zeile unterhalb ($member verfügbar)
  *   member.modal.tabs      → Zusätzliche Tab-Buttons im Member-Modal
- *   member.modal.sections  → Zusätzliche Sections/Tab-Inhalte im Member-Modal
+ *   member.modal.sections  → Zusätzliche Tab-Inhalte im Member-Modal
  *   member.page.scripts    → Zusätzliche <script>-Tags am Ende der Mitglieder-Seite
+ *
+ * Teams (teams::index):
+ *   team.modal.tabs          → Zusätzliche Tab-Buttons im Team-Modal
+ *   team.modal.sections      → Zusätzliche Tab-Inhalte im Team-Modal
+ *
+ * Termine (events::index):
+ *   event.modal.tabs         → Zusätzliche Tab-Buttons im Termine-Modal
+ *   event.modal.sections     → Zusätzliche Tab-Inhalte im Termine-Modal
+ *
+ * Organisation (management::index):
+ *   management.function.modal.tabs     → Zusätzliche Tab-Buttons im Funktionen-Modal
+ *   management.function.modal.sections → Zusätzliche Tab-Inhalte im Funktionen-Modal
+ *   management.task.modal.tabs         → Zusätzliche Tab-Buttons im Aufgaben-Modal
+ *   management.task.modal.sections     → Zusätzliche Tab-Inhalte im Aufgaben-Modal
+ *
+ * Admin:
+ *   admin.module-settings.sections     → Zusätzliche Sektionen auf der Modul-Einstellungs-Seite
+ *
+ * ─── Registriert von ──────────────────────────────────────────────────────────
+ *
+ *   member.page.actions     → Import (Priorität 10)
+ *   member.*                → YouthClubMode (Priorität 20), CustomFields (Priorität 90)
+ *   team.*                  → CustomFields (Priorität 90)
+ *   event.*                 → CustomFields (Priorität 90)
+ *   management.*            → CustomFields (Priorität 90)
+ *   admin.*                 → CustomFields (Priorität 20)
  */
 class HookRegistry
 {

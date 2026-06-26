@@ -7,32 +7,43 @@
   ═══════════════════════════════════════════════════════════════════════ */
 
   /* Brand-Bar */
-  --ck-brand-bar-bg:           #0a1628;   /* → settings: header_bg       */
-  --ck-brand-bar-text:         #ffffff;   /* → settings: brand_bar_text  */
-  --ck-brand-bar-hover:        #e2e8f0;   /* → settings: brand_bar_hover */
+  --ck-brand-bar-bg:           #0a1628;
+  --ck-brand-bar-text:         #ffffff;
+  --ck-brand-bar-hover:        #e2e8f0;
 
   /* Navigationsleiste (2. Zeile im Header) */
-  --ck-nav-bar-bg:             #132238;   /* → settings: nav_bar_bg            */
-  --ck-nav-bar-text:           #a0aec0;   /* → settings: nav_bar_text          */
-  --ck-nav-bar-hover:          #e2e8f0;   /* → settings: nav_bar_hover         */
-  --ck-nav-bar-active-bar:     #60a5fa;   /* → settings: nav_bar_active_bar    */
-  --ck-nav-bar-font-size:      14px;      /* → settings: nav_bar_font_size     */
+  --ck-nav-bar-bg:             #132238;
+  --ck-nav-bar-text:           #a0aec0;
+  --ck-nav-bar-hover:          #e2e8f0;
+  --ck-nav-bar-active-bar:     #60a5fa;
+  --ck-nav-bar-font-size:      14px;
 
   /* Sub-Tab-Leiste */
-  --ck-subtab-bg:              #ffffff;   /* → settings: subtab_bg             */
-  --ck-subtab-text:            #64748b;   /* → settings: subtab_text           */
-  --ck-subtab-hover:           #1e293b;   /* → settings: subtab_hover          */
-  --ck-subtab-active-bar:      #60a5fa;   /* → settings: subtab_active_bar     */
-  --ck-subtab-font-size:       14px;      /* → settings: subtab_font_size      */
+  --ck-subtab-bg:              #ffffff;
+  --ck-subtab-text:            #64748b;
+  --ck-subtab-hover:           #1e293b;
+  --ck-subtab-active-bar:      #60a5fa;
+  --ck-subtab-font-size:       14px;
 
   /* Seitenhintergrund */
-  --ck-bg:                     #f0f3f8;   /* → settings: body_bg               */
+  --ck-bg:                     #f0f3f8;
 
   /* Akzentfarbe */
-  --ck-accent:                 #60a5fa;   /* → settings: accent_color          */
+  --ck-accent:                 #60a5fa;
   --ck-accent-dark:            #1a6fc4;
 
+  /* ── Card-Header-Hintergrund ─────────────────────────────────────────
+     Sanfte Tönung aus der Nav-Bar-Farbe statt neutralem Grau.
+     color-mix(): 8% Nav-Bar-Farbe + 92% Weiß = zarter Farbtupfer.
+     Wird durch layout.blade.php dynamisch überschrieben wenn nav_bar_bg
+     aus den Einstellungen kommt.
+     Fallback (ältere Browser ohne color-mix): --ck-bg-subtle
+  ─────────────────────────────────────────────────────────────────────── */
+  --ck-card-header-bg: color-mix(in srgb, var(--ck-nav-bar-bg) 8%, white);
+
   /* ══ Feste semantische Farben (nicht konfigurierbar) ══════════════════ */
+  --ck-confirm:          mediumseagreen;
+  
   --ck-danger:           #dc2626;
   --ck-danger-bg:        #fef2f2;
   --ck-danger-border:    #fca5a5;
@@ -95,7 +106,7 @@
   --ck-font-xl:  18px;
   --ck-font-2xl: 22px;
 
-  /* Layout – EINHEITLICHE maximale Breite für Header, Sub-Tabs und Content */
+  /* Layout */
   --ck-max-width: 1280px;
 }
 
@@ -117,14 +128,29 @@ body {
 .ck-text-secondary { color: var(--ck-text-secondary); }
 .ck-text-danger    { color: var(--ck-danger-text); }
 .ck-text-success   { color: var(--ck-success-text); }
+.ck-text-purple    { color: var(--ck-purple-text); }
 .ck-divider        { border: none; border-top: 1px solid var(--ck-border); margin: var(--ck-space-5) 0; }
 .ck-row            { display: flex; align-items: center; gap: var(--ck-space-2); }
 .ck-row--between   { justify-content: space-between; }
 .ck-spacer         { flex: 1; }
 .ck-space-y-4      > * + * { margin-top: var(--ck-space-4); }
 .ck-space-y-5      > * + * { margin-top: var(--ck-space-5); }
-.ck-mt-4           { margin-top: var(--ck-space-4); }
-.ck-mt-5           { margin-top: var(--ck-space-5); }
+.ck-inline-form    { display: inline; }
+
+/* Margin-Top */
+.ck-mt-2 { margin-top: var(--ck-space-2); }
+.ck-mt-3 { margin-top: var(--ck-space-3); }
+.ck-mt-4 { margin-top: var(--ck-space-4); }
+.ck-mt-5 { margin-top: var(--ck-space-5); }
+.ck-mt-6 { margin-top: var(--ck-space-6); }
+
+/* Margin-Bottom */
+.ck-mb-1 { margin-bottom: var(--ck-space-1); }
+.ck-mb-2 { margin-bottom: var(--ck-space-2); }
+.ck-mb-3 { margin-bottom: var(--ck-space-3); }
+.ck-mb-4 { margin-bottom: var(--ck-space-4); }
+.ck-mb-5 { margin-bottom: var(--ck-space-5); }
+.ck-mb-6 { margin-bottom: var(--ck-space-6); }
 
 .ck-section-label {
   font-size: var(--ck-font-sm);

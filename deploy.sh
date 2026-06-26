@@ -6,7 +6,7 @@
 set -e
 
 PROJECT="/var/www/clients/client_1/web_21/web/clubkit"
-PHP="/usr/bin/php8.5"
+PHP="/usr/bin/php8.4"
 COMPOSER="/usr/local/bin/composer"
 WEB_USER="web21"
 WEB_GROUP="client1"
@@ -30,11 +30,14 @@ sudo -u "$WEB_USER" npm run build
 echo "==> Migrationen"
 sudo -u "$WEB_USER" "$PHP" artisan migrate --force
 
+echo "==> Storage Link (Profilbilder öffentlich zugänglich machen)"
+sudo -u "$WEB_USER" "$PHP" artisan storage:link --quiet 2>/dev/null || true
+
 echo "==> Cache optimieren"
 sudo -u "$WEB_USER" "$PHP" artisan optimize
 
 echo "==> Berechtigungen setzen"
-chown -R "$WEB_USER":"$WEB_GROUP" storage bootstrap/cache public/build
+chown -R "$WEB_USER":"$WEB_GROUP" storage bootstrap/cache public/build public/storage
 chmod -R 775 storage bootstrap/cache
 
 echo "==> Queue Worker neu starten"

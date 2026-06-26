@@ -1,0 +1,49 @@
+/* ══════════════════════════════════════════════════════════════════════
+   CustomFields-Modul – spezifische Styles
+══════════════════════════════════════════════════════════════════════ */
+
+/* ── Übersichts-Zeilen in der Modul-Einstellungen-Karte ─────────────── */
+.ck-cf-settings-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ck-space-2);
+  border: 1px solid var(--ck-border-light);
+  border-radius: var(--ck-radius);
+  padding: var(--ck-space-2) var(--ck-space-3);
+}
+
+.ck-cf-settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ck-space-3);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--ck-border-light);
+}
+.ck-cf-settings-row:last-child { border-bottom: none; }
+
+.ck-cf-settings-row__label {
+  font-size: var(--ck-font-sm);
+  font-weight: 600;
+  color: var(--ck-text);
+  min-width: 100px;
+}
+
+.ck-cf-settings-row__link {
+  margin-left: auto;
+  font-size: var(--ck-font-xs);
+  color: var(--ck-accent-dark);
+  text-decoration: none;
+}
+.ck-cf-settings-row__link:hover { text-decoration: underline; }
+
+/* ── Entitäts-Label im Werte-Modal ─────────────────────────────────── */
+.ck-modal-entity-label {
+  font-size: var(--ck-font-base);
+  font-weight: 700;
+  color: var(--ck-text);
+  padding: var(--ck-space-2) var(--ck-space-3);
+  background: var(--ck-bg-subtle);
+  border-radius: var(--ck-radius);
+  border: 1px solid var(--ck-border-light);
+  margin-bottom: var(--ck-space-3);
+}

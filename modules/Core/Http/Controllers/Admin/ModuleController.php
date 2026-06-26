@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Core\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -44,7 +46,6 @@ class ModuleController extends Controller
         }
 
         try {
-            // Migrations direkt aus dem Modulpfad ausführen – ServiceProvider muss nicht registriert sein
             Artisan::call('migrate', [
                 '--path'  => 'modules/' . $this->slugToFolder($slug) . '/Database/Migrations',
                 '--force' => true,
@@ -59,6 +60,9 @@ class ModuleController extends Controller
                 'created_at'   => now(),
                 'updated_at'   => now(),
             ]);
+
+            // Permissions des neuen Moduls in der DB anlegen
+            $this->moduleLoader->seedPermissions($slug);
 
             Artisan::call('optimize:clear');
 
@@ -108,8 +112,8 @@ class ModuleController extends Controller
         }
 
         // Abhängige aktive Module prüfen
-        $available   = $this->moduleLoader->detectAvailable();
-        $dependents  = [];
+        $available  = $this->moduleLoader->detectAvailable();
+        $dependents = [];
 
         foreach ($available as $s => $cfg) {
             if ($s === $slug) continue;
@@ -127,13 +131,23 @@ class ModuleController extends Controller
         }
 
         try {
-            // 1. Tabellen direkt droppen (Reihenfolge umkehren wegen FKs)
+            // 1. Permissions des Moduls entfernen
+            $this->moduleLoader->removePermissions($slug);
+
+            // 2. Tabellen droppen
+            //    Tabellen in module.json müssen in Erstellungs-Reihenfolge gelistet sein
+            //    (Haupttabellen zuerst, Pivot-Tabellen danach).
+            //    array_reverse() kehrt die Reihenfolge um → Pivot/FK-Tabellen werden zuerst gedroppt.
+            //    FK-Constraints werden zusätzlich deaktiviert als Sicherheitsnetz.
             $tables = $available[$slug]['tables'] ?? [];
+
+            Schema::disableForeignKeyConstraints();
             foreach (array_reverse($tables) as $table) {
                 Schema::dropIfExists($table);
             }
+            Schema::enableForeignKeyConstraints();
 
-            // 2. Migrations-Einträge aus der migrations-Tabelle entfernen
+            // 3. Migrations-Einträge entfernen
             $migrationPath = base_path('modules/' . $this->slugToFolder($slug) . '/Database/Migrations');
             if (File::isDirectory($migrationPath)) {
                 foreach (File::files($migrationPath) as $file) {
@@ -143,12 +157,14 @@ class ModuleController extends Controller
                 }
             }
 
-            // 3. Aus installed_modules entfernen
+            // 4. Aus installed_modules entfernen
             DB::table('installed_modules')->where('slug', $slug)->delete();
 
             Artisan::call('optimize:clear');
 
         } catch (\Throwable $e) {
+            // Sicherstellen dass FK-Constraints wieder aktiv sind
+            Schema::enableForeignKeyConstraints();
             return back()->with('error', 'Fehler beim Entfernen: ' . $e->getMessage());
         }
 

@@ -6,7 +6,7 @@
   overflow: hidden;
 }
 
-/* Header: flex mit Abstand – Titel LINKS, Action (z. B. Speichern-Button) RECHTS */
+/* Card-Header: kein eigener Hintergrund – bleibt weiß wie der Card-Body */
 .ck-card__header {
   display: flex;
   align-items: center;

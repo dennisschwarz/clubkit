@@ -1,12 +1,35 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Modal-System
+
+   Anti-Jump-Strategie:
+   - Overlay: align-items: flex-start + padding-top → Modal hängt immer
+     an derselben vertikalen Position, wächst nach unten, springt nicht.
+   - Modal-Body: min-height: 0 → CSS-Pflicht damit flex + overflow-y scrollt.
+   - Sections: min-height: 280px → verhindert Zucken bei kurzen Tabs.
+
+   z-index Hierarchie:
+     Header/Nav:    999 / 998
+     Sub-Tab-Bar:   998
+     Loading-Overlay: 9998  ← über allem
+     Modal-Overlay: 9999  ← liegt über allem inkl. Loading
+
+   Teleport-Strategie (app.js):
+     Alle .ck-modal-overlay werden bei DOMContentLoaded nach
+     #ck-modal-root (direktes body-Kind) verschoben.
+     Damit entsteht kein Stacking-Context-Problem durch parent-Elemente.
+══════════════════════════════════════════════════════════════════════ */
+
 .ck-modal-overlay {
   display: none;
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.55);
-  z-index: 500;
-  align-items: center;
+  z-index: 9999;
+  align-items: flex-start;
   justify-content: center;
-  padding: var(--ck-space-5);
+  /* padding-top: Header-Höhe + etwas Luft damit Modal nicht unter Header liegt */
+  padding: calc(var(--ck-header-height) + 24px) var(--ck-space-5) var(--ck-space-5);
+  overflow-y: auto;
 }
 .ck-modal-overlay.ck-modal--open { display: flex; }
 
@@ -14,16 +37,18 @@
   background: var(--ck-white);
   border-radius: var(--ck-radius-xl);
   width: 90%;
-  max-height: 90vh;
+  max-height: calc(100vh - var(--ck-header-height) - 48px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   box-shadow: var(--ck-shadow-lg);
+  margin-bottom: var(--ck-space-5);
 }
 .ck-modal-content--lg { max-width: 936px; }
 .ck-modal-content--md { max-width: 600px; }
 .ck-modal-content--sm { max-width: 400px; }
 
+/* ── Modal-Header ────────────────────────────────────────────────── */
 .ck-modal__header {
   display: flex;
   align-items: center;
@@ -43,9 +68,11 @@
   color: var(--ck-text-muted);
   line-height: 1; padding: 0;
   font-family: var(--ck-font);
+  transition: color 0.15s;
 }
 .ck-modal__close:hover { color: var(--ck-text); }
 
+/* ── Tab-Leiste ──────────────────────────────────────────────────── */
 .ck-modal__tabbar {
   display: flex;
   border-bottom: 2px solid var(--ck-border);
@@ -70,21 +97,31 @@
   white-space: nowrap;
   transition: color 0.15s, opacity 0.15s;
 }
-.ck-modal-tab:hover             { color: var(--ck-text); }
-.ck-modal-tab--active           { color: var(--ck-brand-bar-bg); border-bottom-color: var(--ck-brand-bar-bg); }
+.ck-modal-tab:hover   { color: var(--ck-text); }
+.ck-modal-tab--active { color: var(--ck-brand-bar-bg); border-bottom-color: var(--ck-brand-bar-bg); }
 
-/* Deaktivierter Tab (z. B. Rechte in create-Modus) */
 .ck-modal-tab--disabled {
   opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-.ck-modal__body    { overflow-y: auto; flex: 1; padding: var(--ck-space-6); }
-.ck-modal__section         { display: none; }
-.ck-modal__section--active { display: block; }
+/* ── Body (scrollbarer Bereich) ──────────────────────────────────── */
+.ck-modal__body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: var(--ck-space-6);
+}
 
-/* Rollen-Optionen */
+/* ── Tab-Sections ────────────────────────────────────────────────── */
+.ck-modal__section         { display: none; }
+.ck-modal__section--active {
+  display: block;
+  min-height: 280px;
+}
+
+/* ── Rollen-Optionen ─────────────────────────────────────────────── */
 .ck-role-option {
   display: flex;
   align-items: flex-start;
@@ -102,7 +139,7 @@
 .ck-role-option--selected        { border-color: var(--ck-accent-dark); background: #eff6ff; }
 .ck-role-option--selected-custom { border-color: var(--ck-purple); background: var(--ck-purple-bg); }
 
-/* Permissions */
+/* ── Permissions ─────────────────────────────────────────────────── */
 .ck-perm-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--ck-space-1); }
 .ck-perm-group { margin-bottom: var(--ck-space-4); }
 .ck-perm-group__title {
@@ -119,5 +156,34 @@
 .ck-perm-item:hover { border-color: var(--ck-accent-dark); }
 .ck-perm-item input { accent-color: var(--ck-purple); flex-shrink: 0; }
 
-/* Lila Textfarbe als CSS-Klasse (statt style=) */
-.ck-text-purple { color: var(--ck-purple); }
+/* ══════════════════════════════════════════════════════════════════════
+   Loading Overlay
+   Wird per JS eingeblendet wenn ein Formular abgeschickt wird.
+   z-index 9998 → unter Modal (9999), über allem anderen.
+══════════════════════════════════════════════════════════════════════ */
+.ck-loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(0, 0, 0, 0.35);
+  align-items: center;
+  justify-content: center;
+}
+.ck-loading-overlay.ck-loading--active {
+  display: flex;
+}
+
+/* Spinner */
+.ck-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: ck-spin 0.75s linear infinite;
+}
+
+@keyframes ck-spin {
+  to { transform: rotate(360deg); }
+}

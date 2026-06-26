@@ -1,42 +1,53 @@
 {{--
     YouthClubMode – Hook View: member.modal.sections
-    Fügt die Guardians-Section in das Member-Modal ein.
+    Familie-Tab im Member-Modal.
 
-    Verfügbare Variablen (automatisch übergeben via @ckHook):
-      $members      – paginierte Mitglieder-Collection
-      $membersJs    – JS data bridge (bereits mit father_id / mother_id angereichert)
-      $parentOptions – Array [member_id => 'Nachname, Vorname'] für Dropdowns
-                       (durch YouthClubMode View Composer injiziert)
+    Die gesamte Logik (Dropdown-Filterung, Liste, AJAX) liegt in youth-club-mode.js.
+    Diese View liefert nur das HTML-Gerüst.
 --}}
-<div id="memberTab-guardian" class="ck-modal__section">
+<div id="memberTab-family" class="ck-modal__section">
 
-    {{-- Hinweis im Create-Modus: wird via JS ein-/ausgeblendet --}}
-    <div id="memberGuardianCreateHint" class="ck-flash ck-flash--warning is-hidden">
-        Bitte zuerst das Mitglied speichern (Tab Stammdaten), dann Erziehungsberechtigte zuweisen.
+    {{-- Hinweis im Create-Modus (JS zeigt/versteckt) --}}
+    <div id="memberFamilyCreateHint" class="ck-flash ck-flash--warning is-hidden">
+        Bitte zuerst das Mitglied speichern (Tab Stammdaten), dann Familienmitglieder zuweisen.
     </div>
 
-    <form id="memberGuardianForm" method="POST">
-        @csrf
-        {{-- PATCH /members/{id}/parents – action wird per JS gesetzt --}}
-        <input type="hidden" name="_method" value="PATCH">
+    {{-- ── Verbindung hinzufügen ──────────────────────────────────────── --}}
+    <div class="ck-family-add">
+        <p class="ck-section-label ck-mb-3">Verbindung hinzufügen</p>
+        <div class="ck-row ck-family-add__row">
 
-        <p class="ck-text-muted ck-mb-4">
-            Vater und Mutter müssen als eigene Mitglieder-Einträge existieren.
-            Leer lassen, um eine bestehende Verknüpfung zu entfernen.
-        </p>
+            {{-- Dropdown 1: Beziehungsart --}}
+            <select id="mFieldRelationship" class="ck-field__input">
+                <option value="">– Beziehung wählen –</option>
+                <option value="father">Vater (des Mitglieds)</option>
+                <option value="mother">Mutter (des Mitglieds)</option>
+                <option value="father_of">Vater von …</option>
+                <option value="mother_of">Mutter von …</option>
+                <option value="sibling">Geschwister</option>
+            </select>
 
-        <div class="ck-form-grid ck-form-grid--2">
-            <x-ck-field label="Vater" name="father_id" type="select"
-                id="mFieldFatherId" :options="$parentOptions ?? []" />
-            <x-ck-field label="Mutter" name="mother_id" type="select"
-                id="mFieldMotherId" :options="$parentOptions ?? []" />
+            {{-- Dropdown 2: Mitglied (startet deaktiviert, wird per JS gefüllt) --}}
+            <select id="mFieldRelatedMember" class="ck-field__input" disabled>
+                <option value="">– erst Beziehung wählen –</option>
+            </select>
+
+            <button type="button" id="mBtnAddRelation"
+                    class="ck-btn ck-btn--primary ck-btn--sm" disabled>
+                + Hinzufügen
+            </button>
+
         </div>
+        {{-- Fehler-Bereich für AJAX-Fehler --}}
+        <div id="mFamilyAddError" class="ck-flash ck-flash--error ck-mt-3 is-hidden"></div>
+    </div>
 
-        <div class="ck-form-actions">
-            <x-ck-button type="submit" variant="primary">Erziehungsberechtigte speichern</x-ck-button>
-            <x-ck-button type="button" variant="secondary"
-                onclick="ckModalClose(null, 'memberModal')">Abbrechen</x-ck-button>
+    {{-- ── Aktuelle Verbindungen (wird von JS gerendert) ──────────────── --}}
+    <div class="ck-mt-4">
+        <p class="ck-section-label ck-mb-3">Aktuelle Verbindungen</p>
+        <div id="mFamilyList">
+            <p class="ck-text-muted">Noch keine Verbindungen eingetragen.</p>
         </div>
-    </form>
+    </div>
 
 </div>

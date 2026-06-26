@@ -1,0 +1,28 @@
+{
+    "name": "Events",
+    "slug": "events",
+    "version": "1.1.0",
+    "description": "Terminverwaltung mit 3-Ebenen-Besetzung: Vereinsfunktionen, Aufgaben und einmalige Assignments.",
+    "requires": ["core", "members"],
+    "tables": ["events", "event_assignments", "event_team", "event_task"],
+    "provides": {
+        "migrations": true,
+        "routes": true,
+        "views": true,
+        "nav": [
+            {
+                "label": "📅 Termine",
+                "route": "events.index",
+                "module": "events",
+                "permission": "events.view"
+            }
+        ],
+        "permissions": [
+            "events.view",
+            "events.create",
+            "events.edit",
+            "events.delete"
+        ]
+    },
+    "author": "ClubKit"
+}

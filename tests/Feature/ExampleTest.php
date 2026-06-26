@@ -1,19 +1,12 @@
 <?php
 
-namespace Tests\Feature;
+// Grundlegende Verfügbarkeits-Tests für ClubKit.
+// Der ursprüngliche Laravel-Default-Test prüfte GET / (keine Route in ClubKit).
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+test('login-Seite ist erreichbar', function () {
+    $this->get('/login')->assertStatus(200);
+});
 
-class ExampleTest extends TestCase
-{
-    /**
-     * A basic test example.
-     */
-    public function test_the_application_returns_a_successful_response(): void
-    {
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
-    }
-}
+test('nicht authentifizierter Zugriff auf dashboard landet auf login', function () {
+    $this->get('/dashboard')->assertRedirect('/login');
+});

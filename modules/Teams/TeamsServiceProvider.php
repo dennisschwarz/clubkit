@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Teams;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
 
 class TeamsServiceProvider extends ServiceProvider
 {

@@ -1,0 +1,182 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Flatpickr – ClubKit Design Override
+   flatpickr.min.css wird via app.js importiert (nicht via @import in CSS).
+   Alle Farben über CSS-Variablen, kein style="…" im JS.
+══════════════════════════════════════════════════════════════════════ */
+
+/* ── Box-Sizing Reset: CK setzt global border-box, flatpickr braucht das auch ── */
+.flatpickr-calendar,
+.flatpickr-calendar *,
+.flatpickr-calendar *::before,
+.flatpickr-calendar *::after {
+  box-sizing: border-box;
+}
+
+/* ── Kalender-Wrapper ───────────────────────────────────────────────── */
+.flatpickr-calendar {
+  font-family: inherit;
+  font-size: var(--ck-font-sm);
+  border: 1px solid var(--ck-border);
+  border-radius: var(--ck-radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  z-index: 99999;               /* über Modal (z-index: 9999) */
+  padding: 0;
+  width: 307.875px;             /* flatpickr Standard-Breite, nicht überschreiben */
+}
+
+/* ── Monats-Header ──────────────────────────────────────────────────── */
+.flatpickr-months {
+  background: var(--ck-primary);
+  border-radius: var(--ck-radius) var(--ck-radius) 0 0;
+  padding: 4px 0;
+}
+.flatpickr-month { color: #fff; fill: #fff; }
+.flatpickr-current-month {
+  font-size: var(--ck-font-sm);
+  color: #fff;
+  padding-top: 5px;
+}
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+  background: var(--ck-primary);
+  color: #fff;
+  font-weight: 600;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+.flatpickr-current-month input.cur-year {
+  color: #fff;
+  font-weight: 600;
+}
+.numInputWrapper:hover { background: rgba(255, 255, 255, 0.12); }
+.numInputWrapper span.arrowUp::after  { border-bottom-color: rgba(255,255,255,0.7); }
+.numInputWrapper span.arrowDown::after{ border-top-color:    rgba(255,255,255,0.7); }
+
+.flatpickr-prev-month,
+.flatpickr-next-month {
+  color: rgba(255, 255, 255, 0.85) !important;
+  fill:  rgba(255, 255, 255, 0.85) !important;
+}
+.flatpickr-prev-month:hover svg,
+.flatpickr-next-month:hover svg { fill: #fff; }
+
+/* ── Wochentage ─────────────────────────────────────────────────────── */
+.flatpickr-weekdays {
+  background: var(--ck-bg-subtle);
+  border-bottom: 1px solid var(--ck-border-light);
+}
+.flatpickr-weekday {
+  color: var(--ck-text-muted);
+  font-weight: 700;
+  font-size: var(--ck-font-xs);
+}
+
+/* ── Tages-Grid ─────────────────────────────────────────────────────── */
+.flatpickr-days { border: none; }
+.dayContainer    {
+  border: none;
+  /* Breite explizit: 7 × 39px = 273px (flatpickr Standard), kein Collapsing */
+  min-width: 307.875px;
+  max-width: 307.875px;
+}
+
+.flatpickr-day {
+  border-radius: var(--ck-radius-sm);
+  color: var(--ck-text);
+  font-size: var(--ck-font-sm);
+  border: 1px solid transparent;
+  /* Höhe/Max-Breite NICHT ändern – flatpickr-Gitter bricht sonst */
+}
+.flatpickr-day:hover,
+.flatpickr-day.prevMonthDay:hover,
+.flatpickr-day.nextMonthDay:hover {
+  background: var(--ck-bg-subtle);
+  border-color: var(--ck-border-light);
+}
+.flatpickr-day.today {
+  border-color: var(--ck-accent-dark);
+  color: var(--ck-accent-dark);
+  font-weight: 700;
+}
+.flatpickr-day.today:hover {
+  background: var(--ck-accent-dark);
+  border-color: var(--ck-accent-dark);
+  color: #fff;
+}
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover,
+.flatpickr-day.startRange,
+.flatpickr-day.startRange:hover,
+.flatpickr-day.endRange,
+.flatpickr-day.endRange:hover {
+  background: var(--ck-accent-dark);
+  border-color: var(--ck-accent-dark);
+  color: #fff;
+  font-weight: 700;
+}
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+  color: var(--ck-border);
+}
+
+/* ── Zeit-Picker ────────────────────────────────────────────────────── */
+.flatpickr-time {
+  border-top: 1px solid var(--ck-border);
+  background: var(--ck-bg-subtle);
+  border-radius: 0 0 var(--ck-radius) var(--ck-radius);
+}
+.flatpickr-time input {
+  font-size: var(--ck-font-base);
+  font-family: inherit;
+  color: var(--ck-text);
+  font-weight: 600;
+  background: transparent;
+}
+.flatpickr-time input:hover,
+.flatpickr-time input:focus {
+  background: var(--ck-bg);
+}
+.flatpickr-time .flatpickr-time-separator,
+.flatpickr-time .flatpickr-am-pm {
+  color: var(--ck-text-muted);
+}
+.flatpickr-time .numInputWrapper span.arrowUp::after {
+  border-bottom-color: var(--ck-text-muted);
+}
+.flatpickr-time .numInputWrapper span.arrowDown::after {
+  border-top-color: var(--ck-text-muted);
+}
+
+/* ── AltInput: sieht wie normales ck-field__input aus ───────────────── */
+input.flatpickr-input[readonly],
+input.flatpickr-mobile {
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   "Übernehmen"-Button (manuell via onReady eingefügt, kein Plugin nötig)
+   Schließt den Picker nach Datum- + Zeit-Auswahl.
+══════════════════════════════════════════════════════════════════════ */
+.ck-fp-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  width: 100%;
+  cursor: pointer;
+  background: var(--ck-confirm);
+  color: #fff;
+  font-family: inherit;
+  font-size: var(--ck-font-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  border-radius: 0 0 var(--ck-radius) var(--ck-radius);
+  transition: background 0.15s;
+  user-select: none;
+  padding: 10px 0;
+}
+.ck-fp-confirm:hover {
+  background: var(--ck-primary);
+}

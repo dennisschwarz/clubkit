@@ -1,0 +1,36 @@
+{
+    "name": "Management",
+    "slug": "management",
+    "version": "1.3.0",
+    "description": "Vereins-Management: Funktionen, Aufgaben, Zuweisungen und Verantwortliche. Erweitert Termine um Vereinsfunktionen.",
+    "requires": ["core", "members"],
+    "tables": [
+        "management_functions",
+        "management_function_team",
+        "management_function_member",
+        "management_tasks",
+        "management_task_team",
+        "management_task_member",
+        "event_management_function"
+    ],
+    "provides": {
+        "migrations": true,
+        "routes": true,
+        "views": true,
+        "nav": [
+            {
+                "label": "🏛️ Organisation",
+                "route": "management.index",
+                "module": "management",
+                "permission": "management.view",
+                "nav_order": 1
+            }
+        ],
+        "permissions": [
+            "management.view",
+            "management.functions.manage",
+            "management.tasks.manage"
+        ]
+    },
+    "author": "ClubKit"
+}

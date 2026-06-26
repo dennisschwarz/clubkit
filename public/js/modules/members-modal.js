@@ -38,7 +38,7 @@
             _setField('mFieldGender',    '');
             _setField('mFieldDob',       '');
             _setField('mFieldStatus',    'active');
-            _setChecked('mFieldEligible', false);
+            _setField('mFieldEligible',  '');  // Datumsfeld – leer = nicht spielberechtigt
 
             methodInput.value = 'POST';
             form.action       = routes.store || '';
@@ -52,7 +52,6 @@
 
             ckModalOpen('memberModal');
 
-            // Andere Module informieren (z. B. YouthClubMode deaktiviert seinen Tab)
             ckEmit('member.modal.open', { mode: 'create', memberId: null, member: null });
 
         } else {
@@ -66,29 +65,24 @@
             _setField('mFieldGender',    m.gender        || '');
             _setField('mFieldDob',       m.date_of_birth || '');
             _setField('mFieldStatus',    m.status        || 'active');
-            _setChecked('mFieldEligible', m.eligible_to_play);
+            // eligible_to_play_date = YYYY-MM-DD oder '' (Datumsfeld, kein Checkbox)
+            _setField('mFieldEligible',  m.eligible_to_play_date || '');
 
             methodInput.value = 'PATCH';
             form.action       = (routes.update || '') + '/' + memberId;
 
-            // Foto-Formular action setzen
             if (photoForm) {
                 photoForm.action = (routes.update || '') + '/' + memberId + '/photo';
             }
 
-            // Foto-Tab aktivieren
             ckTabEnable('memberPhotoTabBtn', 'memberPhotoCreateHint', true);
-
-            // Foto-Vorschau setzen
             _resetPhotoPreview(m.profile_image || '');
 
-            // Ersten Tab aktivieren
             var firstTab = document.querySelector('#memberModal .ck-modal-tab');
             if (firstTab) ckModalTab('memberModal', 'memberTab-stamm', firstTab);
 
             ckModalOpen('memberModal');
 
-            // Andere Module informieren (z. B. YouthClubMode befüllt seinen Tab)
             ckEmit('member.modal.open', { mode: 'edit', memberId: memberId, member: m });
         }
     };
@@ -136,11 +130,6 @@
     function _setField(id, value) {
         var el = document.getElementById(id);
         if (el) el.value = value;
-    }
-
-    function _setChecked(id, checked) {
-        var el = document.getElementById(id);
-        if (el) el.checked = !!checked;
     }
 
 }());

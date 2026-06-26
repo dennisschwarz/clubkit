@@ -4,7 +4,7 @@
     "version": "1.0.0",
     "description": "Mannschaftsverwaltung: Teams, Kader und Spielerzuordnung.",
     "requires": ["core", "members"],
-    "tables": ["team_member", "teams"],
+    "tables": ["teams", "team_member"],
     "provides": {
         "migrations": true,
         "routes": true,
@@ -13,8 +13,14 @@
             {
                 "label": "🏆 Teams",
                 "route": "teams.index",
-                "module": "teams"
+                "module": "teams",
+                "permission": "teams.view"
             }
+        ],
+        "permissions": [
+            "teams.view",
+            "teams.manage",
+            "teams.members.manage"
         ]
     },
     "author": "ClubKit"

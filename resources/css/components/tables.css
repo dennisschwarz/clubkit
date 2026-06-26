@@ -9,7 +9,7 @@
 .ck-table th {
   text-align: left;
   padding: 12px var(--ck-space-4);
-  font-size: var(--ck-font-sm);           /* war xs (11px), jetzt sm (12px) */
+  font-size: var(--ck-font-sm);
   font-weight: 700;
   color: var(--ck-text-muted);
   text-transform: uppercase;
@@ -23,10 +23,27 @@
 }
 .ck-table tbody tr:last-child td { border-bottom: none; }
 .ck-table tbody tr:hover         { background: var(--ck-bg-subtle); }
+
+/* Pagination unten – innerhalb .ck-table-wrap */
 .ck-table__pagination {
   padding: 12px var(--ck-space-4);
   border-top: 1px solid var(--ck-border-light);
 }
+
+/* Pagination oben – außerhalb von .ck-table-wrap, eigenständig stehend */
+.ck-table__pagination--standalone {
+  padding: 8px 0;
+  border-top: none;
+}
+
+/* ── Spaltenbreiten-Utilities ───────────────────────────────────────────
+   Verwende diese Klassen statt style="width:Xpx" in Blade-Templates.
+   Absolutes Verbot: style="" in Blade-Views.
+   ─────────────────────────────────────────────────────────────────────── */
+.ck-table__col--xs    { width: 36px;  }   /* Checkbox, Icon */
+.ck-table__col--sm    { width: 90px;  }   /* Status-Badge, kurze Labels */
+.ck-table__col--md    { width: 220px; }   /* CSV-Spalten-Label, mittlere Felder */
+.ck-table__col--lg    { width: 280px; }   /* Mapping-Dropdown, breite Felder */
 
 /* Avatar */
 .ck-avatar {
@@ -41,3 +58,232 @@
 .ck-avatar--md { width: 36px; height: 36px; font-size: var(--ck-font-sm); }
 .ck-avatar--lg { width: 48px; height: 48px; font-size: var(--ck-font-base); }
 .ck-avatar--photo { object-fit: cover; border: 2px solid var(--ck-border); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Accordion-Zeilen (Expand / Collapse)
+   ─────────────────────────────────────────────────────────────────────
+   Pattern A: Zeilen-Klick öffnet eine versteckte Akkordeon-Zeile darunter.
+   Verwendet für: Teams-Index (Mitglieder inline), ExtendedContactFields.
+
+   HTML-Struktur:
+     <tr class="ck-table__row--expandable" onclick="...">
+       <td><span class="ck-accordion-chevron" id="chevron-X">SVG</span> ...</td>
+     </tr>
+     <tr class="ck-expand-row is-hidden" id="expand-X">
+       <td colspan="N">
+         <div class="ck-accordion-panel"> ... </div>
+       </td>
+     </tr>
+
+   JS: classList.toggle('is-hidden') + classList.toggle('ck-accordion-chevron--open')
+══════════════════════════════════════════════════════════════════════ */
+
+/* Zeile ist anklickbar */
+.ck-table__row--expandable {
+  cursor: pointer;
+  user-select: none;
+}
+.ck-table__row--expandable:hover { background: var(--ck-bg-subtle); }
+
+/* Kein hover auf der geöffneten Expand-Zeile */
+.ck-expand-row:hover { background: transparent !important; }
+
+/* Chevron-Icon in anklickbarer Zeile */
+.ck-accordion-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  margin-right: 6px;
+  color: var(--ck-text-muted);
+  transition: transform 0.2s, color 0.15s;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.ck-accordion-chevron svg { display: block; }
+.ck-accordion-chevron--open {
+  transform: rotate(180deg);
+  color: var(--ck-accent-dark);
+}
+
+/* Expand-Zeile selbst */
+.ck-expand-row {
+  background: var(--ck-bg-subtle);
+}
+.ck-expand-row td {
+  padding: 0;
+  border-bottom: 2px solid var(--ck-border);
+}
+
+/* Inhalt der Expand-Zeile */
+.ck-accordion-panel {
+  padding: var(--ck-space-4) var(--ck-space-5);
+  border-top: 1px solid var(--ck-border-light);
+}
+
+/* ── Mitgliederliste im Accordion (Teams-Index) ────────────────────── */
+.ck-accordion-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: var(--ck-space-3);
+}
+
+.ck-accordion-member {
+  display: flex;
+  align-items: center;
+  gap: var(--ck-space-3);
+  padding: 8px 10px;
+  border-radius: var(--ck-radius);
+  transition: background 0.1s;
+}
+.ck-accordion-member:hover { background: var(--ck-border-light); }
+
+.ck-accordion-member__name {
+  flex: 1;
+  font-size: var(--ck-font-base);
+  font-weight: 600;
+  color: var(--ck-text);
+}
+.ck-accordion-member__number {
+  font-size: var(--ck-font-sm);
+  font-weight: 700;
+  color: var(--ck-text-muted);
+  background: var(--ck-border);
+  border-radius: 4px;
+  padding: 1px 7px;
+  min-width: 32px;
+  text-align: center;
+}
+
+/* ── Mitglied-Hinzufügen-Zeile im Accordion ────────────────────────── */
+.ck-add-member-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--ck-space-2);
+  padding-top: var(--ck-space-3);
+  border-top: 1px solid var(--ck-border-light);
+  margin-top: var(--ck-space-2);
+  flex-wrap: wrap;
+}
+.ck-add-member-inline select {
+  flex: 1;
+  min-width: 160px;
+}
+.ck-add-member-inline__number {
+  width: 64px;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Sektion-Header: einklappbar
+   ─────────────────────────────────────────────────────────────────────
+   Für Management-Seiten: Gruppen (Allgemein, Team A, …) können
+   per Klick auf den Header auf-/zugeklappt werden.
+
+   HTML-Struktur:
+     <div class="ck-section-header ck-section-header--collapsible"
+          onclick="ckSectionToggle('body-X', 'chevron-X')">
+       ...
+       <span class="ck-accordion-chevron" id="chevron-X">SVG</span>
+     </div>
+     <div id="body-X">  ← klappt sich ein/aus  </div>
+══════════════════════════════════════════════════════════════════════ */
+.ck-section-header--collapsible {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.ck-section-header--collapsible:hover {
+  background: var(--ck-border-light);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Expand-Row (ExtendedContactFields & andere Module)
+══════════════════════════════════════════════════════════════════════ */
+.ck-contact-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--ck-space-3) var(--ck-space-5);
+}
+.ck-contact-field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ck-contact-field-item__label {
+  font-size: var(--ck-font-xs);
+  font-weight: 700;
+  color: var(--ck-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ck-contact-field-item__value {
+  font-size: var(--ck-font-base);
+  color: var(--ck-text);
+  word-break: break-word;
+}
+.ck-contact-field-item__value a { color: var(--ck-accent); text-decoration: none; }
+.ck-contact-field-item__value a:hover { text-decoration: underline; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Pagination – ck-pagination
+   ─────────────────────────────────────────────────────────────────────
+   Registriert als Standard-View via Paginator::defaultView()
+   in AppServiceProvider. Ersetzt Laravels Tailwind-Default-View,
+   da dieses Projekt kein Tailwind nutzt.
+══════════════════════════════════════════════════════════════════════ */
+.ck-pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ck-pagination__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--ck-border);
+  border-radius: var(--ck-radius);
+  font-size: var(--ck-font-sm);
+  font-weight: 500;
+  color: var(--ck-text);
+  background: var(--ck-white);
+  text-decoration: none;
+  line-height: 1;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ck-pagination__btn:hover:not(.ck-pagination__btn--disabled):not(.ck-pagination__btn--active) {
+  background: var(--ck-bg-subtle);
+  border-color: var(--ck-primary);
+  color: var(--ck-primary);
+}
+
+.ck-pagination__btn--active {
+  background: var(--ck-primary);
+  color: var(--ck-text-white);
+  border-color: var(--ck-primary);
+  font-weight: 700;
+  cursor: default;
+}
+
+.ck-pagination__btn--disabled {
+  color: var(--ck-text-muted);
+  cursor: default;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.ck-pagination__dots {
+  padding: 0 6px;
+  color: var(--ck-text-muted);
+  font-size: var(--ck-font-sm);
+  line-height: 32px;
+}

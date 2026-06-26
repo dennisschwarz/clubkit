@@ -8,28 +8,51 @@
         <a href="{{ route('teams.index') }}" class="ck-breadcrumb">← Teams</a>
         <h1 class="ck-page-title">{{ $team->name }}</h1>
         <p class="ck-page-subtitle">
-            {{ $team->season ?? '' }}
-            {{ $team->league    ? '· ' . $team->league    : '' }}
-            {{ $team->age_class ? '· ' . $team->age_class : '' }}
-            · {{ $team->members->count() }} Spieler
+            @if($team->is_competition)
+                <x-ck-badge color="blue">Wettbewerb</x-ck-badge>
+            @else
+                <x-ck-badge color="gray">Freizeit</x-ck-badge>
+            @endif
+            @if($team->eligible_only)
+                <x-ck-badge color="orange">Nur Spielberechtigte</x-ck-badge>
+            @endif
+            @if($team->season)
+                <span class="ck-text-muted"> · {{ $team->season }}</span>
+            @endif
+            @if($team->league)
+                <span class="ck-text-muted"> · {{ $team->league }}</span>
+            @endif
+            @if($team->age_class)
+                <span class="ck-text-muted"> · {{ $team->age_class }}</span>
+            @endif
+            <span class="ck-text-muted"> · {{ $team->members->count() }} Mitglieder</span>
         </p>
     </div>
-    @if($eligibleMembers->isNotEmpty())
-    <x-ck-button variant="primary" onclick="ckModalOpen('addMemberModal')">
-        + Spieler hinzufügen
-    </x-ck-button>
-    @endif
+    <div class="ck-row">
+        @ckHook('team.show.header')
+
+        @if(!$team->is_active)
+            {{-- Inaktives Team: kein Button, nur Hinweis --}}
+            <div class="ck-alert ck-alert--warning">
+                ⚠️ Inaktives Team – Mitglieder können nicht hinzugefügt werden.
+            </div>
+        @elseif($availableMembers->isNotEmpty())
+            <x-ck-button variant="primary" onclick="ckModalOpen('addMemberModal')">
+                + Mitglied hinzufügen
+            </x-ck-button>
+        @endif
+    </div>
 </div>
 
-{{-- ── Kader-Tabelle ─────────────────────────────────────── --}}
 <div class="ck-table-wrap">
     <table class="ck-table">
         <thead>
             <tr>
                 <th>#</th>
-                <th>Spieler</th>
+                <th>Mitglied</th>
                 <th>Alter</th>
                 <th>Geschlecht</th>
+                @ckHook('team.show.table.header')
                 <th class="ck-table__actions">Aktionen</th>
             </tr>
         </thead>
@@ -44,7 +67,7 @@
                         @if($member->profile_image)
                             <img src="{{ asset('storage/' . $member->profile_image) }}"
                                  alt="{{ $member->last_name }}"
-                                 class="ck-avatar ck-avatar--sm ck-avatar--photo">
+                                 class="ck-avatar ck-avatar--sm">
                         @else
                             <div class="ck-avatar ck-avatar--sm">
                                 {{ strtoupper(substr($member->last_name, 0, 1)) }}
@@ -61,15 +84,19 @@
                         @default –
                     @endswitch
                 </td>
-                <td>
+                @ckHook('team.show.table.row')
+                <td class="ck-table__actions">
                     <div class="ck-table__action-cell">
                         <form method="POST"
                               action="{{ route('teams.removeMember', [$team, $member]) }}"
                               class="ck-inline-form">
                             @csrf @method('DELETE')
-                            <x-ck-button variant="danger" size="sm" type="submit"
+                            <x-ck-button variant="danger" size="icon" type="submit"
+                                title="Mitglied entfernen"
                                 :confirm="$member->last_name . ' aus dem Team entfernen?'">
-                                Entfernen
+                                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
                             </x-ck-button>
                         </form>
                     </div>
@@ -77,10 +104,10 @@
             </tr>
             @empty
             <tr>
-                <td colspan="5" class="ck-empty-state">
-                    Noch keine Spieler im Kader.
-                    @if($eligibleMembers->isNotEmpty())
-                    <a href="javascript:void(0)" onclick="ckModalOpen('addMemberModal')">Jetzt hinzufügen</a>
+                <td colspan="99" class="ck-empty-state">
+                    Noch keine Mitglieder im Team.
+                    @if($canAddMembers && $availableMembers->isNotEmpty())
+                        <a href="javascript:void(0)" onclick="ckModalOpen('addMemberModal')">Jetzt hinzufügen</a>
                     @endif
                 </td>
             </tr>
@@ -89,43 +116,50 @@
     </table>
 </div>
 
-{{-- ── Modal: Spieler hinzufügen ────────────────────────────
-     BUG-FIX: ->pluck('last_name_first', 'id') schlug fehl,
-     weil Member-Model keinen last_name_first Accessor hat.
-     Lösung: Options-Array sauber mit @php aufbauen.
-─────────────────────────────────────────────────────────── --}}
-@if($eligibleMembers->isNotEmpty())
-@php
-    // Optionen-Array: [id => 'Nachname, Vorname'] für das Select
-    $memberOptions = ['' => '– Mitglied auswählen –'];
-    foreach ($eligibleMembers as $em) {
-        $memberOptions[$em->id] = $em->last_name . ', ' . $em->first_name;
-    }
-@endphp
+@ckHook('team.show.sections')
 
-<x-ck-modal id="addMemberModal" title="Spieler hinzufügen" size="sm">
-    <form method="POST" action="{{ route('teams.addMember', $team) }}">
-        @csrf
-        <div class="ck-form-grid">
-            <x-ck-field label="Mitglied" name="member_id" type="select"
-                :required="true" :options="$memberOptions" />
-            <x-ck-field label="Trikotnummer" name="squad_number" type="number"
-                placeholder="optional" hint="(1–99)" />
+{{-- Mitglied-hinzufügen Modal: nur wenn Team aktiv und Mitglieder verfügbar --}}
+@if($canAddMembers && $availableMembers->isNotEmpty())
+    @php
+        $memberOptions = ['' => '– Mitglied auswählen –'];
+        foreach ($availableMembers as $am) {
+            $memberOptions[$am->id] = $am->last_name . ', ' . $am->first_name;
+        }
+    @endphp
+
+    <x-ck-modal id="addMemberModal" title="Mitglied hinzufügen" size="sm">
+        <form method="POST" action="{{ route('teams.addMember', $team) }}">
+            @csrf
+            <div class="ck-form-grid">
+                <x-ck-field label="Mitglied" name="member_id" type="select"
+                    :required="true" :options="$memberOptions" />
+                <x-ck-field label="Trikotnummer" name="squad_number" type="number"
+                    placeholder="optional" hint="(1–99)" />
+            </div>
+            @if($team->eligible_only)
+                <p class="ck-text-muted ck-text-sm ck-mt-2">
+                    ⚠️ Dieses Team ist auf spielberechtigte Mitglieder beschränkt.
+                </p>
+            @endif
+            <div class="ck-form-actions">
+                <x-ck-button type="submit" variant="primary">Hinzufügen</x-ck-button>
+                <x-ck-button type="button" variant="secondary"
+                    onclick="ckModalClose(null, 'addMemberModal')">Abbrechen</x-ck-button>
+            </div>
+        </form>
+    </x-ck-modal>
+
+@elseif($canAddMembers && $availableMembers->isEmpty())
+    <x-ck-card class="ck-mt-5">
+        <div class="ck-empty-state">
+            @if($team->eligible_only)
+                Alle spielberechtigten Mitglieder sind bereits im Team.
+            @else
+                Alle Mitglieder sind bereits im Team.
+            @endif
+            <br><a href="{{ route('members.index') }}">Mitglieder verwalten →</a>
         </div>
-        <div class="ck-form-actions">
-            <x-ck-button type="submit" variant="primary">Hinzufügen</x-ck-button>
-            <x-ck-button type="button" variant="secondary"
-                onclick="ckModalClose(null, 'addMemberModal')">Abbrechen</x-ck-button>
-        </div>
-    </form>
-</x-ck-modal>
-@else
-<x-ck-card class="ck-mt-5">
-    <div class="ck-empty-state">
-        Alle spielberechtigten Mitglieder sind bereits im Team.<br>
-        <a href="{{ route('members.index') }}">Mitglieder verwalten →</a>
-    </div>
-</x-ck-card>
+    </x-ck-card>
 @endif
 
 @endsection

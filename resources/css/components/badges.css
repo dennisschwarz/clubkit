@@ -13,3 +13,45 @@
 .ck-badge--purple { background: #f3e8ff; color: var(--ck-purple-text); }
 .ck-badge--red    { background: var(--ck-danger-bg); color: var(--ck-danger-text); }
 .ck-badge--amber  { background: var(--ck-warning-bg); color: var(--ck-warning-text); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Team-Farb-Badges  (.ck-badge--team-{color})
+   Verwendet die gleiche Farbpalette wie die Swatch-Dots im Team-Modal.
+   Helle Tint-Hintergründe + kräftige Textfarbe für gute Lesbarkeit.
+══════════════════════════════════════════════════════════════════════ */
+.ck-badge--team-default { background: var(--ck-bg-subtle); color: var(--ck-text-secondary); border: 1px solid var(--ck-border); }
+.ck-badge--team-blue    { background: #dbeafe; color: #1d4ed8; }
+.ck-badge--team-navy    { background: #dbeafe; color: #1e3a8a; font-weight: 800; }
+.ck-badge--team-green   { background: #dcfce7; color: #166534; }
+.ck-badge--team-teal    { background: #ccfbf1; color: #0f766e; }
+.ck-badge--team-red     { background: #fee2e2; color: #b91c1c; }
+.ck-badge--team-orange  { background: #ffedd5; color: #c2410c; }
+.ck-badge--team-amber   { background: #fef9c3; color: #92400e; }
+.ck-badge--team-purple  { background: #f3e8ff; color: #7c3aed; }
+.ck-badge--team-pink    { background: #fce7f3; color: #be185d; }
+.ck-badge--team-slate   { background: #f1f5f9; color: #475569; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Team-Farb-Dot  (.ck-team-dot--{color})
+   Kleiner Farbkreis für Checkboxlisten, Selects und ähnliche Stellen,
+   wo der vollständige Badge zu groß wäre.
+══════════════════════════════════════════════════════════════════════ */
+.ck-team-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.ck-team-dot--default { background: var(--ck-border); border: 1px solid var(--ck-border-light); }
+.ck-team-dot--blue    { background: #3b82f6; }
+.ck-team-dot--navy    { background: #1e3a8a; }
+.ck-team-dot--green   { background: #16a34a; }
+.ck-team-dot--teal    { background: #0d9488; }
+.ck-team-dot--red     { background: #dc2626; }
+.ck-team-dot--orange  { background: #ea580c; }
+.ck-team-dot--amber   { background: #f59e0b; }
+.ck-team-dot--purple  { background: #9333ea; }
+.ck-team-dot--pink    { background: #db2777; }
+.ck-team-dot--slate   { background: #475569; }

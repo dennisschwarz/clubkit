@@ -124,6 +124,10 @@
            class="ck-subtab {{ request()->routeIs('admin.users.*') ? 'ck-subtab--active' : '' }}">
             {{ $showSubEmojis ? '👤 ' : '' }}Nutzer
         </a>
+        <a href="{{ route('admin.roles.index') }}"
+           class="ck-subtab {{ request()->routeIs('admin.roles.*') ? 'ck-subtab--active' : '' }}">
+            {{ $showSubEmojis ? '🔒 ' : '' }}Rollen & Rechte
+        </a>
         <a href="{{ route('admin.modules.index') }}"
            class="ck-subtab {{ request()->routeIs('admin.modules.*') ? 'ck-subtab--active' : '' }}">
             {{ $showSubEmojis ? '🧩 ' : '' }}Module
@@ -131,6 +135,10 @@
         <a href="{{ route('admin.appearance.index') }}"
            class="ck-subtab {{ request()->routeIs('admin.appearance.*') ? 'ck-subtab--active' : '' }}">
             {{ $showSubEmojis ? '🎨 ' : '' }}Erscheinungsbild
+        </a>
+        <a href="{{ route('admin.module-settings.index') }}"
+           class="ck-subtab {{ request()->routeIs('admin.module-settings.*') ? 'ck-subtab--active' : '' }}">
+            {{ $showSubEmojis ? '🔧 ' : '' }}Modul-Einstellungen
         </a>
     </nav>
 </div>
@@ -154,5 +162,23 @@
 </div>
 
 @stack('scripts')
+
+{{-- ══════════════════════════════════════════════════════════════
+     MODAL ROOT
+     Alle .ck-modal-overlay Elemente werden per JS hierher
+     teleportiert (app.js: ckTeleportModals). Dadurch liegen sie
+     direkt unter <body> – kein Stacking-Context-Problem mehr.
+══════════════════════════════════════════════════════════════ --}}
+<div id="ck-modal-root"></div>
+
+{{-- ══════════════════════════════════════════════════════════════
+     LOADING OVERLAY
+     Wird per JS eingeblendet sobald ein Formular abgeschickt wird.
+     Verhindert Doppelklicks und gibt visuelles Feedback.
+══════════════════════════════════════════════════════════════ --}}
+<div id="ck-loading-overlay" class="ck-loading-overlay" aria-hidden="true">
+    <div class="ck-loading-spinner" role="status" aria-label="Wird geladen…"></div>
+</div>
+
 </body>
 </html>

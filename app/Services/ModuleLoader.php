@@ -8,7 +8,11 @@ use Illuminate\Support\Facades\Schema;
 /**
  * ModuleLoader
  *
- * Lädt aktive Module aus der DB und bootstrappt ihre ServiceProvider.
+ * Lädt aktive Module und bootstrappt ihre ServiceProvider.
+ *
+ * Produktiv: Liest aktive Module aus der installed_modules-Tabelle.
+ * Test-Modus: Lädt alle verfügbaren Module aus dem Dateisystem (kein DB-Zugriff).
+ *
  * Graceful: Fehler beim Laden (z.B. DB nicht bereit) werden still ignoriert.
  */
 class ModuleLoader
@@ -22,11 +26,25 @@ class ModuleLoader
     }
 
     /**
-     * Alle aktiven Module aus der DB laden und ServiceProvider registrieren.
+     * Alle aktiven Module laden und ServiceProvider registrieren.
      * Wird in AppServiceProvider::boot() aufgerufen.
+     *
+     * Im Test-Modus werden alle verfügbaren Module direkt aus dem
+     * Dateisystem geladen, damit Routen beim App-Boot registriert
+     * werden – vor der ersten Auflösung des URL-Generators.
      */
     public function boot(): void
     {
+        // ── Test-Modus: Alle Module aus dem Dateisystem laden ──────────────────
+        // In Tests ist die DB beim App-Boot noch nicht migriert. Der URL-Generator
+        // wird von Laravel's TestCase frühzeitig aufgelöst, daher müssen Routen
+        // BEIM APP-BOOT registriert sein – nicht erst in setUp().
+        if (app()->environment('testing')) {
+            $this->bootAllModulesFromFilesystem();
+            return;
+        }
+
+        // ── Produktiv-Modus: Module aus installed_modules laden ────────────────
         if (!$this->tableExists()) {
             return;
         }
@@ -133,22 +151,38 @@ class ModuleLoader
     }
 
     /**
-     * Löst Abhängigkeiten auf und gibt eine geordnete Installations-Liste zurück.
+     * Löst Abhängigkeiten auf und gibt eine topologisch geordnete Liste zurück.
+     *
+     * Abhängigkeiten kommen zuerst ("Abhängigkeiten zuerst"-Semantik):
+     * Wenn 'members' 'core' erfordert, lautet das Ergebnis ['core', 'members'].
+     *
+     * Implementiert als rekursiver DFS (Depth-First Search). Jeder Knoten
+     * wird erst nach vollständiger Auflösung seiner Abhängigkeiten in das
+     * Ergebnis-Array aufgenommen.
      *
      * @param  string[]  $selected  Slugs der gewählten Module
      * @param  array     $available Alle verfügbaren Module (aus detectAvailable())
-     * @return string[]  Geordnete Liste (Abhängigkeiten zuerst)
+     * @return string[]  Topologisch geordnete Liste (Abhängigkeiten zuerst)
+     *
+     * @throws \RuntimeException Wenn ein Modul oder eine Abhängigkeit nicht verfügbar ist,
+     *                           oder wenn eine zyklische Abhängigkeit erkannt wird.
      */
     public function resolveDependencies(array $selected, array $available): array
     {
-        $resolved  = [];
-        $resolving = $selected;
+        $resolved = [];
+        $visiting = []; // Zykluserkennung: aktuell auf dem DFS-Stack
 
-        while (!empty($resolving)) {
-            $slug = array_shift($resolving);
-
+        $visit = function (string $slug) use (&$visit, &$resolved, &$visiting, $available): void {
+            // Bereits vollständig aufgelöst → überspringen
             if (in_array($slug, $resolved, true)) {
-                continue;
+                return;
+            }
+
+            // Bereits im aktuellen DFS-Pfad → Zyklus erkannt
+            if (in_array($slug, $visiting, true)) {
+                throw new \RuntimeException(
+                    "Zyklische Abhängigkeit erkannt: '$slug' hängt transitiv von sich selbst ab."
+                );
             }
 
             if (!isset($available[$slug])) {
@@ -157,20 +191,25 @@ class ModuleLoader
                 );
             }
 
-            $requires = $available[$slug]['requires'] ?? [];
+            $visiting[] = $slug; // Auf den DFS-Stack legen
 
-            foreach ($requires as $dep) {
-                if (!in_array($dep, $resolved, true)) {
-                    if (!isset($available[$dep])) {
-                        throw new \RuntimeException(
-                            "Abhängigkeit '$dep' für '$slug' ist nicht verfügbar."
-                        );
-                    }
-                    array_unshift($resolving, $dep);
+            // Rekursiv alle Abhängigkeiten auflösen (Tiefensuche)
+            foreach ($available[$slug]['requires'] ?? [] as $dep) {
+                if (!isset($available[$dep])) {
+                    throw new \RuntimeException(
+                        "Abhängigkeit '$dep' für '$slug' ist nicht verfügbar."
+                    );
                 }
+                $visit($dep);
             }
 
+            // Vom DFS-Stack entfernen, in Ergebnis aufnehmen
+            $visiting = array_values(array_filter($visiting, fn($v) => $v !== $slug));
             $resolved[] = $slug;
+        };
+
+        foreach ($selected as $slug) {
+            $visit($slug);
         }
 
         return $resolved;
@@ -183,6 +222,115 @@ class ModuleLoader
     {
         $folder = implode('', array_map('ucfirst', explode('-', $slug)));
         return $this->modulesPath . '/' . $folder;
+    }
+
+    // ── Permissions ──────────────────────────────────────────────────────────
+
+    /**
+     * Permissions eines Moduls aus module.json in der DB anlegen.
+     * Wird von ModuleController::install() aufgerufen.
+     * Die Admin-Rolle erhält automatisch alle neuen Permissions.
+     */
+    public function seedPermissions(string $slug): void
+    {
+        // Spatie-Klassen nur laden wenn verfügbar
+        if (!class_exists(\Spatie\Permission\Models\Permission::class)) {
+            return;
+        }
+
+        $path = $this->modulePath($slug) . '/module.json';
+        if (!file_exists($path)) {
+            return;
+        }
+
+        $config      = json_decode(file_get_contents($path), true);
+        $permissions = $config['provides']['permissions'] ?? [];
+
+        if (empty($permissions)) {
+            return;
+        }
+
+        // Permissions anlegen (idempotent – findOrCreate)
+        foreach ($permissions as $permName) {
+            \Spatie\Permission\Models\Permission::findOrCreate($permName, 'web');
+        }
+
+        // Admin-Rolle bekommt automatisch alle neuen Permissions
+        try {
+            $adminRole = \Spatie\Permission\Models\Role::findByName('admin', 'web');
+            $adminRole->givePermissionTo($permissions);
+        } catch (\Throwable) {
+            // Admin-Rolle noch nicht angelegt → wird beim Seeder nachgeholt
+        }
+
+        // Spatie Cache leeren
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    /**
+     * Permissions eines Moduls aus der DB entfernen.
+     * Wird von ModuleController::remove() aufgerufen.
+     */
+    public function removePermissions(string $slug): void
+    {
+        if (!class_exists(\Spatie\Permission\Models\Permission::class)) {
+            return;
+        }
+
+        $path = $this->modulePath($slug) . '/module.json';
+        if (!file_exists($path)) {
+            return;
+        }
+
+        $config      = json_decode(file_get_contents($path), true);
+        $permissions = $config['provides']['permissions'] ?? [];
+
+        foreach ($permissions as $permName) {
+            try {
+                $perm = \Spatie\Permission\Models\Permission::findByName($permName, 'web');
+                $perm->delete();
+            } catch (\Throwable) {
+                // Permission existiert nicht → ignorieren
+            }
+        }
+
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    // ── Private Helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Alle verfügbaren Module aus dem Dateisystem laden.
+     * Nur im Test-Modus verwendet (kein DB-Zugriff nötig).
+     *
+     * Die Module werden alphabetisch geladen – 'Core' kommt vor allen
+     * anderen, was der Abhängigkeitsreihenfolge entspricht.
+     */
+    private function bootAllModulesFromFilesystem(): void
+    {
+        if (!is_dir($this->modulesPath)) {
+            return;
+        }
+
+        $slugs = [];
+
+        foreach (glob($this->modulesPath . '/*/module.json') as $file) {
+            $config = json_decode(file_get_contents($file), true);
+            if ($config && isset($config['slug'])) {
+                $slugs[] = $config['slug'];
+            }
+        }
+
+        // Core zuerst laden (andere Module können davon abhängen)
+        usort($slugs, function (string $a, string $b): int {
+            if ($a === 'core') return -1;
+            if ($b === 'core') return  1;
+            return strcmp($a, $b);
+        });
+
+        foreach ($slugs as $slug) {
+            $this->bootModule($slug);
+        }
     }
 
     /**

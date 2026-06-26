@@ -7,60 +7,40 @@ namespace Modules\YouthClubMode;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Members\Models\Member;
-use Modules\YouthClubMode\Models\MemberParent;
+use Modules\YouthClubMode\Models\MemberRelation;
+use Modules\YouthClubMode\Services\FamilyService;
 
 /**
- * YouthClubMode – erweitert das Members-Modul.
+ * YouthClubMode – erweitert das Members-Modul um Familienverwaltung.
  *
  * Dieses Modul hängt sich vollständig über das Hook-System in Members ein.
  * Das Members-Modul weiß nichts von YouthClubMode.
  *
  * Was dieses Modul tut:
- *  1. Relationen dynamisch an Member hängen (resolveRelationUsing)
- *  2. Hook-Views für members::index registrieren
- *  3. View Composer: members::index um Guardian-Daten anreichern
- *  4. Eigene Routen laden (PATCH /members/{id}/parents)
+ *  1. Hook-Views für members::index registrieren (Tab, Sektion, Tabellenspalte, Scripts)
+ *  2. View Composer: members::index mit Familie-Daten anreichern (via FamilyService)
+ *  3. Eigene Routen laden (POST/DELETE /members/{id}/relations)
  */
 class YouthClubModeServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+        // FamilyService als Singleton – stateless, kann wiederverwendet werden
+        $this->app->singleton(FamilyService::class);
+    }
 
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
         $this->loadViewsFrom(__DIR__ . '/Resources/Views', 'youth-club-mode');
 
-        $this->registerRelations();
         $this->registerHooks();
         $this->registerViewComposer();
         $this->registerRoutes();
     }
 
-    // ── Relationen dynamisch an Member hängen ─────────────────────────────
-
-    /**
-     * fatherLink und motherLink werden dynamisch hinzugefügt.
-     * Das Member-Model bleibt unverändert.
-     */
-    private function registerRelations(): void
-    {
-        Member::resolveRelationUsing('fatherLink', function (Member $model) {
-            return $model->hasOne(MemberParent::class, 'member_id')
-                         ->where('relationship', 'father');
-        });
-
-        Member::resolveRelationUsing('motherLink', function (Member $model) {
-            return $model->hasOne(MemberParent::class, 'member_id')
-                         ->where('relationship', 'mother');
-        });
-    }
-
     // ── Hook-Views registrieren ───────────────────────────────────────────
 
-    /**
-     * Alle YouthClubMode-Views an die definierten Extension Points hängen.
-     * Die Views erhalten automatisch alle Variablen des Host-Views.
-     */
     private function registerHooks(): void
     {
         $hooks = $this->app->make('ck.hooks');
@@ -68,85 +48,96 @@ class YouthClubModeServiceProvider extends ServiceProvider
         // Tab-Button im Member-Modal
         $hooks->register('member.modal.tabs', 'youth-club-mode::member-modal-tab', 20);
 
-        // Tab-Inhalt (Guardian-Formular)
+        // Tab-Inhalt (Familie-Formular)
         $hooks->register('member.modal.sections', 'youth-club-mode::member-modal-section', 20);
 
         // Spalten-Header in der Mitglieder-Tabelle
         $hooks->register('member.table.header', 'youth-club-mode::member-table-header', 20);
 
-        // Spalten-Zellen pro Zeile ($member ist automatisch im Scope)
+        // Spalten-Zellen pro Zeile ($member und $memberFamilies sind automatisch im Scope)
         $hooks->register('member.table.row', 'youth-club-mode::member-table-row', 20);
 
-        // JS-Datei laden (nach members-modal.js, das ckEmit bereitstellt)
+        // JS-Datei laden (nach members-modal.js)
         $hooks->register('member.page.scripts', 'youth-club-mode::member-page-scripts', 20);
     }
 
     // ── View Composer: members::index anreichern ──────────────────────────
 
     /**
-     * Bevor members::index gerendert wird, werden:
-     *  - guardian-Daten (father_id, mother_id) in $membersJs eingefügt
-     *  - $parentOptions (für die Guardian-Dropdowns) hinzugefügt
-     *
-     * Das Members-Modul weiß davon nichts. Es sieht nur seinen normalen
-     * $membersJs-Array – den dieser Composer transparent anreichert.
+     * Bevor members::index gerendert wird, werden eingefügt:
+     *  - $allMembersJs   → alle Mitglieder (für Dropdown-Filterung in JS)
+     *  - $relationsJs    → alle Verbindungen (für JS-Filterung)
+     *  - $memberFamilies → vorberechnete Familiendaten der paginierten Mitglieder (für Blade-Anzeige)
+     *  - $membersJs      → mit family{}-Objekt pro Mitglied angereichert (für Modal-Befüllung)
      */
     private function registerViewComposer(): void
     {
         view()->composer('members::index', function ($view) {
+            /** @var FamilyService $familyService */
+            $familyService = $this->app->make(FamilyService::class);
+
             $data      = $view->getData();
             $membersJs = $data['membersJs'] ?? [];
 
-            if (empty($membersJs)) {
-                $view->with('parentOptions', ['' => '– kein Eintrag –']);
-                return;
+            // Alle Mitglieder (unpaginiert) für Dropdown-Filterung im JS
+            $allMembers   = Member::orderBy('last_name')->get();
+            $allMembersJs = [];
+            foreach ($allMembers as $m) {
+                $allMembersJs[$m->id] = [
+                    'id'            => $m->id,
+                    'name'          => $m->last_name . ', ' . $m->first_name,
+                    'gender'        => $m->gender,
+                    'date_of_birth' => $m->date_of_birth?->format('Y-m-d'),
+                ];
             }
 
-            // Alle member_parents für die aktuell paginierten Mitglieder laden
-            $parentRows = MemberParent::whereIn('member_id', array_keys($membersJs))->get();
+            // Alle Verbindungen für JS-Filterung ("hat schon einen Vater?")
+            $allRelations = MemberRelation::all();
+            $relationsJs  = [];
+            foreach ($allRelations as $r) {
+                $relationsJs[] = [
+                    'id'                  => $r->id,
+                    'primary_member_id'   => $r->primary_member_id,
+                    'secondary_member_id' => $r->secondary_member_id,
+                    'relationship'        => $r->relationship,
+                ];
+            }
 
-            // $membersJs mit father_id / mother_id initialisieren
+            // Familiendaten für die paginierten Mitglieder vorberechnen
+            $memberFamilies = [];
+            foreach (array_keys($membersJs) as $memberId) {
+                $memberFamilies[$memberId] = $familyService->buildFamilyData(
+                    $memberId,
+                    $allRelations,
+                    $allMembersJs
+                );
+            }
+
+            // $membersJs mit family{}-Objekt anreichern (für Modal-Befüllung via JS)
             foreach ($membersJs as $id => &$entry) {
-                $entry['father_id'] = null;
-                $entry['mother_id'] = null;
+                $entry['family'] = $memberFamilies[$id] ?? $familyService->emptyFamily();
             }
             unset($entry);
 
-            // Guardian-Daten eintragen
-            foreach ($parentRows as $row) {
-                $id = $row->member_id;
-                if (!isset($membersJs[$id])) {
-                    continue;
-                }
-                if ($row->relationship === 'father') {
-                    $membersJs[$id]['father_id'] = $row->parent_member_id;
-                } elseif ($row->relationship === 'mother') {
-                    $membersJs[$id]['mother_id'] = $row->parent_member_id;
-                }
-            }
-
-            // Alle Mitglieder (unpaginiert) für die Guardian-Dropdowns
-            $allMembers    = Member::orderBy('last_name')->get();
-            $parentOptions = ['' => '– kein Eintrag –'];
-            foreach ($allMembers as $m) {
-                $parentOptions[$m->id] = $m->last_name . ', ' . $m->first_name;
-            }
-
-            // Angereicherte Daten zurück in die View schreiben
             $view->with([
-                'membersJs'     => $membersJs,
-                'parentOptions' => $parentOptions,
+                'membersJs'      => $membersJs,
+                'allMembersJs'   => $allMembersJs,
+                'relationsJs'    => $relationsJs,
+                'memberFamilies' => $memberFamilies,
             ]);
         });
     }
 
     // ── Routen ────────────────────────────────────────────────────────────
 
+    /**
+     * Routen direkt in boot() registrieren – konsistent mit allen anderen Modulen.
+     * (Kein booted()-Wrapper mehr nötig, da ModuleLoader::boot() bereits nach dem
+     * App-Boot-Zyklus läuft und alle Abhängigkeiten verfügbar sind.)
+     */
     private function registerRoutes(): void
     {
-        $this->app->booted(function () {
-            Route::middleware(['web', 'auth'])
-                 ->group(__DIR__ . '/routes.php');
-        });
+        Route::middleware(['web', 'auth'])
+             ->group(__DIR__ . '/routes.php');
     }
 }

@@ -1,8 +1,8 @@
 {
-    "name": "Mitglieder",
+    "name": "Members",
     "slug": "members",
     "version": "1.0.0",
-    "description": "Mitgliederverwaltung: Vorname, Nachname, Geschlecht, Geburtsdatum, Spielberechtigt",
+    "description": "Mitgliederverwaltung: Stammdaten, Foto, Spielberechtigung.",
     "requires": ["core"],
     "tables": ["members"],
     "provides": {
@@ -11,10 +11,17 @@
         "views": true,
         "nav": [
             {
-                "label": "👥 Mitglieder",
+                "label": "🧑‍🤝‍🧑 Mitglieder",
                 "route": "members.index",
-                "module": "members"
+                "module": "members",
+                "permission": "members.view"
             }
+        ],
+        "permissions": [
+            "members.view",
+            "members.create",
+            "members.edit",
+            "members.delete"
         ]
     },
     "author": "ClubKit"

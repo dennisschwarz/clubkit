@@ -1,6 +1,5 @@
 {{--
     YouthClubMode – Hook View: member.table.header
-    Fügt Guardian-Spalten-Header in die Mitglieder-Tabelle ein.
+    Eine Spalte "Familie" statt zwei getrennter Vater/Mutter-Spalten.
 --}}
-<th>Vater</th>
-<th>Mutter</th>
+<th>Familie</th>

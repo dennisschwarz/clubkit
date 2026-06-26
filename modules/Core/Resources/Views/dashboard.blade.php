@@ -19,6 +19,8 @@
         <div class="ck-stat-card__value">{{ $stat['value'] }}</div>
     </a>
     @endforeach
+    {{-- Fix 7: Extension Point – andere Module können hier Kacheln hinzufügen --}}
+    @ckHook('dashboard.stats')
 </div>
 @endif
 
@@ -33,9 +35,10 @@
         <div class="ck-settings-section">
             @foreach($modules as $mod)
             <div class="ck-settings-row">
-                <div class="ck-settings-row__label">{{ $mod['name'] ?? $mod['slug'] }}</div>
+                {{-- Fix 1: stdClass-Objekte brauchen Pfeil-Notation, keine Array-Notation --}}
+                <div class="ck-settings-row__label">{{ $mod->name ?? $mod->slug }}</div>
                 <div class="ck-settings-row__input">
-                    <x-ck-badge color="green">v{{ $mod['version'] ?? '–' }}</x-ck-badge>
+                    <x-ck-badge color="green">v{{ $mod->version ?? '–' }}</x-ck-badge>
                 </div>
             </div>
             @endforeach
@@ -70,6 +73,8 @@
                 <span>Design</span>
             </a>
         </div>
+        {{-- Extension Point – andere Module können hier Schnellaktionen ergänzen --}}
+        @ckHook('dashboard.quick-actions')
     </x-ck-card>
 
 </div>

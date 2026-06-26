@@ -1,6 +1,7 @@
 .ck-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--ck-space-2);
   border: none;
   border-radius: var(--ck-radius);
@@ -39,17 +40,40 @@
   color: var(--ck-success-text);
   border: 1px solid var(--ck-success-border);
 }
+.ck-btn--success:not(:disabled):hover { background: #dcfce7; }
 
-.ck-btn--sm   { font-size: var(--ck-font-sm); padding: 6px 12px; }
-.ck-btn--lg   { font-size: var(--ck-font-lg); padding: 12px 24px; }
-.ck-btn--icon { padding: 8px; }
+/* Gelb/Amber – für Bearbeiten-Aktionen */
+.ck-btn--warning {
+  background: var(--ck-warning-bg);
+  color: var(--ck-warning-text);
+  border: 1px solid var(--ck-warning-border);
+}
+.ck-btn--warning:not(:disabled):hover { background: #fef08a; }
+
+/* ── Größen ──────────────────────────────────────────────────────────── */
+.ck-btn--xs  { font-size: var(--ck-font-xs); padding: 3px 8px; line-height: 1.4; }
+.ck-btn--sm  { font-size: var(--ck-font-sm); padding: 6px 12px; }
+.ck-btn--lg  { font-size: var(--ck-font-lg); padding: 12px 24px; }
+
+/* Quadratischer Icon-Button: 34×34px, kein Text */
+.ck-btn--icon {
+  padding: 0;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+/* Button streckt sich auf volle Höhe einer Grid-Zelle (z.B. 42px wie Inputs) */
+.ck-btn--stretch {
+  height: 42px;
+  width: 100%;
+}
 
 /* ── Ladezustand (Spinner) ──────────────────────────────────────────── */
 .ck-btn--loading {
   pointer-events: none;
   opacity: 0.75;
 }
-/* Spinner über dem Button-Text – Text bleibt lesbar */
 .ck-btn--loading::after {
   content: '';
   display: inline-block;

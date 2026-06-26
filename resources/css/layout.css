@@ -2,6 +2,7 @@
    Alle Farben über CSS-Variablen aus base.css – dynamisch überschreibbar
    durch layout.blade.php <head> <style>-Block (settings aus DB).
    Alle inner Container: max-width: var(--ck-max-width) – EINHEITLICH.
+   AUSNAHME: .ck-brand-bar – volle Viewport-Breite (kein max-width).
 ───────────────────────────────────────────────────────────────────────── */
 :root {
   --ck-brand-bar-height: 52px;
@@ -20,14 +21,13 @@
 }
 
 /* ── Zeile 1: Brand-Bar ──────────────────────────────────────────────── */
+/* KEIN max-width – Brand-Bar spannt volle Viewport-Breite */
 .ck-brand-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: var(--ck-brand-bar-height);
   padding: 0 var(--ck-space-5);
-  max-width: var(--ck-max-width);
-  margin: 0 auto;
 }
 
 /* Logo + Vereinsname */
@@ -43,7 +43,7 @@
   background: var(--ck-white);
   display: flex; align-items: center; justify-content: center;
   font-weight: 900; font-size: 11px;
-  color: var(--ck-brand-bar-bg);   /* Textfarbe = Hintergrundfarbe des Headers (invertiert) */
+  color: var(--ck-brand-bar-bg);
   flex-shrink: 0;
   overflow: hidden;
 }

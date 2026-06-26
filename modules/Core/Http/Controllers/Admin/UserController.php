@@ -24,23 +24,30 @@ class UserController extends Controller
     public function index(): View
     {
         $users       = User::with('roles', 'permissions')->orderBy('name')->paginate(25);
-        $roles       = Role::orderBy('name')->get();
+        $roles       = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
+
+        // Permissions nach Modul-Präfix gruppieren
+        $permsByModule = [];
+        foreach ($permissions as $p) {
+            $module = explode('.', $p->name)[0];
+            $permsByModule[$module][] = $p->name;
+        }
+        ksort($permsByModule);
 
         // Data Bridge für users-modal.js
         // HINWEIS: Kein fn() / map() in @json() – manuell mit foreach aufbauen
+
         $usersJs = [];
         foreach ($users as $u) {
             $rolesArr       = [];
             $permissionsArr = [];
-
             foreach ($u->roles as $r) {
                 $rolesArr[] = $r->name;
             }
             foreach ($u->permissions as $p) {
                 $permissionsArr[] = $p->name;
             }
-
             $usersJs[$u->id] = [
                 'id'          => $u->id,
                 'name'        => $u->name,
@@ -50,15 +57,28 @@ class UserController extends Controller
             ];
         }
 
-        return view('core::admin.users.index', compact('users', 'roles', 'permissions', 'usersJs'));
+        // Rollen mit ihren Permissions für den Dropdown
+        $rolesJs = [];
+        foreach ($roles as $r) {
+            $permNames = [];
+            foreach ($r->permissions as $p) {
+                $permNames[] = $p->name;
+            }
+            $rolesJs[$r->name] = [
+                'name'        => $r->name,
+                'permissions' => $permNames,
+                'isSystem'    => in_array($r->name, ['super-admin', 'admin', 'user'], true),
+            ];
+        }
+
+        return view('core::admin.users.index', compact(
+            'users', 'roles', 'permissions', 'permsByModule',
+            'usersJs', 'rolesJs'
+        ));
     }
 
     // ── store ──────────────────────────────────────────────────────────────
 
-    /**
-     * Neuen Nutzer anlegen.
-     * Wird aus users-modal.js über routes.store aufgerufen (Tab 1: Login-Infos).
-     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -95,7 +115,7 @@ class UserController extends Controller
     /**
      * Nutzer aktualisieren.
      * Tab 1 (Login-Infos): name, email, optionales Passwort.
-     * Tab 2 (Rechte): rights_only=1, role (Radio), permissions[] (Checkboxen).
+     * Tab 2 (Rechte): rights_only=1, role (Dropdown), permissions[] (Checkboxen).
      */
     public function update(Request $request, User $user): RedirectResponse
     {

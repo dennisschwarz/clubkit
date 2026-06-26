@@ -8,23 +8,43 @@
         <h1 class="ck-page-title">Mitglieder</h1>
         <p class="ck-page-subtitle">{{ $members->total() }} Mitglieder gesamt</p>
     </div>
-    <x-ck-button variant="primary" onclick="membersModalOpen('create')">
-        + Mitglied hinzufügen
-    </x-ck-button>
+    <div class="ck-row ck-row--gap">
+        @ckHook('member.page.actions')
+        <x-ck-button variant="primary" onclick="membersModalOpen('create')">
+            + Mitglied hinzufügen
+        </x-ck-button>
+    </div>
 </div>
 
-{{-- Suchleiste --}}
-<form method="GET" class="ck-row ck-mb-4">
+{{-- Filter-Bar: Name (50%), Status, Spielberechtigung, Suchen/Zurücksetzen --}}
+{{-- Layout via CSS-Grid (.ck-filter-bar): 2fr 1fr 1fr auto auto              --}}
+<form method="GET" class="ck-filter-bar ck-mb-4">
     <input type="text" name="q" value="{{ request('q') }}"
-           placeholder="Nach Name suchen…" class="ck-field__input ck-search-input">
-    <x-ck-field name="status" type="select" :value="request('status')" :options="[
-        '' => 'Alle Status', 'active' => 'Aktiv', 'inactive' => 'Inaktiv',
-    ]" />
+           placeholder="Nach Name suchen…" class="ck-field__input">
+
+    <select name="status" class="ck-field__input">
+        <option value="">Alle Status</option>
+        <option value="active"   {{ request('status') === 'active'   ? 'selected' : '' }}>Aktiv</option>
+        <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inaktiv</option>
+    </select>
+
+    <select name="eligible" class="ck-field__input">
+        <option value="">Spielberechtigung</option>
+        <option value="1" {{ request('eligible') === '1' ? 'selected' : '' }}>✓ Spielberechtigt</option>
+        <option value="0" {{ request('eligible') === '0' ? 'selected' : '' }}>✗ Nicht berechtigt</option>
+    </select>
+
     <x-ck-button type="submit" variant="secondary">Suchen</x-ck-button>
-    @if(request('q') || request('status'))
+
+    @if(request()->anyFilled(['q', 'status', 'eligible']))
         <x-ck-button :href="route('members.index')" variant="secondary">Zurücksetzen</x-ck-button>
     @endif
 </form>
+
+{{-- Pagination oben --}}
+@if($members->hasPages())
+<div class="ck-table__pagination ck-table__pagination--standalone ck-mb-2">{{ $members->links() }}</div>
+@endif
 
 <div class="ck-table-wrap">
     <table class="ck-table">
@@ -34,7 +54,6 @@
                 <th>Geburtsdatum / Alter</th>
                 <th>Geschlecht</th>
                 <th>Spielberechtigt</th>
-                {{-- Extension Point: andere Module können hier Spalten hinzufügen --}}
                 @ckHook('member.table.header')
                 <th>Status</th>
                 <th class="ck-table__actions">Aktionen</th>
@@ -42,7 +61,7 @@
         </thead>
         <tbody>
             @forelse($members as $member)
-            <tr>
+            <tr class="ck-table__row--expandable" data-member-id="{{ $member->id }}">
                 <td>
                     <div class="ck-row">
                         @if($member->profile_image)
@@ -70,35 +89,44 @@
                     @endswitch
                 </td>
                 <td>
+                    {{-- eligible_to_play ist ein Accessor → true wenn eligible_to_play_date <= heute --}}
                     @if($member->eligible_to_play)
-                        <x-ck-badge color="green">✓ Ja</x-ck-badge>
+                        <x-ck-badge color="green" :title="'ab ' . ($member->eligible_to_play_date?->format('d.m.Y') ?? '')">
+                            ✓ Ja
+                        </x-ck-badge>
                     @else
                         <x-ck-badge color="gray">Nein</x-ck-badge>
                     @endif
                 </td>
-                {{-- Extension Point: $member ist hier im Scope – wird automatisch übergeben --}}
                 @ckHook('member.table.row')
                 <td>
                     <x-ck-badge :color="$member->status === 'active' ? 'green' : 'gray'">
                         {{ $member->status === 'active' ? 'Aktiv' : 'Inaktiv' }}
                     </x-ck-badge>
                 </td>
-                <td>
+                <td class="ck-table__actions">
                     <div class="ck-table__action-cell">
-                        <x-ck-button variant="secondary" size="sm"
+                        <x-ck-button variant="warning" size="icon"
+                            title="Bearbeiten"
                             onclick="membersModalOpen('edit', {{ $member->id }})">
-                            Bearbeiten
+                            <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-8 8a2 2 0 01-.9.52l-3 .75a.5.5 0 01-.607-.606l.75-3a2 2 0 01.52-.9l8-8z"/>
+                            </svg>
                         </x-ck-button>
                         <form method="POST" action="{{ route('members.destroy', $member) }}" class="ck-inline-form">
                             @csrf @method('DELETE')
-                            <x-ck-button variant="danger" size="sm" type="submit"
+                            <x-ck-button variant="danger" size="icon" type="submit"
+                                title="Mitglied löschen"
                                 :confirm="'Mitglied ' . $member->last_name . ', ' . $member->first_name . ' wirklich löschen?'">
-                                Löschen
+                                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
                             </x-ck-button>
                         </form>
                     </div>
                 </td>
             </tr>
+            @ckHook('member.table.expandrow')
             @empty
             <tr>
                 <td colspan="99" class="ck-empty-state">
@@ -109,16 +137,13 @@
             @endforelse
         </tbody>
     </table>
+
+    {{-- Pagination unten --}}
     @if($members->hasPages())
     <div class="ck-table__pagination">{{ $members->links() }}</div>
     @endif
 </div>
 
-{{-- ════════════════════════════════════════════════════════
-     MODAL: Mitglied erstellen / bearbeiten
-     Das Modal enthält nur die Kern-Tabs (Details, Foto).
-     Weitere Tabs werden über @ckHook von anderen Modulen ergänzt.
-════════════════════════════════════════════════════════ --}}
 <x-ck-modal id="memberModal" title="Mitglied" size="lg">
 
     <x-slot:tabs>
@@ -126,21 +151,17 @@
                 onclick="ckModalTab('memberModal', 'memberTab-stamm', this)">
             👤 Stammdaten
         </button>
-        {{-- Foto-Tab: wird in create-Modus via JS deaktiviert --}}
         <button id="memberPhotoTabBtn" class="ck-modal-tab"
                 onclick="ckModalTab('memberModal', 'memberTab-photo', this)">
             📷 Foto
         </button>
-        {{-- Extension Point: Andere Module hängen hier ihre Tabs ein --}}
         @ckHook('member.modal.tabs')
     </x-slot:tabs>
 
-    {{-- Tab 1: Stammdaten ───────────────────────────── --}}
     <div id="memberTab-stamm" class="ck-modal__section ck-modal__section--active">
         <form id="memberForm" method="POST" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="_method" id="memberFormMethod" value="POST">
-
             <div class="ck-form-grid ck-form-grid--2">
                 <x-ck-field label="Vorname"     name="first_name"    id="mFieldFirstName" :required="true" />
                 <x-ck-field label="Nachname"    name="last_name"     id="mFieldLastName"  :required="true" />
@@ -150,11 +171,13 @@
                     id="mFieldDob" :max="now()->subDay()->format('Y-m-d')" />
                 <x-ck-field label="Status" name="status" type="select" id="mFieldStatus"
                     :options="['active' => 'Aktiv', 'inactive' => 'Inaktiv']" />
-                <x-ck-field type="checkbox" name="eligible_to_play" id="mFieldEligible">
-                    Spielberechtigt
-                </x-ck-field>
+                {{-- Spielberechtigt ab: Datum statt Checkbox.                    --}}
+                {{-- Leer = nicht spielberechtigt. Der Accessor Member::eligible_to_play --}}
+                {{-- gibt true zurück wenn eligible_to_play_date <= heute.         --}}
+                <x-ck-field label="Spielberechtigt ab" name="eligible_to_play_date"
+                    type="date" id="mFieldEligible"
+                    hint="Leer = nicht spielberechtigt" />
             </div>
-
             <div class="ck-form-actions">
                 <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
                 <x-ck-button type="button" variant="secondary"
@@ -163,7 +186,6 @@
         </form>
     </div>
 
-    {{-- Tab 2: Foto ─────────────────────────────────── --}}
     <div id="memberTab-photo" class="ck-modal__section">
         <div id="memberPhotoCreateHint" class="ck-flash ck-flash--warning is-hidden">
             Bitte zuerst das Mitglied speichern (Tab Stammdaten), dann ein Foto hochladen.
@@ -191,8 +213,6 @@
         </form>
     </div>
 
-    {{-- Extension Point: Weitere Sections (Tabs) werden hier eingehängt.
-         Alle View-Variablen ($members, $membersJs etc.) stehen automatisch zur Verfügung. --}}
     @ckHook('member.modal.sections')
 
 </x-ck-modal>
@@ -201,6 +221,11 @@
 <script>
     window.CK_Members = {
         members: @json($membersJs),
+        customFields: {
+            definitions: @json($memberCfDefs),
+            values: @json($memberCfValues),
+            upsertRoute: "{{ url('custom-fields/values/member') }}"
+        },
         routes: {
             store:  "{{ route('members.store') }}",
             update: "{{ url('members') }}"
@@ -208,7 +233,6 @@
     };
 </script>
 <script src="{{ asset('js/modules/members-modal.js') }}"></script>
-{{-- Extension Point: Andere Module laden hier ihre JS-Dateien --}}
 @ckHook('member.page.scripts')
 @endpush
 

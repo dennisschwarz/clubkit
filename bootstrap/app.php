@@ -3,7 +3,6 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -19,7 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
-        );
+        // Hinweis: shouldRenderJsonWhen() wurde entfernt.
+        // Laravel's Standard-Verhalten prüft $request->expectsJson() –
+        // das funktioniert korrekt für postJson()-Requests (JSON API-Aufrufe
+        // aus Modals) UND für echte Browser-Requests.
+        // Eine künstliche Einschränkung auf 'api/*' würde Validierungsfehler
+        // für alle Modul-Endpunkte als HTML-Redirect statt als JSON 422 zurückgeben.
     })->create();

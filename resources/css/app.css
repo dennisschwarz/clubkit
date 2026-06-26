@@ -1,6 +1,7 @@
 /* ClubKit – CSS Entry Point */
 @import "./base.css";
 @import "./layout.css";
+@import "./components/auth.css";
 @import "./components/buttons.css";
 @import "./components/badges.css";
 @import "./components/cards.css";
@@ -8,3 +9,9 @@
 @import "./components/forms.css";
 @import "./components/modals.css";
 @import "./components/misc.css";
+@import "./components/events.css";
+@import "./components/custom-fields.css";
+
+/* ── Flatpickr: zuerst Original-CSS, dann CK-Override ── */
+@import "flatpickr/dist/flatpickr.min.css";
+@import "./components/datepicker.css";
