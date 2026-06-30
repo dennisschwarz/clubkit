@@ -14,12 +14,17 @@ final class CustomFieldValueFactory extends Factory
 {
     protected $model = CustomFieldValue::class;
 
+    /**
+     * Default state: a random word value linked to a freshly created definition.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
         return [
-            'field_id'   => CustomFieldDefinitionFactory::new(),
-            'entity_id'  => $this->faker->numberBetween(1, 100),
-            'value'      => $this->faker->word(),
+            'definition_id' => CustomFieldDefinitionFactory::new(), // FK to custom_field_definitions
+            'entity_id'     => $this->faker->numberBetween(1, 100),
+            'value'         => $this->faker->word(),
         ];
     }
 }

@@ -1,0 +1,282 @@
+/* ── Event Detail Page ──────────────────────────────────────────────────────── */
+
+/* Page header: breadcrumb + title + action buttons */
+.ck-page-header {
+    display:         flex;
+    align-items:     flex-start;
+    justify-content: space-between;
+    gap:             var(--ck-space-4);
+    margin-bottom:   var(--ck-space-5);
+}
+
+.ck-page-header__left {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-2);
+}
+
+.ck-page-header__title {
+    margin: 0;
+    font-size: var(--ck-font-2xl);
+    font-weight: 700;
+    color: var(--ck-primary);
+}
+
+.ck-page-header__actions {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-3);
+    flex-shrink: 0;
+}
+
+.ck-breadcrumb {
+    font-size:   var(--ck-font-base);
+    color:       var(--ck-text-muted);
+    text-decoration: none;
+}
+
+.ck-breadcrumb:hover {
+    text-decoration: underline;
+}
+
+/* Event metadata: definition list */
+.ck-event-meta {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-2);
+    margin:         0;
+}
+
+.ck-event-meta__row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: var(--ck-space-3);
+    padding: var(--ck-space-2) 0;
+    border-bottom: 1px solid var(--ck-border);
+}
+
+.ck-event-meta__row:last-child {
+    border-bottom: none;
+}
+
+.ck-event-meta__row dt {
+    font-weight: 600;
+    color: var(--ck-text-muted);
+    font-size: var(--ck-font-base);
+}
+
+.ck-event-meta__row dd {
+    margin: 0;
+    color: var(--ck-text);
+}
+
+/* Progress bar */
+.ck-event-progress {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-3);
+    margin-top:  var(--ck-space-4);
+    padding-top: var(--ck-space-4);
+    border-top:  1px solid var(--ck-border);
+}
+
+.ck-event-progress__bar {
+    flex:           1;
+    height:         8px;
+    background:     var(--ck-border);
+    border-radius:  4px;
+    overflow:       hidden;
+}
+
+.ck-event-progress__fill {
+    height:           100%;
+    width:            var(--progress, 0%);
+    background:       var(--ck-success, #22c55e);
+    border-radius:    4px;
+    transition:       width 0.3s ease;
+}
+
+.ck-event-progress__label {
+    font-size:   var(--ck-font-base);
+    color:       var(--ck-text-muted);
+    white-space: nowrap;
+}
+
+/* ── Collapsible task sections ────────────────────────────────────────────── */
+
+.ck-event-section {
+    background:    var(--ck-white);
+    border:        1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
+    margin-bottom: var(--ck-space-4);
+    overflow:      hidden;
+}
+
+.ck-event-section__summary {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    padding:         var(--ck-space-3) var(--ck-space-4);
+    cursor:          pointer;
+    user-select:     none;
+    background:      var(--ck-bg-subtle);
+    border-bottom:   1px solid var(--ck-border);
+    list-style:      none; /* removes default marker in Firefox */
+}
+
+.ck-event-section__summary::-webkit-details-marker {
+    display: none; /* removes default arrow in Chrome/Safari */
+}
+
+.ck-event-section__summary::before {
+    content:      '▶';
+    font-size:    var(--ck-font-xs);
+    margin-right: var(--ck-space-2);
+    color:        var(--ck-text-muted);
+    transition:   transform 0.15s ease;
+    display:      inline-block;
+}
+
+details[open] .ck-event-section__summary::before {
+    transform: rotate(90deg);
+}
+
+.ck-event-section__title {
+    font-weight: 600;
+    font-size:   var(--ck-font-lg);
+    color:       var(--ck-text);
+    flex:        1;
+}
+
+.ck-event-section__badge {
+    margin-left: var(--ck-space-3);
+}
+
+.ck-event-section__body {
+    padding: var(--ck-space-3) 0;
+}
+
+/* ── Task rows ────────────────────────────────────────────────────────────── */
+
+.ck-task-row {
+    transition: opacity 0.2s ease;
+}
+
+.ck-task-row--done .ck-task-row__name {
+    text-decoration: line-through;
+    color:           var(--ck-text-muted);
+}
+
+.ck-task-row--done {
+    opacity: 0.65;
+}
+
+.ck-task-checkbox {
+    cursor:  pointer;
+    width:   1.1rem;
+    height:  1.1rem;
+    accent-color: var(--ck-success, #22c55e);
+}
+
+.ck-task-member {
+    display:    block;
+    font-size:  var(--ck-font-base);
+}
+
+.ck-task-member__time {
+    color:     var(--ck-text-muted);
+    font-size: var(--ck-font-sm);
+}
+
+.ck-table__col--checkbox {
+    width:   2.5rem;
+    padding: var(--ck-space-2);
+}
+
+.ck-task-row__deadline {
+    white-space: nowrap;
+    font-size:   var(--ck-font-base);
+}
+
+.ck-task-row__notes {
+    font-size:  var(--ck-font-base);
+    color:      var(--ck-text-muted);
+    max-width:  220px;
+}
+
+/* Add-task row */
+.ck-add-task {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-3);
+}
+
+.ck-add-task .ck-form-select {
+    flex: 1;
+}
+
+/* Tag list for teams */
+.ck-tag-list {
+    display:    flex;
+    flex-wrap:  wrap;
+    gap:        var(--ck-space-2);
+    list-style: none;
+    margin:     0;
+    padding:    0;
+}
+
+/* Muted text */
+.ck-muted {
+    color:     var(--ck-text-muted);
+    font-size: var(--ck-font-base);
+}
+
+/* Alert flash */
+.ck-alert {
+    padding:       var(--ck-space-3) var(--ck-space-4);
+    border-radius: var(--ck-radius);
+    margin-bottom: var(--ck-space-4);
+    font-size:     var(--ck-font-md);
+}
+
+.ck-alert--success {
+    background: var(--ck-success-bg);
+    border:     1px solid var(--ck-success-border);
+    color:      var(--ck-success-text);
+}
+
+/* Hidden (for delete form) */
+.is-hidden {
+    display: none;
+}
+
+/* ── Print styles ─────────────────────────────────────────────────────────── */
+
+@media print {
+    /* Hide interactive elements */
+    .ck-no-print,
+    .ck-page-header__actions,
+    .ck-table__col--actions,
+    .ck-btn--danger,
+    .ck-modal { display: none !important; }
+
+    /* Ensure all sections are visible */
+    details, details > * { display: block !important; }
+    .ck-event-section__summary { border-bottom: 1px solid #ccc; }
+
+    /* Remove shadows and borders for cleaner print */
+    .ck-card, .ck-event-section {
+        box-shadow: none;
+        border:     1px solid #ccc;
+    }
+
+    /* Done tasks: keep strikethrough, increase opacity */
+    .ck-task-row--done { opacity: 1; }
+    .ck-task-row--done .ck-task-row__name { text-decoration: line-through; }
+
+    /* Progress bar: hide (not meaningful on paper) */
+    .ck-event-progress { display: none; }
+
+    /* Page break between sections */
+    .ck-event-section { page-break-inside: avoid; }
+}

@@ -107,7 +107,10 @@
                 <td colspan="99" class="ck-empty-state">
                     Noch keine Mitglieder im Team.
                     @if($canAddMembers && $availableMembers->isNotEmpty())
-                        <a href="javascript:void(0)" onclick="ckModalOpen('addMemberModal')">Jetzt hinzufügen</a>
+                        <x-ck-button type="button" variant="primary" size="sm"
+                            onclick="ckModalOpen('addMemberModal')">
+                            Jetzt hinzufügen
+                        </x-ck-button>
                     @endif
                 </td>
             </tr>

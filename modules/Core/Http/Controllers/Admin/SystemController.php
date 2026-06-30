@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Modules\Core\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -8,21 +10,36 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\View\View;
 
+/**
+ * System overview and maintenance controller.
+ *
+ * Provides the admin system panel with environment information,
+ * installed module status, and migration management.
+ */
 class SystemController extends Controller
 {
-    public function __construct(private readonly ModuleLoader $moduleLoader)
-    {
-    }
+    /**
+     * @param ModuleLoader $moduleLoader
+     */
+    public function __construct(private readonly ModuleLoader $moduleLoader) {}
 
+    /**
+     * Renders the system overview page.
+     *
+     * Includes Laravel/PHP versions, database name, app URL,
+     * installed modules, and the current migration status.
+     *
+     * @return View
+     */
     public function index(): View
     {
-        $installed    = $this->moduleLoader->getInstalled();
-        $available    = $this->moduleLoader->detectAvailable();
-        $laravelVersion = app()->version();
-        $phpVersion   = PHP_VERSION;
-        $dbName       = config('database.connections.' . config('database.default') . '.database');
-        $appUrl       = config('app.url');
-        $installedAt  = file_exists(storage_path('installed'))
+        $installed        = $this->moduleLoader->getInstalled();
+        $available        = $this->moduleLoader->detectAvailable();
+        $laravelVersion   = app()->version();
+        $phpVersion       = PHP_VERSION;
+        $dbName           = config('database.connections.' . config('database.default') . '.database');
+        $appUrl           = config('app.url');
+        $installedAt      = file_exists(storage_path('installed'))
             ? trim(file_get_contents(storage_path('installed')))
             : null;
 
@@ -40,6 +57,11 @@ class SystemController extends Controller
         ));
     }
 
+    /**
+     * Runs all pending migrations and redirects back to the system overview.
+     *
+     * @return RedirectResponse
+     */
     public function runMigrations(): RedirectResponse
     {
         Artisan::call('migrate', ['--force' => true]);
@@ -49,12 +71,16 @@ class SystemController extends Controller
             ->with('success', 'Migrationen erfolgreich ausgeführt.');
     }
 
+    /**
+     * Returns the current migration status by running `migrate:status`.
+     *
+     * @return array{ok: bool, pending: int, output: string}
+     */
     private function getMigrationsStatus(): array
     {
         try {
-            $result = Artisan::call('migrate:status', ['--no-interaction' => true]);
-            $output = Artisan::output();
-
+            Artisan::call('migrate:status', ['--no-interaction' => true]);
+            $output  = Artisan::output();
             $pending = substr_count($output, 'Pending');
 
             return [

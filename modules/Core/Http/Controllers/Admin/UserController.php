@@ -10,24 +10,32 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
+use Modules\Core\Http\Requests\StoreUserRequest;
+use Modules\Core\Http\Requests\UpdateUserRequest;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 /**
- * Verwaltung der System-Nutzer (Admins, Trainer, …).
- * Nutzerdaten + Rollen/Rechte in einem Modal mit zwei Tabs.
+ * Manages system users (admins, coaches, etc.).
+ *
+ * A modal with two tabs is used:
+ *   Tab 1 – Login info: name, email, password
+ *   Tab 2 – Rights:     role selection or custom permission set
  */
 class UserController extends Controller
 {
-    // ── index ──────────────────────────────────────────────────────────────
+    // ── index ─────────────────────────────────────────────────────────────────
 
+    /**
+     * @return View
+     */
     public function index(): View
     {
         $users       = User::with('roles', 'permissions')->orderBy('name')->paginate(25);
         $roles       = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
 
-        // Permissions nach Modul-Präfix gruppieren
+        // Group permissions by module prefix (text before the first dot) for the UI
         $permsByModule = [];
         foreach ($permissions as $p) {
             $module = explode('.', $p->name)[0];
@@ -35,9 +43,8 @@ class UserController extends Controller
         }
         ksort($permsByModule);
 
-        // Data Bridge für users-modal.js
-        // HINWEIS: Kein fn() / map() in @json() – manuell mit foreach aufbauen
-
+        // Build JS data bridge for users-modal.js
+        // Note: no fn()/map() in @json() – must use manual foreach loops
         $usersJs = [];
         foreach ($users as $u) {
             $rolesArr       = [];
@@ -57,7 +64,7 @@ class UserController extends Controller
             ];
         }
 
-        // Rollen mit ihren Permissions für den Dropdown
+        // Build roles with their permissions for the role dropdown
         $rolesJs = [];
         foreach ($roles as $r) {
             $permNames = [];
@@ -77,30 +84,33 @@ class UserController extends Controller
         ));
     }
 
-    // ── store ──────────────────────────────────────────────────────────────
+    // ── store ─────────────────────────────────────────────────────────────────
 
-    public function store(Request $request): RedirectResponse
+    /**
+     * Creates a new user account with a hashed password.
+     *
+     * @param  StoreUserRequest $request
+     * @return RedirectResponse
+     */
+    public function store(StoreUserRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'                  => ['required', 'string', 'max:255'],
-            'email'                 => ['required', 'email', 'unique:users,email'],
-            'password'              => ['required', 'string', 'min:8', 'confirmed'],
-            'password_confirmation' => ['required'],
-        ]);
-
         User::create([
-            'name'     => $validated['name'],
-            'email'    => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'name'     => $request->input('name'),
+            'email'    => $request->input('email'),
+            'password' => Hash::make($request->input('password')),
         ]);
 
         return redirect()
             ->route('admin.users.index')
-            ->with('success', 'Nutzer „' . $validated['name'] . '" angelegt.');
+            ->with('success', 'Nutzer „' . $request->input('name') . '" angelegt.');
     }
 
-    // ── show ───────────────────────────────────────────────────────────────
+    // ── show ──────────────────────────────────────────────────────────────────
 
+    /**
+     * @param  User $user
+     * @return View
+     */
     public function show(User $user): View
     {
         $user->load('roles', 'permissions');
@@ -110,31 +120,36 @@ class UserController extends Controller
         return view('core::admin.users.show', compact('user', 'roles', 'permissions'));
     }
 
-    // ── update ─────────────────────────────────────────────────────────────
+    // ── update ────────────────────────────────────────────────────────────────
 
     /**
-     * Nutzer aktualisieren.
-     * Tab 1 (Login-Infos): name, email, optionales Passwort.
-     * Tab 2 (Rechte): rights_only=1, role (Dropdown), permissions[] (Checkboxen).
+     * Updates a user's login info (Tab 1) or rights (Tab 2).
+     *
+     * Tab 1 (login info): name, email, optional new password.
+     * Tab 2 (rights):     rights_only=1 flag, role dropdown, permissions checkboxes.
+     *
+     * The 'custom' role option clears all roles and applies individual permissions.
+     * An empty role string clears both roles and individual permissions.
+     *
+     * @param  UpdateUserRequest $request
+     * @param  User              $user
+     * @return RedirectResponse
      */
-    public function update(Request $request, User $user): RedirectResponse
+    public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        // ── Tab 2: Rechte-Update ───────────────────────────────────────────
+        // ── Tab 2: rights update ───────────────────────────────────────────────
         if ($request->boolean('rights_only')) {
 
             $role = $request->input('role');
 
             if ($role === 'custom') {
-                // Benutzerdefinierte Berechtigungen
                 $user->syncRoles([]);
                 $permissions = $request->input('permissions', []);
                 $user->syncPermissions(is_array($permissions) ? $permissions : []);
             } elseif ($role && $role !== '') {
-                // Standard-Rolle: alle Einzelberechtigungen entfernen
                 $user->syncPermissions([]);
                 $user->syncRoles([$role]);
             } else {
-                // Keine Rolle: alle entfernen
                 $user->syncRoles([]);
                 $user->syncPermissions([]);
             }
@@ -144,21 +159,14 @@ class UserController extends Controller
                 ->with('success', 'Rechte von „' . $user->name . '" aktualisiert.');
         }
 
-        // ── Tab 1: Login-Infos-Update ──────────────────────────────────────
-        $validated = $request->validate([
-            'name'                  => ['required', 'string', 'max:255'],
-            'email'                 => ['required', 'email', 'unique:users,email,' . $user->id],
-            'password'              => ['nullable', 'string', 'min:8', 'confirmed'],
-            'password_confirmation' => ['nullable'],
-        ]);
-
+        // ── Tab 1: login info update ───────────────────────────────────────────
         $data = [
-            'name'  => $validated['name'],
-            'email' => $validated['email'],
+            'name'  => $request->input('name'),
+            'email' => $request->input('email'),
         ];
 
-        if (!empty($validated['password'])) {
-            $data['password'] = Hash::make($validated['password']);
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->input('password'));
         }
 
         $user->update($data);
@@ -168,8 +176,14 @@ class UserController extends Controller
             ->with('success', 'Nutzer „' . $user->name . '" aktualisiert.');
     }
 
-    // ── destroy ────────────────────────────────────────────────────────────
+    // ── destroy ───────────────────────────────────────────────────────────────
 
+    /**
+     * Deletes a user account. A user cannot delete their own account.
+     *
+     * @param  User $user
+     * @return RedirectResponse
+     */
     public function destroy(User $user): RedirectResponse
     {
         if ($user->id === auth()->id()) {

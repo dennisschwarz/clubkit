@@ -10,26 +10,46 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Modules\Members\Http\Requests\StoreMemberRequest;
+use Modules\Members\Http\Requests\UpdateMemberRequest;
+use Modules\Members\Http\Requests\UpdatePhotoRequest;
 use Modules\Members\Models\Member;
 
 /**
- * Verwaltet Mitglieder-CRUD.
+ * Handles member CRUD operations.
  *
- * Dieser Controller weiß nichts über andere Module.
- * Erweiterungen (z. B. Familienverwaltung durch YouthClubMode)
- * werden über View Composers und das Hook-System eingebunden.
+ * This controller has no knowledge of other modules.
+ * Extensions (e.g. family management by YouthClubMode, custom fields)
+ * are injected through view composers and the hook extension-point system.
+ *
+ * Validation is fully delegated to StoreMemberRequest, UpdateMemberRequest,
+ * and UpdatePhotoRequest.
  */
 class MemberController extends Controller
 {
+    /**
+     * @param  CustomFieldRepository $cfRepository
+     */
     public function __construct(
         private readonly CustomFieldRepository $cfRepository
     ) {}
 
+    /**
+     * Renders the paginated, filterable member list with the JS data bridge.
+     *
+     * Supported query parameters:
+     *   q         string  Full-text search on first_name / last_name
+     *   status    string  Filter by status: active | inactive
+     *   eligible  string  Filter by playing eligibility: 1 = eligible, 0 = not eligible
+     *
+     * @param  Request $request
+     * @return View
+     */
     public function index(Request $request): View
     {
         $query = Member::query();
 
-        // Volltextsuche über Vor- und Nachname
+        // Full-text search across first and last name
         if ($request->filled('q')) {
             $query->where(function ($q) use ($request) {
                 $q->where('first_name', 'like', '%' . $request->input('q') . '%')
@@ -37,15 +57,14 @@ class MemberController extends Controller
             });
         }
 
-        // Status-Filter
+        // Status filter
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
         }
 
-        // Spielberechtigungs-Filter
-        // eligible_to_play wird aus eligible_to_play_date abgeleitet:
-        //   "1" → Datum vorhanden UND <= heute (berechtigt)
-        //   "0" → Datum fehlt ODER liegt in der Zukunft (nicht berechtigt)
+        // Playing eligibility filter (derived from eligible_to_play_date column)
+        //   '1' → date is set AND is today or in the past (eligible)
+        //   '0' → date is missing OR is still in the future (not eligible)
         if ($request->filled('eligible')) {
             if ($request->input('eligible') === '1') {
                 $query->whereNotNull('eligible_to_play_date')
@@ -60,7 +79,8 @@ class MemberController extends Controller
 
         $members = $query->orderBy('last_name')->paginate(25)->withQueryString();
 
-        // JS-Daten aufbereiten – kein fn() / Arrow-Functions in @json()
+        // Build JS data bridge for members-modal.js.
+        // Note: no fn()/arrow functions in @json() – must use manual foreach loops.
         $membersJs = [];
         foreach ($members as $m) {
             $membersJs[$m->id] = [
@@ -70,15 +90,15 @@ class MemberController extends Controller
                 'gender'                => $m->gender,
                 'date_of_birth'         => $m->date_of_birth?->format('Y-m-d'),
                 'status'                => $m->status,
-                'eligible_to_play'      => (bool) $m->eligible_to_play,         // Accessor-Wert für Anzeige
-                'eligible_to_play_date' => $m->eligible_to_play_date?->format('Y-m-d'), // für Formular
+                'eligible_to_play'      => (bool) $m->eligible_to_play,
+                'eligible_to_play_date' => $m->eligible_to_play_date?->format('Y-m-d'),
                 'profile_image'         => $m->profile_image
                     ? asset('storage/' . $m->profile_image)
                     : null,
             ];
         }
 
-        // Eigene Felder (graceful: leer wenn CustomFields nicht installiert)
+        // Custom fields (graceful: returns empty arrays when CustomFields module is not installed)
         $cf             = $this->cfRepository->loadForObjectType('member');
         $memberCfDefs   = $cf['defs'];
         $memberCfValues = $cf['values'];
@@ -88,11 +108,16 @@ class MemberController extends Controller
         ));
     }
 
-    public function store(Request $request): RedirectResponse
+    /**
+     * Creates a new member from validated form data.
+     *
+     * @param  StoreMemberRequest $request
+     * @return RedirectResponse
+     */
+    public function store(StoreMemberRequest $request): RedirectResponse
     {
-        $validated          = $this->validateMember($request);
-        $data               = $this->prepareData($validated);
-        $data['created_by'] = auth()->id();
+        $data               = $this->prepareData($request->validated());
+        $data['created_by'] = $request->user()->id;
         $data               = $this->handleImageUpload($request, $data);
 
         Member::create($data);
@@ -100,23 +125,35 @@ class MemberController extends Controller
         return redirect()->route('members.index')->with('success', 'Mitglied erstellt.');
     }
 
-    public function update(Request $request, Member $member): RedirectResponse
+    /**
+     * Updates an existing member from validated form data.
+     *
+     * @param  UpdateMemberRequest $request
+     * @param  Member              $member
+     * @return RedirectResponse
+     */
+    public function update(UpdateMemberRequest $request, Member $member): RedirectResponse
     {
-        $validated = $this->validateMember($request, $member->id);
-        $data      = $this->prepareData($validated);
-        $data      = $this->handleImageUpload($request, $data, $member);
+        $data = $this->prepareData($request->validated());
+        $data = $this->handleImageUpload($request, $data, $member);
 
         $member->update($data);
 
         return redirect()->route('members.index')->with('success', 'Mitglied aktualisiert.');
     }
 
-    public function updatePhoto(Request $request, Member $member): RedirectResponse
+    /**
+     * Replaces the member's profile photo.
+     *
+     * Deletes the old file from storage before writing the new one.
+     * Validation is fully delegated to UpdatePhotoRequest.
+     *
+     * @param  UpdatePhotoRequest $request
+     * @param  Member             $member
+     * @return RedirectResponse
+     */
+    public function updatePhoto(UpdatePhotoRequest $request, Member $member): RedirectResponse
     {
-        $request->validate([
-            'profile_image' => ['required', 'image', 'mimes:jpeg,jpg,png', 'max:3072'],
-        ]);
-
         if ($member->profile_image) {
             Storage::disk('public')->delete($member->profile_image);
         }
@@ -129,6 +166,12 @@ class MemberController extends Controller
             ->with('success', 'Foto für „' . $member->last_name . ', ' . $member->first_name . '" gespeichert.');
     }
 
+    /**
+     * Soft-deletes a member and removes their profile photo from storage.
+     *
+     * @param  Member $member
+     * @return RedirectResponse
+     */
     public function destroy(Member $member): RedirectResponse
     {
         if ($member->profile_image) {
@@ -139,20 +182,14 @@ class MemberController extends Controller
         return redirect()->route('members.index')->with('success', 'Mitglied gelöscht.');
     }
 
-    // ── Private Helpers ─────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
 
-    private function validateMember(Request $request, ?int $ignoreId = null): array
-    {
-        return $request->validate([
-            'first_name'            => ['required', 'string', 'max:100'],
-            'last_name'             => ['required', 'string', 'max:100'],
-            'gender'                => ['nullable', 'in:male,female,diverse'],
-            'date_of_birth'         => ['nullable', 'date', 'before:today'],
-            'status'                => ['required', 'in:active,inactive'],
-            'eligible_to_play_date' => ['nullable', 'date'],  // Datum statt Boolean
-        ]);
-    }
-
+    /**
+     * Extracts and normalises the scalar member fields from the validated data array.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
     private function prepareData(array $validated): array
     {
         return [
@@ -165,6 +202,15 @@ class MemberController extends Controller
         ];
     }
 
+    /**
+     * Handles profile image upload: deletes the old file and stores the new one.
+     * Returns the data array unchanged when no file is present in the request.
+     *
+     * @param  Request               $request
+     * @param  array<string, mixed>  $data
+     * @param  Member|null           $member
+     * @return array<string, mixed>
+     */
     private function handleImageUpload(Request $request, array $data, ?Member $member = null): array
     {
         if (!$request->hasFile('profile_image')) {

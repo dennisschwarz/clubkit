@@ -15,6 +15,9 @@ final class MemberImportLogFactory extends Factory
 {
     protected $model = MemberImportLog::class;
 
+    /**
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
         return [

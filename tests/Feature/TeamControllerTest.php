@@ -1,9 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\DB;
 use Modules\Members\Models\Member;
 use Modules\Teams\Models\Team;
 
-// ── Auth-Schutz ────────────────────────────────────────────────────────────────
+beforeEach(function () {
+    DB::table('installed_modules')->insertOrIgnore([
+        ['slug' => 'core',    'is_active' => 1],
+        ['slug' => 'members', 'is_active' => 1],
+        ['slug' => 'teams',   'is_active' => 1],
+    ]);
+    seedPermissions();
+});
+
+// ── Auth guard ────────────────────────────────────────────────────────────────
 
 test('gast wird bei GET /teams auf login weitergeleitet', function () {
     $this->get('/teams')->assertRedirect('/login');
@@ -13,14 +25,9 @@ test('gast wird bei POST /teams auf login weitergeleitet', function () {
     $this->post('/teams')->assertRedirect('/login');
 });
 
-// ── Permission-Schutz ──────────────────────────────────────────────────────────
+// ── Permission guard ──────────────────────────────────────────────────────────
 
 test('user ohne permission kann GET /teams nicht aufrufen', function () {
-    $user = createPlainUser();
-    $this->actingAs($user)->get('/teams')->assertStatus(403);
-});
-
-test('user ohne permission sieht keine Teams', function () {
     $user = createPlainUser();
     $this->actingAs($user)->get('/teams')->assertStatus(403);
 });
@@ -42,7 +49,7 @@ test('user ohne permission kann keine Teams löschen', function () {
     $this->actingAs($user)->delete('/teams/' . $team->id)->assertStatus(403);
 });
 
-// ── Index ──────────────────────────────────────────────────────────────────────
+// ── Index ─────────────────────────────────────────────────────────────────────
 
 test('user mit teams.view sieht Teams-Liste', function () {
     Team::factory()->count(2)->create();
@@ -50,7 +57,12 @@ test('user mit teams.view sieht Teams-Liste', function () {
     $this->actingAs($user)->get('/teams')->assertStatus(200);
 });
 
-// ── Store ──────────────────────────────────────────────────────────────────────
+test('super-admin sieht Teams-Liste ohne explizite Permission', function () {
+    $admin = createSuperAdmin();
+    $this->actingAs($admin)->get('/teams')->assertStatus(200);
+});
+
+// ── Store ─────────────────────────────────────────────────────────────────────
 
 test('user mit teams.manage kann Team anlegen', function () {
     $user = createUserWithPermission('teams.manage');
@@ -63,6 +75,20 @@ test('user mit teams.manage kann Team anlegen', function () {
     ])->assertRedirect('/teams');
 
     $this->assertDatabaseHas('teams', ['name' => 'Erste Mannschaft']);
+});
+
+test('store setzt created_by korrekt auf den angemeldeten User', function () {
+    $user = createUserWithPermission('teams.manage');
+
+    $this->actingAs($user)->post('/teams', [
+        'name'     => 'Test Crew',
+        'is_active' => '1',
+    ])->assertRedirect('/teams');
+
+    $this->assertDatabaseHas('teams', [
+        'name'       => 'Test Crew',
+        'created_by' => $user->id,
+    ]);
 });
 
 test('store gibt 422 bei fehlendem Namen zurück', function () {
@@ -78,7 +104,7 @@ test('store gibt 422 bei ungültiger Farbe zurück', function () {
     ])->assertSessionHasErrors('color');
 });
 
-// ── Update ─────────────────────────────────────────────────────────────────────
+// ── Update ────────────────────────────────────────────────────────────────────
 
 test('user mit teams.manage kann Team umbenennen', function () {
     $team = Team::factory()->create(['name' => 'Alt']);
@@ -90,7 +116,7 @@ test('user mit teams.manage kann Team umbenennen', function () {
     $this->assertDatabaseHas('teams', ['id' => $team->id, 'name' => 'Neu']);
 });
 
-// ── Destroy ────────────────────────────────────────────────────────────────────
+// ── Destroy ───────────────────────────────────────────────────────────────────
 
 test('user mit teams.manage kann Team löschen', function () {
     $team = Team::factory()->create();
@@ -102,11 +128,11 @@ test('user mit teams.manage kann Team löschen', function () {
     $this->assertDatabaseMissing('teams', ['id' => $team->id]);
 });
 
-// ── Mitglieder hinzufügen / entfernen ─────────────────────────────────────────
+// ── Add / remove members ──────────────────────────────────────────────────────
 
 test('user mit teams.members.manage kann Mitglied hinzufügen', function () {
     $team   = Team::factory()->create(['is_active' => true, 'eligible_only' => false]);
-    $member = Member::factory()->create(['eligible_to_play' => true]);
+    $member = Member::factory()->create();
     $user   = createUserWithPermission('teams.members.manage');
 
     $this->actingAs($user)->post('/teams/' . $team->id . '/members', [
@@ -127,8 +153,6 @@ test('nicht spielberechtigtes Mitglied kann nicht zu eligible-only Team hinzugef
     $this->actingAs($user)->post('/teams/' . $team->id . '/members', [
         'member_id' => $member->id,
     ])->assertRedirect();
-
-    session()->all(); // Flash lesen
 
     $this->assertDatabaseMissing('team_member', [
         'team_id'   => $team->id,

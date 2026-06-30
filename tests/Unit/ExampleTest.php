@@ -2,18 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit;
-
-use PHPUnit\Framework\TestCase;
-
 /**
- * Minimaler Unit-Test – prüft dass PHP und PHPUnit funktionieren.
- * Kein Laravel-Bootstrap, kein HTTP, kein DB.
+ * Minimal unit test – verifies PHP and the test runner are working correctly.
+ * No Laravel bootstrap, no HTTP, no DB.
  */
-class ExampleTest extends TestCase
-{
-    public function test_php_is_running(): void
-    {
-        $this->assertTrue(true);
-    }
-}
+test('php is running', function () {
+    expect(true)->toBeTrue();
+});

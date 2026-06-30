@@ -1,5 +1,6 @@
 /* ============================================================
-   Auth-Seiten Layout (Breeze-kompatible Komponenten mit CK-Variablen)
+   Auth-Seiten Layout (CK-Variablen aus base.css)
+   Hinweis: .ck-link ist global in misc.css definiert.
    ============================================================ */
 
 /* Body */
@@ -8,148 +9,99 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--ck-bg, #f1f5f9);
-    font-family: var(--ck-font, system-ui, sans-serif);
+    background-color: var(--ck-bg);
+    font-family: var(--ck-font);
 }
 
 /* Wrapper */
 .ck-auth-wrapper {
     width: 100%;
     max-width: 420px;
-    padding: 1.5rem;
+    padding: var(--ck-space-6);
 }
 
 /* Logo / App-Name */
 .ck-auth-logo {
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--ck-space-6);
 }
 
 .ck-auth-logo span {
-    font-size: 1.5rem;
+    font-size: var(--ck-font-2xl);
     font-weight: 700;
-    color: var(--ck-primary, #0a1628);
+    color: var(--ck-primary);
     letter-spacing: -0.02em;
 }
 
 /* Karte */
 .ck-auth-card {
-    background: #ffffff;
-    border: 1px solid var(--ck-border, #e2e8f0);
-    border-radius: var(--ck-radius, 8px);
+    background: var(--ck-white);
+    border: 1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
     padding: 2rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--ck-shadow-sm);
 }
 
 /* Status-Meldung (z. B. "Password reset link sent") */
 .ck-auth-status {
-    background-color: #f0fdf4;
-    color: #166534;
-    border: 1px solid #bbf7d0;
-    border-radius: var(--ck-radius, 8px);
-    padding: 0.625rem 0.875rem;
-    font-size: 0.875rem;
-    margin-bottom: 1rem;
+    background-color: var(--ck-success-bg);
+    color: var(--ck-success-text);
+    border: 1px solid var(--ck-success-border);
+    border-radius: var(--ck-radius);
+    padding: var(--ck-space-2) var(--ck-space-4);
+    font-size: var(--ck-font-base);
+    margin-bottom: var(--ck-space-4);
 }
 
 /* Formular-Label */
 .ck-form-label {
     display: block;
-    font-size: 0.875rem;
+    font-size: var(--ck-font-base);
     font-weight: 500;
-    color: var(--ck-text, #1e293b);
-    margin-bottom: 0.375rem;
+    color: var(--ck-text);
+    margin-bottom: var(--ck-space-1);
 }
 
 /* Text-Input */
 .ck-form-input {
     display: block;
     width: 100%;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.9375rem;
-    color: var(--ck-text, #1e293b);
-    background: #ffffff;
-    border: 1px solid var(--ck-border, #e2e8f0);
-    border-radius: var(--ck-radius, 8px);
+    padding: var(--ck-space-2) var(--ck-space-3);
+    font-size: var(--ck-font-base);
+    color: var(--ck-text);
+    background: var(--ck-white);
+    border: 1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
     outline: none;
     box-sizing: border-box;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    font-family: var(--ck-font);
 }
 
 .ck-form-input:focus {
-    border-color: var(--ck-primary, #0a1628);
-    box-shadow: 0 0 0 3px rgba(10, 22, 40, 0.08);
+    border-color: var(--ck-accent-dark);
+    box-shadow: 0 0 0 3px rgba(26, 111, 196, 0.08);
 }
 
 .ck-form-input:disabled {
-    background-color: #f8fafc;
+    background-color: var(--ck-bg-subtle);
     cursor: not-allowed;
     opacity: 0.6;
 }
 
 /* Fehler-Meldung */
 .ck-form-error {
-    font-size: 0.8125rem;
-    color: #dc2626;
-    margin-top: 0.25rem;
+    font-size: var(--ck-font-sm);
+    color: var(--ck-danger);
+    margin-top: var(--ck-space-1);
     margin-bottom: 0;
 }
 
-/* Auth-spezifische Abstände zwischen Formularfeldern */
+/* Abstände zwischen Formularfeldern in Auth-Karten */
 .ck-auth-card > form > div {
-    margin-top: 1rem;
+    margin-top: var(--ck-space-4);
 }
 
 .ck-auth-card > form > div:first-child {
     margin-top: 0;
-}
-
-/* Aktionszeile (Flex-Container für Button + Link) */
-.ck-auth-card .flex {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    margin-top: 1.25rem;
-    gap: 0.75rem;
-}
-
-.ck-auth-card .flex.items-center.justify-between {
-    justify-content: space-between;
-}
-
-/* Links in Auth-Formularen */
-.ck-auth-card a.underline {
-    font-size: 0.875rem;
-    color: var(--ck-primary, #0a1628);
-    text-decoration: underline;
-    opacity: 0.7;
-    transition: opacity 0.15s ease;
-}
-
-.ck-auth-card a.underline:hover {
-    opacity: 1;
-}
-
-/* Checkbox-Zeile (Remember me) */
-.ck-auth-card .block.mt-4 label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--ck-text, #1e293b);
-    cursor: pointer;
-}
-
-/* Info-Text (z. B. verify-email Hinweistext) */
-.ck-auth-card .mb-4.text-sm {
-    font-size: 0.875rem;
-    color: #475569;
-    margin-bottom: 1rem;
-}
-
-/* Erfolgsmeldung (verify-email "link sent" inline) */
-.ck-auth-card .text-green-600 {
-    color: #16a34a;
-    font-size: 0.875rem;
-    margin-bottom: 1rem;
 }

@@ -7,16 +7,27 @@ namespace Modules\CustomFields\Services;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Registry für Custom-Fields-Konfiguration.
+ * Provides runtime configuration for the CustomFields module.
  *
- * Stellt zur Laufzeit fest, für welche Objekt-Typen Custom Fields angelegt
- * werden können – abhängig von den installierten Modulen.
+ * Determines which object types are available for custom field definitions
+ * based on which module tables currently exist in the database.
+ * This allows optional modules (Teams, Events, Management) to be absent
+ * without breaking the CustomFields module.
+ *
+ * Note: Schema::hasTable() is used intentionally here (instead of class_exists())
+ * because the registry must work at database level without importing Eloquent models
+ * from optional modules that may not be installed.
  */
 class CustomFieldRegistry
 {
     /**
-     * Gibt alle verfügbaren Objekt-Typen zurück.
-     * Schlüssel = object_type in der DB, Wert = Anzeigename.
+     * Returns all object types that currently support custom fields.
+     *
+     * Keys are the object_type values stored in the DB.
+     * Values are the German display labels used in the admin UI.
+     * The 'member' type is always available; others depend on installed modules.
+     *
+     * @return array<string, string>
      */
     public static function availableObjectTypes(): array
     {
@@ -41,7 +52,9 @@ class CustomFieldRegistry
     }
 
     /**
-     * Alle unterstützten Feldtypen.
+     * Returns all supported field types with their German display labels.
+     *
+     * @return array<string, string>
      */
     public static function fieldTypes(): array
     {
@@ -61,8 +74,12 @@ class CustomFieldRegistry
     }
 
     /**
-     * Feldtypen, die ein freies Texteingabefeld im HTML erzeugen
-     * (d.h. kein select, checkbox, textarea).
+     * Returns field types that render as a plain HTML input element.
+     *
+     * Excludes 'select' (renders a <select>), 'checkbox' (renders a checkbox),
+     * and 'textarea' (renders a <textarea>).
+     *
+     * @return list<string>
      */
     public static function inputFieldTypes(): array
     {
@@ -70,7 +87,10 @@ class CustomFieldRegistry
     }
 
     /**
-     * Gibt den Anzeigenamen eines Objekt-Typs zurück.
+     * Returns the German display label for an object type, or the key itself if unknown.
+     *
+     * @param  string $objectType
+     * @return string
      */
     public static function objectTypeLabel(string $objectType): string
     {
@@ -78,7 +98,10 @@ class CustomFieldRegistry
     }
 
     /**
-     * Prüft ob ein Objekt-Typ installiert und erlaubt ist.
+     * Returns whether the given object type is installed and supported.
+     *
+     * @param  string $objectType
+     * @return bool
      */
     public static function isValidObjectType(string $objectType): bool
     {

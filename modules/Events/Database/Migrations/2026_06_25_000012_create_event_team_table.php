@@ -1,9 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Creates the event_team pivot table (event ↔ team).
+ *
+ * team_id has no FK constraint because the Teams module is an optional soft-dependency.
+ * Deinstalling Teams must not break existing event records.
+ * Guard at the call site with class_exists(\Modules\Teams\Models\Team::class).
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -15,7 +24,7 @@ return new class extends Migration
         Schema::create('event_team', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('event_id');
-            $table->unsignedBigInteger('team_id');  // Kein FK – Teams-Modul ist optional
+            $table->unsignedBigInteger('team_id');
             $table->timestamps();
 
             $table->foreign('event_id')

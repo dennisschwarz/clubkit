@@ -7,20 +7,22 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Verknüpfungs-Tabelle: Termin ↔ Vereinsfunktion.
+ * Join table: Event <-> ManagementFunction.
  *
- * Wird nur angelegt wenn beide Quell-Tabellen existieren
- * (events + management_functions). Da Events-Migrationen früher
- * laufen als Management-Migrationen, ist dieser Guard kritisch.
+ * Only created when both source tables exist (events + management_functions).
+ * Since Events migrations run before Management migrations, this guard is critical.
  *
- * Wird im Management-Modul verwaltet (extends Events um Funktions-Integration).
- * Beim Deinstall des Management-Moduls wird diese Tabelle mitgedroppt.
+ * Managed by the Management module (extends Events with function integration).
+ * Dropped when the Management module is uninstalled.
  */
 return new class extends Migration
 {
+    /**
+     * @return void
+     */
     public function up(): void
     {
-        if (!Schema::hasTable('events') || !Schema::hasTable('management_functions')) {
+        if (! Schema::hasTable('events') || ! Schema::hasTable('management_functions')) {
             return;
         }
         if (Schema::hasTable('event_management_function')) {
@@ -41,6 +43,9 @@ return new class extends Migration
         });
     }
 
+    /**
+     * @return void
+     */
     public function down(): void
     {
         Schema::dropIfExists('event_management_function');

@@ -2,7 +2,7 @@
     "name": "Members",
     "slug": "members",
     "version": "1.0.0",
-    "description": "Mitgliederverwaltung: Stammdaten, Foto, Spielberechtigung.",
+    "description": "Member management: personal data, profile photo, playing eligibility.",
     "requires": ["core"],
     "tables": ["members"],
     "provides": {

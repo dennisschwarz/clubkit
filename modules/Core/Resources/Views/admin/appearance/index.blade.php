@@ -20,9 +20,9 @@
 
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
-        <button type="button" class="ck-btn ck-btn--primary ck-btn--sm" data-appearance-save>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
             Speichern
-        </button>
+        </x-ck-button>
     </x-slot:headerAction>
 
     <div class="ck-settings-section">
@@ -77,9 +77,9 @@
 
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
-        <button type="button" class="ck-btn ck-btn--primary ck-btn--sm" data-appearance-save>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
             Speichern
-        </button>
+        </x-ck-button>
     </x-slot:headerAction>
 
     <div class="ck-settings-section">
@@ -129,9 +129,9 @@
 
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
-        <button type="button" class="ck-btn ck-btn--primary ck-btn--sm" data-appearance-save>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
             Speichern
-        </button>
+        </x-ck-button>
     </x-slot:headerAction>
 
     <div class="ck-settings-section">
@@ -226,9 +226,9 @@
 
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
-        <button type="button" class="ck-btn ck-btn--primary ck-btn--sm" data-appearance-save>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
             Speichern
-        </button>
+        </x-ck-button>
     </x-slot:headerAction>
 
     <div class="ck-settings-section">
@@ -323,9 +323,9 @@
 
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
-        <button type="button" class="ck-btn ck-btn--primary ck-btn--sm" data-appearance-save>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
             Speichern
-        </button>
+        </x-ck-button>
     </x-slot:headerAction>
 
     <div class="ck-settings-section">
@@ -373,7 +373,7 @@ window.CK_Appearance = {
     }
 };
 </script>
-<script src="{{ asset('js/modules/appearance-modal.js') }}"></script>
+@vite('resources/js/modules/appearance-modal.js')
 @endpush
 
 @endsection

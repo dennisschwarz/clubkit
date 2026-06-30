@@ -1,16 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\Eloquent\Collection;
 use Modules\YouthClubMode\Models\MemberRelation;
 use Modules\YouthClubMode\Services\FamilyService;
 
-// FamilyService arbeitet rein auf einem Collection-Snapshot – kein DB-Zugriff nötig.
-// Tests erstellen MemberRelation-Objekte via make() (kein DB-Write).
+uses(Tests\TestCase::class, RefreshDatabase::class);
 
-// ── Hilfsfunktion ──────────────────────────────────────────────────────────────
+// FamilyService operates on a collection snapshot – no database access required.
+// Tests create MemberRelation instances via new (no DB write).
+
+// ── Helper ────────────────────────────────────────────────────────────────────
 
 /**
- * Erzeugt eine MemberRelation ohne DB (make-only).
+ * Creates an in-memory MemberRelation without persisting it.
  */
 function makeRelation(int $id, int $primaryId, int $secondaryId, string $relationship): MemberRelation
 {
@@ -23,7 +28,9 @@ function makeRelation(int $id, int $primaryId, int $secondaryId, string $relatio
 }
 
 /**
- * Kleines allMembersJs-Array für Tests.
+ * Returns a small members map used across multiple tests.
+ *
+ * @return array<int, array{id: int, name: string, gender: string, date_of_birth: null}>
  */
 function membersMap(): array
 {
@@ -35,9 +42,9 @@ function membersMap(): array
     ];
 }
 
-// ── emptyFamily ────────────────────────────────────────────────────────────────
+// ── emptyFamily ───────────────────────────────────────────────────────────────
 
-test('emptyFamily gibt korrekte Grundstruktur zurück', function () {
+test('emptyFamily returns the correct base structure', function () {
     $service = new FamilyService();
     $empty   = $service->emptyFamily();
 
@@ -49,11 +56,11 @@ test('emptyFamily gibt korrekte Grundstruktur zurück', function () {
         ->and($empty['siblings'])->toBeArray()->toBeEmpty();
 });
 
-// ── buildFamilyData – keine Relationen ────────────────────────────────────────
+// ── buildFamilyData – no relations ────────────────────────────────────────────
 
-test('buildFamilyData gibt leere Familie zurück wenn keine Relationen existieren', function () {
-    $service  = new FamilyService();
-    $result   = $service->buildFamilyData(1, new Collection(), membersMap());
+test('buildFamilyData returns empty family when no relations exist', function () {
+    $service = new FamilyService();
+    $result  = $service->buildFamilyData(1, new Collection(), membersMap());
 
     expect($result['father'])->toBeNull()
         ->and($result['mother'])->toBeNull()
@@ -61,10 +68,10 @@ test('buildFamilyData gibt leere Familie zurück wenn keine Relationen existiere
         ->and($result['siblings'])->toBeEmpty();
 });
 
-// ── Vater erkennen ─────────────────────────────────────────────────────────────
+// ── Father detection ──────────────────────────────────────────────────────────
 
-test('buildFamilyData erkennt den Vater des Mitglieds', function () {
-    // Hans (1) ist Vater von Tom (3)
+test('buildFamilyData detects the father of the member', function () {
+    // Hans (1) is the father of Tom (3)
     $relations = new Collection([makeRelation(10, 1, 3, 'father')]);
     $service   = new FamilyService();
 
@@ -76,10 +83,10 @@ test('buildFamilyData erkennt den Vater des Mitglieds', function () {
         ->and($family['father']['relation_id'])->toBe(10);
 });
 
-// ── Mutter erkennen ────────────────────────────────────────────────────────────
+// ── Mother detection ──────────────────────────────────────────────────────────
 
-test('buildFamilyData erkennt die Mutter des Mitglieds', function () {
-    // Maria (2) ist Mutter von Tom (3)
+test('buildFamilyData detects the mother of the member', function () {
+    // Maria (2) is the mother of Tom (3)
     $relations = new Collection([makeRelation(11, 2, 3, 'mother')]);
     $service   = new FamilyService();
 
@@ -90,10 +97,10 @@ test('buildFamilyData erkennt die Mutter des Mitglieds', function () {
         ->and($family['mother']['name'])->toBe('Müller, Maria');
 });
 
-// ── Kinder erkennen ────────────────────────────────────────────────────────────
+// ── Children detection ────────────────────────────────────────────────────────
 
-test('buildFamilyData erkennt Kinder des Mitglieds', function () {
-    // Hans (1) ist Vater von Tom (3) UND Lisa (4)
+test('buildFamilyData detects the children of the member', function () {
+    // Hans (1) is the father of Tom (3) AND Lisa (4)
     $relations = new Collection([
         makeRelation(10, 1, 3, 'father'),
         makeRelation(12, 1, 4, 'father'),
@@ -107,8 +114,8 @@ test('buildFamilyData erkennt Kinder des Mitglieds', function () {
     expect($ids)->toContain(3)->toContain(4);
 });
 
-test('buildFamilyData setzt parent_relation korrekt bei Kind-Eintrag', function () {
-    // Maria (2) ist Mutter von Lisa (4)
+test('buildFamilyData sets parent_relation correctly on child entries', function () {
+    // Maria (2) is the mother of Lisa (4)
     $relations = new Collection([makeRelation(13, 2, 4, 'mother')]);
     $service   = new FamilyService();
 
@@ -117,10 +124,10 @@ test('buildFamilyData setzt parent_relation korrekt bei Kind-Eintrag', function 
     expect($family['children'][0]['parent_relation'])->toBe('mother');
 });
 
-// ── Geschwister erkennen ───────────────────────────────────────────────────────
+// ── Sibling detection ─────────────────────────────────────────────────────────
 
-test('buildFamilyData erkennt Geschwister (primary Perspektive)', function () {
-    // Tom (3) und Lisa (4) sind Geschwister; primary = 3
+test('buildFamilyData detects siblings from the primary perspective', function () {
+    // Tom (3) and Lisa (4) are siblings; primary = 3
     $relations = new Collection([makeRelation(20, 3, 4, 'sibling')]);
     $service   = new FamilyService();
 
@@ -131,8 +138,8 @@ test('buildFamilyData erkennt Geschwister (primary Perspektive)', function () {
         ->and($family['siblings'][0]['name'])->toBe('Müller, Lisa');
 });
 
-test('buildFamilyData erkennt Geschwister (secondary Perspektive)', function () {
-    // Tom (3) und Lisa (4) sind Geschwister; Abfrage aus Lisa-Perspektive (secondary)
+test('buildFamilyData detects siblings from the secondary perspective', function () {
+    // Tom (3) and Lisa (4) are siblings; query from Lisa (secondary)
     $relations = new Collection([makeRelation(20, 3, 4, 'sibling')]);
     $service   = new FamilyService();
 
@@ -143,10 +150,10 @@ test('buildFamilyData erkennt Geschwister (secondary Perspektive)', function () 
         ->and($family['siblings'][0]['name'])->toBe('Müller, Tom');
 });
 
-// ── Kombination ────────────────────────────────────────────────────────────────
+// ── Full family ───────────────────────────────────────────────────────────────
 
-test('buildFamilyData berechnet vollständige Familie korrekt', function () {
-    // Tom (3): Vater = Hans (1), Mutter = Maria (2), Schwester = Lisa (4)
+test('buildFamilyData computes a complete family correctly', function () {
+    // Tom (3): father = Hans (1), mother = Maria (2), sister = Lisa (4)
     $relations = new Collection([
         makeRelation(10, 1, 3, 'father'),
         makeRelation(11, 2, 3, 'mother'),
@@ -163,10 +170,10 @@ test('buildFamilyData berechnet vollständige Familie korrekt', function () {
         ->and($family['siblings'][0]['id'])->toBe(4);
 });
 
-// ── Robustheit: Unbekannter Member in allMembersJs ────────────────────────────
+// ── Robustness ────────────────────────────────────────────────────────────────
 
-test('buildFamilyData gibt Fragezeichen zurück wenn Mitglied nicht in allMembersJs', function () {
-    // Relation mit Member-ID 99, die nicht in der Map ist
+test('buildFamilyData returns question mark when member is not in allMembersJs', function () {
+    // Relation with member ID 99, which is not in the map
     $relations = new Collection([makeRelation(99, 99, 3, 'father')]);
     $service   = new FamilyService();
 

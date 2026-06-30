@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
-        commands: __DIR__.'/../routes/console.php',
+        web: __DIR__ . '/../routes/web.php',
+        commands: __DIR__ . '/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -18,10 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Hinweis: shouldRenderJsonWhen() wurde entfernt.
-        // Laravel's Standard-Verhalten prüft $request->expectsJson() –
-        // das funktioniert korrekt für postJson()-Requests (JSON API-Aufrufe
-        // aus Modals) UND für echte Browser-Requests.
-        // Eine künstliche Einschränkung auf 'api/*' würde Validierungsfehler
-        // für alle Modul-Endpunkte als HTML-Redirect statt als JSON 422 zurückgeben.
+        // shouldRenderJsonWhen() is intentionally omitted.
+        // Laravel checks $request->expectsJson() by default, which handles both
+        // postJson() AJAX calls from modals (returning JSON 422) and regular browser
+        // requests (returning HTML redirects) correctly without any custom override.
     })->create();

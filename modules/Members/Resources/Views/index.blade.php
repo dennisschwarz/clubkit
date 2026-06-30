@@ -131,7 +131,9 @@
             <tr>
                 <td colspan="99" class="ck-empty-state">
                     Keine Mitglieder gefunden.
-                    <a href="javascript:void(0)" onclick="membersModalOpen('create')">Jetzt hinzufügen</a>
+                    <x-ck-button type="button" variant="primary" size="sm" onclick="membersModalOpen('create')">
+                        Jetzt hinzufügen
+                    </x-ck-button>
                 </td>
             </tr>
             @endforelse
@@ -232,7 +234,7 @@
         }
     };
 </script>
-<script src="{{ asset('js/modules/members-modal.js') }}"></script>
+@vite('resources/js/modules/members-modal.js')
 @ckHook('member.page.scripts')
 @endpush
 

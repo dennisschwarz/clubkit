@@ -14,6 +14,11 @@ final class ManagementFunctionFactory extends Factory
 {
     protected $model = ManagementFunction::class;
 
+    /**
+     * Default state: a named management function without a creator.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
         return [

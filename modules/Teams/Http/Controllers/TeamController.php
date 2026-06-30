@@ -6,30 +6,45 @@ namespace Modules\Teams\Http\Controllers;
 
 use App\Repositories\CustomFieldRepository;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Modules\Members\Models\Member;
+use Modules\Teams\Http\Requests\StoreTeamMemberRequest;
+use Modules\Teams\Http\Requests\StoreTeamRequest;
+use Modules\Teams\Http\Requests\UpdateTeamRequest;
 use Modules\Teams\Models\Team;
 
+/**
+ * Handles team CRUD and membership management.
+ *
+ * Structural changes to the team record are logged automatically via the
+ * LogsActivity trait on the Team model. Pivot changes (adding/removing members)
+ * have no first-class Eloquent model, so they are logged manually here via
+ * the activity() helper with log_name 'teams'.
+ *
+ * Validation is fully delegated to StoreTeamRequest, UpdateTeamRequest,
+ * and StoreTeamMemberRequest.
+ */
 class TeamController extends Controller
 {
-    /** Erlaubte Teamfarben (Schlüssel der CSS-Palette) */
-    private const ALLOWED_COLORS = [
-        'blue', 'navy', 'green', 'teal', 'red',
-        'orange', 'amber', 'purple', 'pink', 'slate',
-    ];
-
+    /**
+     * @param  CustomFieldRepository $cfRepository
+     */
     public function __construct(
         private readonly CustomFieldRepository $cfRepository
     ) {}
 
+    /**
+     * Renders the paginated team list with the JS data bridge.
+     *
+     * For each team, pre-computes the list of members who can still be added
+     * (not already in the team, respects eligible_only constraint) so that
+     * the "add member" modal dropdown can be populated without extra requests.
+     *
+     * @return View
+     */
     public function index(): View
     {
-        // Teams mit Mitglieder-Anzahl + geladenen Mitgliedern (für Accordion)
-        // eligible_to_play_date statt eligible_to_play – Spalte wurde per Migration umbenannt.
-        // Der Accessor Member::getEligibleToPlayAttribute() leitet den bool daraus ab.
         $teams = Team::withCount('members')
             ->with(['members' => function ($q) {
                 $q->select('members.id', 'first_name', 'last_name', 'eligible_to_play_date')
@@ -38,12 +53,11 @@ class TeamController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Alle Mitglieder – für "Hinzufügen"-Select im Accordion
         $allMembers = Member::select('id', 'first_name', 'last_name', 'eligible_to_play_date')
             ->orderBy('last_name')
             ->get();
 
-        // Verfügbare Mitglieder pro Team (nicht im Kader + Spielberechtigungsfilter)
+        // Build per-team available-member lists for the modal dropdowns
         $availableByTeam = [];
         foreach ($teams as $t) {
             $inTeamIds = [];
@@ -52,17 +66,19 @@ class TeamController extends Controller
             }
             $available = [];
             foreach ($allMembers as $m) {
-                if (isset($inTeamIds[$m->id])) continue;
-
-                // eligible_to_play nutzt den Accessor → prüft eligible_to_play_date <= heute
-                if ($t->eligible_only && ! $m->eligible_to_play) continue;
-
+                if (isset($inTeamIds[$m->id])) {
+                    continue;
+                }
+                if ($t->eligible_only && ! $m->eligible_to_play) {
+                    continue;
+                }
                 $available[] = $m;
             }
             $availableByTeam[$t->id] = collect($available);
         }
 
-        // Data Bridge – kein fn() / Arrow-Functions in @json()
+        // Build JS data bridge for teams-modal.js
+        // No fn()/arrow functions in @json() – must use manual foreach loops
         $teamsJs = [];
         foreach ($teams as $t) {
             $teamsJs[$t->id] = [
@@ -78,7 +94,7 @@ class TeamController extends Controller
             ];
         }
 
-        // Eigene Felder (graceful: leer wenn CustomFields nicht installiert)
+        // Custom fields (graceful: returns empty arrays when CustomFields module is not installed)
         $cf           = $this->cfRepository->loadForObjectType('team');
         $teamCfDefs   = $cf['defs'];
         $teamCfValues = $cf['values'];
@@ -88,6 +104,15 @@ class TeamController extends Controller
         ));
     }
 
+    /**
+     * Renders the team detail page with the member roster and add-member form.
+     *
+     * Only builds the available-member list when the team is active;
+     * inactive teams cannot accept new members.
+     *
+     * @param  Team $team
+     * @return View
+     */
     public function show(Team $team): View
     {
         $team->load('members');
@@ -99,8 +124,6 @@ class TeamController extends Controller
         if ($canAddMembers) {
             $alreadyInTeam = $team->members->pluck('id');
 
-            // eligible_only-Filter: eligible_to_play_date <= heute statt WHERE eligible_to_play = 1
-            // (Accessor-Logik muss in der DB-Query nachgebaut werden)
             $availableMembers = Member::orderBy('last_name')
                 ->whereNotIn('id', $alreadyInTeam)
                 ->when($team->eligible_only, function ($q) {
@@ -110,33 +133,48 @@ class TeamController extends Controller
                 ->get();
 
             foreach ($availableMembers as $m) {
-                $availableJs[$m->id] = [
-                    'id'   => $m->id,
-                    'name' => $m->last_name . ', ' . $m->first_name,
-                ];
+                $availableJs[$m->id] = $m->toJsOption();
             }
         }
 
         return view('teams::show', compact('team', 'canAddMembers', 'availableMembers', 'availableJs'));
     }
 
-    public function store(Request $request): RedirectResponse
+    /**
+     * Creates a new team.
+     *
+     * @param  StoreTeamRequest $request
+     * @return RedirectResponse
+     */
+    public function store(StoreTeamRequest $request): RedirectResponse
     {
-        $validated               = $this->validateTeam($request);
-        $validated['created_by'] = auth()->id();
+        $validated               = $request->validated();
+        $validated['created_by'] = $request->user()->id;
         Team::create($validated);
 
         return redirect()->route('teams.index')->with('success', 'Team angelegt.');
     }
 
-    public function update(Request $request, Team $team): RedirectResponse
+    /**
+     * Updates an existing team's properties.
+     *
+     * @param  UpdateTeamRequest $request
+     * @param  Team              $team
+     * @return RedirectResponse
+     */
+    public function update(UpdateTeamRequest $request, Team $team): RedirectResponse
     {
-        $validated = $this->validateTeam($request);
-        $team->update($validated);
+        $team->update($request->validated());
 
         return redirect()->route('teams.index')->with('success', 'Team aktualisiert.');
     }
 
+    /**
+     * Deletes a team (and detaches all members via cascade on the pivot).
+     *
+     * @param  Team $team
+     * @return RedirectResponse
+     */
     public function destroy(Team $team): RedirectResponse
     {
         $team->delete();
@@ -144,18 +182,28 @@ class TeamController extends Controller
         return redirect()->route('teams.index')->with('success', 'Team gelöscht.');
     }
 
-    public function addMember(Request $request, Team $team): RedirectResponse
+    /**
+     * Adds a member to a team via the team_member pivot.
+     *
+     * Guards:
+     *   - Team must be active
+     *   - Member must satisfy the team's eligible_only constraint
+     *   - Member must not already be in the team
+     *
+     * The pivot change is logged manually (no LogsActivity on the pivot table).
+     *
+     * @param  StoreTeamMemberRequest $request
+     * @param  Team                   $team
+     * @return RedirectResponse
+     */
+    public function addMember(StoreTeamMemberRequest $request, Team $team): RedirectResponse
     {
         if (! $team->is_active) {
             return back()->with('error', 'Inaktive Teams können keine Mitglieder aufnehmen.');
         }
 
-        $validated = $request->validate([
-            'member_id'    => ['required', 'exists:members,id'],
-            'squad_number' => ['nullable', 'integer', 'min:1', 'max:99'],
-        ]);
-
-        $member = Member::findOrFail($validated['member_id']);
+        $validated = $request->validated();
+        $member    = Member::findOrFail($validated['member_id']);
 
         if (! $team->canAddMember($member)) {
             return back()->with(
@@ -172,29 +220,43 @@ class TeamController extends Controller
             'squad_number' => $validated['squad_number'] ?? null,
         ]);
 
+        // Manual pivot log: the team_member pivot has no LogsActivity
+        activity('teams')
+            ->performedOn($team)
+            ->withProperties([
+                'member_id'    => $member->id,
+                'member_name'  => $member->last_name . ', ' . $member->first_name,
+                'squad_number' => $validated['squad_number'] ?? null,
+            ])
+            ->event('member_added')
+            ->log('member_added');
+
         return back()->with('success', $member->last_name . ', ' . $member->first_name . ' hinzugefügt.');
     }
 
+    /**
+     * Removes a member from a team via the team_member pivot.
+     *
+     * The pivot change is logged manually (no LogsActivity on the pivot table).
+     *
+     * @param  Team   $team
+     * @param  Member $member
+     * @return RedirectResponse
+     */
     public function removeMember(Team $team, Member $member): RedirectResponse
     {
         $team->members()->detach($member->id);
 
+        // Manual pivot log: the team_member pivot has no LogsActivity
+        activity('teams')
+            ->performedOn($team)
+            ->withProperties([
+                'member_id'   => $member->id,
+                'member_name' => $member->last_name . ', ' . $member->first_name,
+            ])
+            ->event('member_removed')
+            ->log('member_removed');
+
         return back()->with('success', $member->last_name . ' aus dem Team entfernt.');
-    }
-
-    // ── Private Helpers ───────────────────────────────────────────────────────
-
-    private function validateTeam(Request $request): array
-    {
-        return $request->validate([
-            'name'           => ['required', 'string', 'max:100'],
-            'color'          => ['nullable', Rule::in(self::ALLOWED_COLORS)],
-            'is_competition' => ['nullable', 'boolean'],
-            'eligible_only'  => ['nullable', 'boolean'],
-            'season'         => ['nullable', 'string', 'max:20'],
-            'league'         => ['nullable', 'string', 'max:100'],
-            'age_class'      => ['nullable', 'string', 'max:50'],
-            'is_active'      => ['nullable', 'boolean'],
-        ]);
     }
 }

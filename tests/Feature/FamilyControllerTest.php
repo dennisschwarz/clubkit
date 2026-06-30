@@ -1,7 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\DB;
 use Modules\Members\Models\Member;
 use Modules\YouthClubMode\Models\MemberRelation;
+
+beforeEach(function () {
+    DB::table('installed_modules')->insertOrIgnore([
+        'slug' => 'members', 'name' => 'Members', 'version' => '1.0.0',
+        'is_active' => true, 'installed_at' => now(),
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+    DB::table('installed_modules')->insertOrIgnore([
+        'slug' => 'youth-club-mode', 'name' => 'YouthClubMode', 'version' => '1.1.0',
+        'is_active' => true, 'installed_at' => now(),
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+    app(\App\Services\ModuleLoader::class)->seedPermissions('youth-club-mode');
+});
 
 // ── Auth-Schutz ────────────────────────────────────────────────────────────────
 

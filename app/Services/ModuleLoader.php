@@ -1,51 +1,57 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * ModuleLoader
+ * Discovers, loads, and manages ClubKit modules at runtime.
  *
- * Lädt aktive Module und bootstrappt ihre ServiceProvider.
+ * In production, active modules are read from the installed_modules database table
+ * and their ServiceProviders are registered in installation order.
  *
- * Produktiv: Liest aktive Module aus der installed_modules-Tabelle.
- * Test-Modus: Lädt alle verfügbaren Module aus dem Dateisystem (kein DB-Zugriff).
+ * In the test environment, all modules found on the filesystem are loaded without
+ * any database access. This is required because Laravel resolves the URL generator
+ * early in the application lifecycle (before setUp() migrations run), so all routes
+ * must be registered at application boot time.
  *
- * Graceful: Fehler beim Laden (z.B. DB nicht bereit) werden still ignoriert.
+ * Failures during loading (e.g. database not yet ready during installation)
+ * are silently swallowed to avoid breaking the installer itself.
  */
 class ModuleLoader
 {
-    private string $modulesPath;
+    private readonly string $modulesPath;
+
+    /** @var list<string> Slugs of modules that have already been booted in this request */
     private array $loaded = [];
 
+    /**
+     * @return void
+     */
     public function __construct()
     {
         $this->modulesPath = base_path('modules');
     }
 
     /**
-     * Alle aktiven Module laden und ServiceProvider registrieren.
-     * Wird in AppServiceProvider::boot() aufgerufen.
+     * Boots all active modules and registers their ServiceProviders.
+     * Called from AppServiceProvider::boot().
      *
-     * Im Test-Modus werden alle verfügbaren Module direkt aus dem
-     * Dateisystem geladen, damit Routen beim App-Boot registriert
-     * werden – vor der ersten Auflösung des URL-Generators.
+     * @return void
      */
     public function boot(): void
     {
-        // ── Test-Modus: Alle Module aus dem Dateisystem laden ──────────────────
-        // In Tests ist die DB beim App-Boot noch nicht migriert. Der URL-Generator
-        // wird von Laravel's TestCase frühzeitig aufgelöst, daher müssen Routen
-        // BEIM APP-BOOT registriert sein – nicht erst in setUp().
         if (app()->environment('testing')) {
+            // Test environment: load every module from the filesystem so that
+            // routes are registered before Laravel's URL generator is resolved.
             $this->bootAllModulesFromFilesystem();
             return;
         }
 
-        // ── Produktiv-Modus: Module aus installed_modules laden ────────────────
-        if (!$this->tableExists()) {
+        if (! $this->tableExists()) {
             return;
         }
 
@@ -59,25 +65,27 @@ class ModuleLoader
                 $this->bootModule($slug);
             }
         } catch (\Throwable) {
-            // DB nicht bereit (z.B. während Installation) → überspringen
+            // Database not ready (e.g. during installation) – skip gracefully
         }
     }
 
     /**
-     * Gibt alle verfügbaren Module zurück (filesystem-basiert).
-     * Verwendet vom Installer und Admin-Panel.
+     * Returns all modules discovered on the filesystem (slug → config array).
+     * Used by the installer and the admin module management panel.
+     *
+     * @return array<string, array<string, mixed>>
      */
     public function detectAvailable(): array
     {
         $modules = [];
 
-        if (!is_dir($this->modulesPath)) {
+        if (! is_dir($this->modulesPath)) {
             return $modules;
         }
 
         foreach (glob($this->modulesPath . '/*/module.json') as $file) {
             $config = json_decode(file_get_contents($file), true);
-            if (!$config || !isset($config['slug'])) {
+            if (! $config || ! isset($config['slug'])) {
                 continue;
             }
             $modules[$config['slug']] = $config;
@@ -87,11 +95,13 @@ class ModuleLoader
     }
 
     /**
-     * Gibt installierte Module aus der DB zurück.
+     * Returns all installed modules keyed by slug from the database.
+     *
+     * @return array<string, object>
      */
     public function getInstalled(): array
     {
-        if (!$this->tableExists()) {
+        if (! $this->tableExists()) {
             return [];
         }
 
@@ -103,13 +113,17 @@ class ModuleLoader
     }
 
     /**
-     * Gibt Nav-Items aller aktiven Module zurück (für das Admin-Layout).
+     * Returns navigation items for all active modules (used by the admin layout).
+     *
+     * Each item is sourced from the module's provides.nav array in module.json.
+     *
+     * @return list<array<string, mixed>>
      */
     public function getNavItems(): array
     {
         $items = [];
 
-        if (!$this->tableExists()) {
+        if (! $this->tableExists()) {
             return $items;
         }
 
@@ -120,7 +134,9 @@ class ModuleLoader
 
             foreach ($slugs as $slug) {
                 $path = $this->modulePath($slug) . '/module.json';
-                if (!file_exists($path)) continue;
+                if (! file_exists($path)) {
+                    continue;
+                }
 
                 $config = json_decode(file_get_contents($path), true);
                 $nav    = $config['provides']['nav'] ?? [];
@@ -130,17 +146,22 @@ class ModuleLoader
                     $items[]        = $item;
                 }
             }
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+            // Database unavailable – return what we have
+        }
 
         return $items;
     }
 
     /**
-     * Prüft ob ein Modul installiert + aktiv ist.
+     * Returns true when the given module is installed and currently active.
+     *
+     * @param  string $slug
+     * @return bool
      */
     public function isActive(string $slug): bool
     {
-        if (!$this->tableExists()) {
+        if (! $this->tableExists()) {
             return false;
         }
 
@@ -151,60 +172,55 @@ class ModuleLoader
     }
 
     /**
-     * Löst Abhängigkeiten auf und gibt eine topologisch geordnete Liste zurück.
+     * Resolves a dependency graph and returns a topologically ordered list of slugs.
      *
-     * Abhängigkeiten kommen zuerst ("Abhängigkeiten zuerst"-Semantik):
-     * Wenn 'members' 'core' erfordert, lautet das Ergebnis ['core', 'members'].
+     * Dependencies come first ("dependencies before dependents" semantics):
+     * if 'members' requires 'core', the result is ['core', 'members'].
      *
-     * Implementiert als rekursiver DFS (Depth-First Search). Jeder Knoten
-     * wird erst nach vollständiger Auflösung seiner Abhängigkeiten in das
-     * Ergebnis-Array aufgenommen.
+     * Uses recursive DFS (Depth-First Search). Each node is appended to the result
+     * only after all its dependencies have been fully resolved.
      *
-     * @param  string[]  $selected  Slugs der gewählten Module
-     * @param  array     $available Alle verfügbaren Module (aus detectAvailable())
-     * @return string[]  Topologisch geordnete Liste (Abhängigkeiten zuerst)
+     * @param  string[]            $selected   Slugs of modules chosen for installation
+     * @param  array<string, mixed> $available  All available modules (from detectAvailable())
+     * @return string[]  Topologically ordered slug list (dependencies first)
      *
-     * @throws \RuntimeException Wenn ein Modul oder eine Abhängigkeit nicht verfügbar ist,
-     *                           oder wenn eine zyklische Abhängigkeit erkannt wird.
+     * @throws \RuntimeException When a module or dependency is missing, or a cycle is detected
      */
     public function resolveDependencies(array $selected, array $available): array
     {
         $resolved = [];
-        $visiting = []; // Zykluserkennung: aktuell auf dem DFS-Stack
+        $visiting = []; // Cycle detection: slugs currently on the DFS stack
 
         $visit = function (string $slug) use (&$visit, &$resolved, &$visiting, $available): void {
-            // Bereits vollständig aufgelöst → überspringen
             if (in_array($slug, $resolved, true)) {
-                return;
+                return; // Already fully resolved – skip
             }
 
-            // Bereits im aktuellen DFS-Pfad → Zyklus erkannt
             if (in_array($slug, $visiting, true)) {
                 throw new \RuntimeException(
-                    "Zyklische Abhängigkeit erkannt: '$slug' hängt transitiv von sich selbst ab."
+                    "Circular dependency detected: '$slug' transitively depends on itself."
                 );
             }
 
-            if (!isset($available[$slug])) {
+            if (! isset($available[$slug])) {
                 throw new \RuntimeException(
-                    "Modul '$slug' ist nicht verfügbar (Dateien fehlen)."
+                    "Module '$slug' is not available (files missing)."
                 );
             }
 
-            $visiting[] = $slug; // Auf den DFS-Stack legen
+            $visiting[] = $slug; // Push onto the DFS stack
 
-            // Rekursiv alle Abhängigkeiten auflösen (Tiefensuche)
             foreach ($available[$slug]['requires'] ?? [] as $dep) {
-                if (!isset($available[$dep])) {
+                if (! isset($available[$dep])) {
                     throw new \RuntimeException(
-                        "Abhängigkeit '$dep' für '$slug' ist nicht verfügbar."
+                        "Dependency '$dep' required by '$slug' is not available."
                     );
                 }
                 $visit($dep);
             }
 
-            // Vom DFS-Stack entfernen, in Ergebnis aufnehmen
-            $visiting = array_values(array_filter($visiting, fn($v) => $v !== $slug));
+            // Pop from DFS stack and append to resolved list
+            $visiting   = array_values(array_filter($visiting, fn ($v) => $v !== $slug));
             $resolved[] = $slug;
         };
 
@@ -216,7 +232,11 @@ class ModuleLoader
     }
 
     /**
-     * Gibt den Pfad zu einem Modul zurück.
+     * Returns the absolute filesystem path to a module directory.
+     * Converts a kebab-case slug to PascalCase (e.g. 'youth-club-mode' → 'YouthClubMode').
+     *
+     * @param  string $slug
+     * @return string
      */
     public function modulePath(string $slug): string
     {
@@ -224,22 +244,28 @@ class ModuleLoader
         return $this->modulesPath . '/' . $folder;
     }
 
-    // ── Permissions ──────────────────────────────────────────────────────────
+    // ── Permission management ─────────────────────────────────────────────────
 
     /**
-     * Permissions eines Moduls aus module.json in der DB anlegen.
-     * Wird von ModuleController::install() aufgerufen.
-     * Die Admin-Rolle erhält automatisch alle neuen Permissions.
+     * Creates the permissions declared in a module's module.json and grants them
+     * to the admin role. Idempotent: calling this multiple times is safe.
+     *
+     * Called by ModuleController::install() after a successful module installation.
+     * The admin role always receives all permissions of newly installed modules.
+     *
+     * Has no effect when spatie/laravel-permission is not installed.
+     *
+     * @param  string $slug
+     * @return void
      */
     public function seedPermissions(string $slug): void
     {
-        // Spatie-Klassen nur laden wenn verfügbar
-        if (!class_exists(\Spatie\Permission\Models\Permission::class)) {
+        if (! class_exists(\Spatie\Permission\Models\Permission::class)) {
             return;
         }
 
         $path = $this->modulePath($slug) . '/module.json';
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             return;
         }
 
@@ -250,35 +276,37 @@ class ModuleLoader
             return;
         }
 
-        // Permissions anlegen (idempotent – findOrCreate)
         foreach ($permissions as $permName) {
             \Spatie\Permission\Models\Permission::findOrCreate($permName, 'web');
         }
 
-        // Admin-Rolle bekommt automatisch alle neuen Permissions
         try {
             $adminRole = \Spatie\Permission\Models\Role::findByName('admin', 'web');
             $adminRole->givePermissionTo($permissions);
         } catch (\Throwable) {
-            // Admin-Rolle noch nicht angelegt → wird beim Seeder nachgeholt
+            // Admin role not yet seeded – permissions will be assigned by the seeder
         }
 
-        // Spatie Cache leeren
         app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     /**
-     * Permissions eines Moduls aus der DB entfernen.
-     * Wird von ModuleController::remove() aufgerufen.
+     * Removes the permissions declared in a module's module.json from the database.
+     * Called by ModuleController::remove() during module uninstallation.
+     *
+     * Has no effect when spatie/laravel-permission is not installed.
+     *
+     * @param  string $slug
+     * @return void
      */
     public function removePermissions(string $slug): void
     {
-        if (!class_exists(\Spatie\Permission\Models\Permission::class)) {
+        if (! class_exists(\Spatie\Permission\Models\Permission::class)) {
             return;
         }
 
         $path = $this->modulePath($slug) . '/module.json';
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             return;
         }
 
@@ -290,25 +318,27 @@ class ModuleLoader
                 $perm = \Spatie\Permission\Models\Permission::findByName($permName, 'web');
                 $perm->delete();
             } catch (\Throwable) {
-                // Permission existiert nicht → ignorieren
+                // Permission does not exist – nothing to remove
             }
         }
 
         app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
-    // ── Private Helpers ───────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
-     * Alle verfügbaren Module aus dem Dateisystem laden.
-     * Nur im Test-Modus verwendet (kein DB-Zugriff nötig).
+     * Loads all modules found on the filesystem.
+     * Used exclusively in the test environment (no database access).
      *
-     * Die Module werden alphabetisch geladen – 'Core' kommt vor allen
-     * anderen, was der Abhängigkeitsreihenfolge entspricht.
+     * Modules are sorted so that 'core' is always booted first,
+     * matching the dependency order expected by other modules.
+     *
+     * @return void
      */
     private function bootAllModulesFromFilesystem(): void
     {
-        if (!is_dir($this->modulesPath)) {
+        if (! is_dir($this->modulesPath)) {
             return;
         }
 
@@ -321,7 +351,7 @@ class ModuleLoader
             }
         }
 
-        // Core zuerst laden (andere Module können davon abhängen)
+        // Core must always be booted first since other modules depend on it
         usort($slugs, function (string $a, string $b): int {
             if ($a === 'core') return -1;
             if ($b === 'core') return  1;
@@ -334,7 +364,11 @@ class ModuleLoader
     }
 
     /**
-     * Lädt den ServiceProvider eines Moduls.
+     * Registers a single module's ServiceProvider with the application container.
+     * Skips modules that have already been loaded in this request.
+     *
+     * @param  string $slug
+     * @return void
      */
     private function bootModule(string $slug): void
     {
@@ -352,7 +386,9 @@ class ModuleLoader
     }
 
     /**
-     * Prüft ob installed_modules Tabelle existiert.
+     * Returns true when the installed_modules table exists and is accessible.
+     *
+     * @return bool
      */
     private function tableExists(): bool
     {

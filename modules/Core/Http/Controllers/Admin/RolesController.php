@@ -5,25 +5,34 @@ declare(strict_types=1);
 namespace Modules\Core\Http\Controllers\Admin;
 
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\View\View;
+use Modules\Core\Http\Requests\StoreRoleRequest;
+use Modules\Core\Http\Requests\UpdateRoleRequest;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 /**
- * Verwaltung der Systemrollen und ihrer Permissions.
- * Rollen (z.B. "Trainer", "Kassenwart") werden hier angelegt und
- * mit Permissions (z.B. "members.view") verknüpft.
+ * Manages system roles and their associated permissions.
+ *
+ * Roles (e.g. "Trainer", "Kassenwart") are created here and linked
+ * to fine-grained permissions (e.g. "members.view", "teams.manage").
+ * System roles (super-admin, admin, user) cannot be renamed or deleted.
  */
 class RolesController extends Controller
 {
+    /**
+     * Renders the roles overview with a list of all roles and permissions,
+     * grouped by module prefix for the UI.
+     *
+     * @return View
+     */
     public function index(): View
     {
         $roles       = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
 
-        // Permissions nach Modul gruppieren (Präfix vor dem ersten Punkt)
+        // Group permissions by module prefix (text before the first dot)
         $permsByModule = [];
         foreach ($permissions as $p) {
             $module = explode('.', $p->name)[0];
@@ -31,7 +40,7 @@ class RolesController extends Controller
         }
         ksort($permsByModule);
 
-        // JS-Daten aufbereiten
+        // Build JS data bridge for roles-modal.js
         $rolesJs = [];
         foreach ($roles as $role) {
             $permNames = [];
@@ -48,47 +57,51 @@ class RolesController extends Controller
         return view('core::admin.roles.index', compact('roles', 'permissions', 'permsByModule', 'rolesJs'));
     }
 
-    public function store(Request $request): RedirectResponse
+    /**
+     * Creates a new role with the given name and optional permissions.
+     *
+     * @param  StoreRoleRequest $request
+     * @return RedirectResponse
+     */
+    public function store(StoreRoleRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'          => ['required', 'string', 'max:100', 'unique:roles,name'],
-            'permissions'   => ['nullable', 'array'],
-            'permissions.*' => ['string', 'exists:permissions,name'],
-        ]);
-
-        $role = Role::create(['name' => $validated['name'], 'guard_name' => 'web']);
-        $role->syncPermissions($validated['permissions'] ?? []);
+        $role = Role::create(['name' => $request->input('name'), 'guard_name' => 'web']);
+        $role->syncPermissions($request->input('permissions', []));
 
         return redirect()->route('admin.roles.index')
             ->with('success', 'Rolle „' . $role->name . '" angelegt.');
     }
 
-    public function update(Request $request, Role $role): RedirectResponse
+    /**
+     * Updates a role's name and/or permissions.
+     *
+     * System roles (super-admin, admin, user) cannot be renamed —
+     * only their permission set can be modified.
+     *
+     * @param  UpdateRoleRequest $request
+     * @param  Role              $role
+     * @return RedirectResponse
+     */
+    public function update(UpdateRoleRequest $request, Role $role): RedirectResponse
     {
-        // Systemrollen (super-admin, admin, user) dürfen nicht umbenannt werden
-        if (in_array($role->name, ['super-admin', 'admin', 'user'], true)) {
-            $validated = $request->validate([
-                'permissions'   => ['nullable', 'array'],
-                'permissions.*' => ['string', 'exists:permissions,name'],
-            ]);
-        } else {
-            $validated = $request->validate([
-                'name'          => ['required', 'string', 'max:100', 'unique:roles,name,' . $role->id],
-                'permissions'   => ['nullable', 'array'],
-                'permissions.*' => ['string', 'exists:permissions,name'],
-            ]);
-            $role->update(['name' => $validated['name']]);
+        if (! in_array($role->name, ['super-admin', 'admin', 'user'], true)) {
+            $role->update(['name' => $request->input('name')]);
         }
 
-        $role->syncPermissions($validated['permissions'] ?? []);
+        $role->syncPermissions($request->input('permissions', []));
 
         return redirect()->route('admin.roles.index')
             ->with('success', 'Rolle „' . $role->name . '" aktualisiert.');
     }
 
+    /**
+     * Deletes a custom role. System roles cannot be deleted.
+     *
+     * @param  Role $role
+     * @return RedirectResponse
+     */
     public function destroy(Role $role): RedirectResponse
     {
-        // Systemrollen schützen
         if (in_array($role->name, ['super-admin', 'admin', 'user'], true)) {
             return back()->with('error', 'Systemrollen können nicht gelöscht werden.');
         }

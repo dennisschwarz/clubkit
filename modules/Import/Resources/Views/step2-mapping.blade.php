@@ -8,11 +8,6 @@
         <p class="ck-page-subtitle">Schritt 2 von 3 – Spalten zuordnen</p>
     </div>
     <div class="ck-row ck-row--gap">
-        @if($customFieldsEnabled)
-        <x-ck-button variant="secondary" size="sm" onclick="ckModalOpen('cfDefModal')">
-            + Custom Field anlegen
-        </x-ck-button>
-        @endif
         <form method="POST" action="{{ route('import.cancel', $session->id) }}">
             @csrf
             <x-ck-button variant="secondary" type="submit">Abbrechen</x-ck-button>
@@ -41,12 +36,28 @@
         </span>
     </x-slot:header>
 
+    {{-- "Feld anlegen"-Button im Card-Header (nur wenn CF-Modul installiert) --}}
+    @if($customFieldsEnabled)
+    <x-slot:headerAction>
+        <x-ck-button variant="secondary" size="sm" onclick="ckModalOpen('cfDefModal')">
+            + Benutzerdefiniertes Feld anlegen
+        </x-ck-button>
+    </x-slot:headerAction>
+    @endif
+
     <form method="POST" action="{{ route('import.mapping.save', $session->id) }}">
         @csrf
 
         <p class="ck-mb-4">
             Weise jeder erkannten CSV-Spalte ein Mitgliederfeld zu oder wähle
             <em>„Überspringen"</em>, wenn das Feld nicht importiert werden soll.
+            @if($customFieldsEnabled)
+                Fehlt ein passendes Feld? Klicke auf
+                <a href="javascript:void(0)" onclick="ckModalOpen('cfDefModal')">
+                    + Benutzerdefiniertes Feld anlegen
+                </a>
+                — das neue Feld erscheint sofort in den Dropdowns.
+            @endif
         </p>
 
         <div class="ck-table-wrap">
@@ -71,13 +82,11 @@
                             {{-- .ck-mapping-select wird vom Import-JS genutzt um neue CF-Optionen einzufügen --}}
                             <select name="mapping[{{ $header }}]" class="ck-field__input ck-mapping-select">
 
-                                {{-- Überspringen --}}
                                 <option value="skip"
                                     {{ ($suggested[$header] ?? 'skip') === 'skip' ? 'selected' : '' }}>
                                     — Überspringen —
                                 </option>
 
-                                {{-- Mitgliederfelder --}}
                                 <optgroup label="Mitglied-Felder">
                                     @foreach ($memberFields as $fieldKey => $fieldLabel)
                                     <option value="{{ $fieldKey }}"
@@ -87,17 +96,14 @@
                                     @endforeach
                                 </optgroup>
 
-                                {{-- Custom Fields --}}
-                                @if ($customFieldsEnabled)
-                                    @if(count($customFields))
-                                    <optgroup label="Custom Fields">
-                                        @foreach ($customFields as $cf)
-                                        <option value="cf:{{ $cf['slug'] }}">
-                                            {{ $cf['label'] }} ({{ $cf['field_type'] }})
-                                        </option>
-                                        @endforeach
-                                    </optgroup>
-                                    @endif
+                                @if ($customFieldsEnabled && count($customFields))
+                                <optgroup label="Benutzerdefinierte Felder">
+                                    @foreach ($customFields as $cf)
+                                    <option value="cf:{{ $cf['slug'] }}">
+                                        {{ $cf['label'] }} ({{ $cf['field_type'] }})
+                                    </option>
+                                    @endforeach
+                                </optgroup>
                                 @endif
 
                             </select>
@@ -118,24 +124,15 @@
 
 {{-- ══ Custom Field anlegen (nur wenn CF-Modul installiert) ══════════════════ --}}
 @if($customFieldsEnabled)
-{{--
-    Das cfDefModal wird hier inline gerendert (nicht über module-settings-section.blade.php).
-    object_type ist als hidden input vorausgefüllt (Mitglied), kein Dropdown.
-    Die Form-Submission wird via AJAX abgefangen (siehe @push('scripts') unten):
-    → POST /custom-fields mit Accept: application/json
-    → JSON-Response: {id, slug, label, field_type}
-    → Neue Option wird dynamisch in alle .ck-mapping-select Dropdowns eingefügt.
---}}
-<x-ck-modal id="cfDefModal" title="Custom Field anlegen" size="md">
+<x-ck-modal id="cfDefModal" title="Benutzerdefiniertes Feld anlegen" size="md">
     <div class="ck-modal__section ck-modal__section--active">
         <form id="cfDefForm" method="POST" action="{{ route('custom-fields.store') }}">
             @csrf
             <input type="hidden" name="_method" id="cfDefMethod" value="POST">
-
-            {{-- object_type ist fest auf 'member' gesetzt – kein Dropdown --}}
             <input type="hidden" name="object_type" value="member">
+
             <p class="ck-text-muted ck-mb-4">
-                <small>Feld wird für den Objekt-Typ <strong>Mitglied</strong> angelegt.</small>
+                <small>Feld wird für den Objekt-Typ <strong>Mitglied</strong> angelegt und ist danach sofort in den Dropdowns verfügbar.</small>
             </p>
 
             <x-ck-field label="Feldname" name="label" id="cfDefLabel"
@@ -149,7 +146,6 @@
                             id="cfDefPlaceholder" placeholder="z.B. M, L, XL" />
             </div>
 
-            {{-- Optionen: nur bei field_type='select' sichtbar --}}
             <div class="ck-mt-3 is-hidden" id="cfDefOptionsBlock">
                 <x-ck-field type="textarea" label="Auswahloptionen (eine pro Zeile)"
                             name="options_raw" id="cfDefOptionsRaw" rows="4"
@@ -175,38 +171,24 @@
 @endsection
 
 @push('scripts')
-{{-- custom-fields-modal.js für _toggleOptionsBlock beim Feldtyp-Wechsel --}}
 @if($customFieldsEnabled)
-<script src="{{ asset('js/modules/custom-fields-modal.js') }}"></script>
+@vite('resources/js/modules/custom-fields-modal.js')
 <script>
-/**
- * Import-Kontext: CF-Feld via AJAX anlegen und Dropdowns dynamisch aktualisieren.
- *
- * Die cfDefForm-Submission wird hier intercepted (statt normalem POST-Redirect).
- * Bei Erfolg: neue CF-Option in alle .ck-mapping-select Dropdowns einfügen.
- *
- * Kein el.style.* – nur classList-Operationen.
- */
 (function () {
     'use strict';
 
-    var csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content
+    const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content
         || (document.querySelector('[name="_token"]') || {}).value
         || '';
 
     document.addEventListener('DOMContentLoaded', function () {
-        var cfDefForm    = document.getElementById('cfDefForm');
-        var cfSubmitBtn  = document.getElementById('cfDefSubmitBtn');
-
+        const cfDefForm   = document.getElementById('cfDefForm');
+        const cfSubmitBtn = document.getElementById('cfDefSubmitBtn');
         if (!cfDefForm) return;
 
         cfDefForm.addEventListener('submit', function (e) {
             e.preventDefault();
-
             if (cfSubmitBtn) cfSubmitBtn.disabled = true;
-
-            var formData = new FormData(cfDefForm);
-            // object_type ist bereits als hidden input mit value='member' im Formular
 
             fetch(cfDefForm.action, {
                 method:  'POST',
@@ -215,50 +197,47 @@
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN':     csrfToken,
                 },
-                body: formData,
+                body: new FormData(cfDefForm),
             })
             .then(function (resp) {
                 if (!resp.ok) {
                     return resp.json().then(function (d) {
-                        var msg = d.message || Object.values(d.errors || {}).flat().join(', ') || 'Fehler';
+                        const msg = d.message
+                            || Object.values(d.errors || {}).flat().join(', ')
+                            || 'Fehler beim Anlegen';
                         throw new Error(msg);
                     });
                 }
                 return resp.json();
             })
             .then(function (data) {
-                // Neue Option in alle Mapping-Dropdowns einfügen
-                var optVal  = 'cf:' + data.slug;
-                var optText = data.label + ' (' + data.field_type + ')';
+                // Neue Option in alle .ck-mapping-select Dropdowns einfügen
+                const optVal  = 'cf:' + data.slug;
+                const optText = data.label + ' (' + data.field_type + ')';
 
                 document.querySelectorAll('.ck-mapping-select').forEach(function (select) {
-                    // Nicht doppelt einfügen
-                    for (var i = 0; i < select.options.length; i++) {
+                    for (let i = 0; i < select.options.length; i++) {
                         if (select.options[i].value === optVal) return;
                     }
-
-                    // optgroup "Custom Fields" suchen oder neu erstellen
-                    var optgroup = select.querySelector('optgroup[label="Custom Fields"]');
+                    let optgroup = select.querySelector('optgroup[label="Benutzerdefinierte Felder"]');
                     if (!optgroup) {
                         optgroup = document.createElement('optgroup');
-                        optgroup.label = 'Custom Fields';
+                        optgroup.label = 'Benutzerdefinierte Felder';
                         select.appendChild(optgroup);
                     }
-
-                    var opt = document.createElement('option');
+                    const opt = document.createElement('option');
                     opt.value       = optVal;
                     opt.textContent = optText;
                     optgroup.appendChild(opt);
                 });
 
-                // Modal schließen + Formular zurücksetzen
                 ckModalClose(null, 'cfDefModal');
                 cfDefForm.reset();
-                var optBlock = document.getElementById('cfDefOptionsBlock');
+                const optBlock = document.getElementById('cfDefOptionsBlock');
                 if (optBlock) optBlock.classList.add('is-hidden');
             })
             .catch(function (err) {
-                alert('Fehler beim Anlegen: ' + err.message);
+                alert('Fehler: ' + err.message);
             })
             .finally(function () {
                 if (cfSubmitBtn) cfSubmitBtn.disabled = false;

@@ -8,40 +8,36 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * CustomFieldRepository
+ * Central loading point for CustomFields module field definitions and values.
  *
- * Zentraler Ladeort für Feld-Definitionen und -Werte des CustomFields-Moduls.
- * Dieses Repository kapselt die rohen DB-Abfragen, damit die Modul-Controller
- * (Members, Teams, Events, Management) nicht alle dasselbe 30-Zeilen-Fragment
- * wiederholen müssen.
+ * Encapsulates raw DB queries so that module controllers (Members, Teams, Events,
+ * Management) do not each repeat the same query fragment.
  *
- * Graceful: Existiert die Tabelle `custom_field_definitions` nicht
- * (CustomFields-Modul nicht installiert), werden leere Arrays zurückgegeben.
+ * Graceful: when the custom_field_definitions table does not exist
+ * (CustomFields module not installed), empty arrays are returned without error.
  *
- * @used-by \Modules\Members\Http\Controllers\MemberController
- * @used-by \Modules\Teams\Http\Controllers\TeamController
- * @used-by \Modules\Events\Http\Controllers\EventController
- * @used-by \Modules\Management\Http\Controllers\ManagementController
+ * @see \Modules\Members\Http\Controllers\MemberController
+ * @see \Modules\Teams\Http\Controllers\TeamController
+ * @see \Modules\Events\Http\Controllers\EventController
+ * @see \Modules\Management\Http\Controllers\ManagementController
  */
 class CustomFieldRepository
 {
     /**
-     * Lädt Feld-Definitionen und gespeicherte Werte für einen Objekt-Typ
-     * in zwei DB-Abfragen.
+     * Loads field definitions and stored values for a single object type
+     * in exactly two database queries.
      *
-     * @param  string  $objectType  z.B. 'member', 'team', 'event'
-     * @return array{defs: list<array>, values: array<int, array<int, string>>}
-     *
-     * Rückgabe:
-     *   'defs'   → [ ['id', 'label', 'field_type', 'options', 'placeholder', 'is_required'], ... ]
-     *   'values' → [ entityId => [ fieldId => value ], ... ]
+     * @param  string $objectType  e.g. 'member', 'team', 'event'
+     * @return array{defs: list<array<string, mixed>>, values: array<int, array<int, string>>}
+     *         defs   → [['id', 'label', 'field_type', 'options', 'placeholder', 'is_required'], ...]
+     *         values → [entityId => [definitionId => value], ...]
      */
     public function loadForObjectType(string $objectType): array
     {
         $defs   = [];
         $values = [];
 
-        if (!Schema::hasTable('custom_field_definitions')) {
+        if (! Schema::hasTable('custom_field_definitions')) {
             return compact('defs', 'values');
         }
 
@@ -55,13 +51,14 @@ class CustomFieldRepository
             $defs[] = $this->normalizeDef($d);
         }
 
-        if (!empty($defs)) {
+        if (! empty($defs)) {
             $defIds = array_column($defs, 'id');
             $vals   = DB::table('custom_field_values')
-                ->whereIn('field_id', $defIds)
+                ->whereIn('definition_id', $defIds)
                 ->get();
+
             foreach ($vals as $v) {
-                $values[$v->entity_id][$v->field_id] = $v->value;
+                $values[$v->entity_id][$v->definition_id] = $v->value;
             }
         }
 
@@ -69,38 +66,36 @@ class CustomFieldRepository
     }
 
     /**
-     * Lädt Feld-Definitionen und gespeicherte Werte für mehrere Objekt-Typen
-     * in NUR ZWEI DB-Abfragen (unabhängig von der Anzahl der Typen).
+     * Loads field definitions and stored values for multiple object types
+     * in exactly two database queries (regardless of the number of types).
      *
-     * Geeignet für Controller, die mehrere Typen gleichzeitig brauchen
-     * (z.B. ManagementController: management_function + management_task).
+     * Suitable for controllers that need multiple types simultaneously,
+     * e.g. ManagementController needs both 'management_function' and 'management_task'.
      *
-     * @param  string[]  $objectTypes  z.B. ['management_function', 'management_task']
-     * @return array<string, array{defs: list<array>, values: array<int, array<int, string>>}>
-     *
-     * Rückgabe:
-     *   [ 'management_function' => ['defs' => [...], 'values' => [...]], ... ]
+     * @param  string[] $objectTypes  e.g. ['management_function', 'management_task']
+     * @return array<string, array{defs: list<array<string, mixed>>, values: array<int, array<int, string>>}>
+     *         ['management_function' => ['defs' => [...], 'values' => [...]], ...]
      */
     public function loadForObjectTypes(array $objectTypes): array
     {
-        // Ergebnis-Struktur mit leeren Arrays initialisieren
+        // Initialise result structure with empty arrays for each requested type
         $result = [];
         foreach ($objectTypes as $type) {
             $result[$type] = ['defs' => [], 'values' => []];
         }
 
-        if (!Schema::hasTable('custom_field_definitions') || empty($objectTypes)) {
+        if (! Schema::hasTable('custom_field_definitions') || empty($objectTypes)) {
             return $result;
         }
 
-        // Alle Definitionen auf einmal laden
+        // Load all definitions for the requested types in one query
         $rawDefs = DB::table('custom_field_definitions')
             ->whereIn('object_type', $objectTypes)
             ->orderBy('sort_order')
             ->orderBy('label')
             ->get();
 
-        // defId → objectType-Mapping für spätere Wert-Zuordnung
+        // Build a defId → objectType map for later value assignment
         $defIdToType = [];
 
         foreach ($rawDefs as $d) {
@@ -108,18 +103,18 @@ class CustomFieldRepository
             $defIdToType[$d->id]               = $d->object_type;
         }
 
-        // Alle Werte auf einmal laden
-        if (!empty($defIdToType)) {
+        // Load all values for the resolved definition IDs in one query
+        if (! empty($defIdToType)) {
             $vals = DB::table('custom_field_values')
-                ->whereIn('field_id', array_keys($defIdToType))
+                ->whereIn('definition_id', array_keys($defIdToType))
                 ->get();
 
             foreach ($vals as $v) {
-                $type = $defIdToType[$v->field_id] ?? null;
+                $type = $defIdToType[$v->definition_id] ?? null;
                 if ($type === null) {
                     continue;
                 }
-                $result[$type]['values'][$v->entity_id][$v->field_id] = $v->value;
+                $result[$type]['values'][$v->entity_id][$v->definition_id] = $v->value;
             }
         }
 
@@ -127,7 +122,10 @@ class CustomFieldRepository
     }
 
     /**
-     * Normalisiert einen rohen DB-Datensatz in das einheitliche Definitions-Format.
+     * Normalises a raw database record into the uniform field definition format.
+     *
+     * @param  object               $d  Raw stdClass row from custom_field_definitions
+     * @return array<string, mixed>
      */
     private function normalizeDef(object $d): array
     {

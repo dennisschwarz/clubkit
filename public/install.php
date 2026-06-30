@@ -4,9 +4,9 @@ session_start();
 
 /**
  * ClubKit – Web Installer v2.0.2
- * - ob_start entfernt
- * - declare(strict_types) als erste Anweisung
- * - Komplett-Reset direkt im Installer
+ * - ob_start removed
+ * - declare(strict_types) as first statement
+ * - Full reset directly in installer
  */
 
 const INSTALLER_VERSION = '2.0.2';
@@ -20,13 +20,13 @@ $MODULES_DIR = $BASE . '/modules';
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 function e(mixed $v): string  { return h((string)($v ?? '')); }
 
-// ── Komplett-Reset ────────────────────────────────────────────────────────────
+// ── Full reset ────────────────────────────────────────────────────────────────
 
 function fullReset(string $base, string $envFile): array
 {
     $log = [];
 
-    // DB leeren (falls .env vorhanden)
+    // Clear the database (if .env file exists)
     if (file_exists($envFile)) {
         $env    = parse_ini_file($envFile) ?: [];
         $dbHost = $env['DB_HOST']     ?? '127.0.0.1';
@@ -59,20 +59,20 @@ function fullReset(string $base, string $envFile): array
         $log[] = ['ok' => true, 'msg' => 'Keine .env vorhanden – DB-Reset übersprungen'];
     }
 
-    // .env löschen
+    // Delete .env file
     if (file_exists($envFile)) {
         unlink($envFile);
         $log[] = ['ok' => true, 'msg' => '.env gelöscht'];
     }
 
-    // storage/installed löschen
+    // Remove installed marker
     $marker = $base . '/storage/installed';
     if (file_exists($marker)) {
         unlink($marker);
         $log[] = ['ok' => true, 'msg' => 'storage/installed gelöscht'];
     }
 
-    // Bootstrap-Cache leeren
+    // Clear bootstrap cache files
     foreach (['config.php','packages.php','services.php','events.php','routes.php'] as $f) {
         @unlink("$base/bootstrap/cache/$f");
     }
@@ -83,14 +83,14 @@ function fullReset(string $base, string $envFile): array
 
 // ── Request handling ──────────────────────────────────────────────────────────
 
-// Session-Reset (ohne DB)
+// Session reset only (no database changes)
 if (isset($_GET['reset'])) {
     session_unset(); session_destroy();
     header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
     exit;
 }
 
-// Komplett-Reset (DB + .env + session)
+// Full reset (database + .env + session)
 if (isset($_GET['full_reset'])) {
     $resetLog = fullReset($BASE, $ENV_FILE);
     session_unset(); session_destroy();
@@ -218,7 +218,7 @@ function runArtisan(object $app, string $cmd, array $args = []): array
     }
 }
 
-// ── POST-Routing ──────────────────────────────────────────────────────────────
+// ── POST routing ──────────────────────────────────────────────────────────────
 
 $_SESSION['ck_errors'] ??= [];
 
@@ -337,7 +337,7 @@ if ($step === 6 && !$installDone) {
     $rollback[] = fn() => ($envBackup !== null ? file_put_contents($ENV_FILE, $envBackup) : @unlink($ENV_FILE));
     $log[] = ['ok' => true, 'msg' => '.env geschrieben', 'detail' => ''];
 
-    // B: Laravel bootstrappen
+    // B: Bootstrap Laravel
     try {
         $laravelApp = bootstrapLaravel($BASE);
         $log[] = ['ok' => true, 'msg' => 'Laravel gestartet', 'detail' => ''];
@@ -359,7 +359,7 @@ if ($step === 6 && !$installDone) {
     $rollback[] = fn() => runArtisan($laravelApp, 'migrate:rollback', ['--force' => true]);
     $log[] = ['ok' => true, 'msg' => 'Migrationen ausgeführt', 'detail' => ''];
 
-    // E: Admin-User + Rolle
+    // E: Admin user + role
     try {
         $dbc = $laravelApp->make('db');
         $now = date('Y-m-d H:i:s');
@@ -387,7 +387,7 @@ if ($step === 6 && !$installDone) {
         $fail('Admin-User fehlgeschlagen', $e->getMessage());
     }
 
-    // F: Module registrieren
+    // F: Register modules
     try {
         $available = detectModules($MODULES_DIR);
         $now = date('Y-m-d H:i:s');
@@ -414,7 +414,7 @@ if ($step === 6 && !$installDone) {
     runArtisan($laravelApp, 'optimize');
     $log[] = ['ok' => true, 'msg' => 'Cache optimiert', 'detail' => ''];
 
-    // H: Berechtigungen
+    // H: Set file permissions
     @chmod("$BASE/storage", 0775);
     @chmod("$BASE/bootstrap/cache", 0775);
     $log[] = ['ok' => true, 'msg' => 'Berechtigungen gesetzt', 'detail' => ''];
@@ -601,7 +601,7 @@ $appUrl      = $data['app']['appUrl'] ?? '';
         <input type="password" name="admin_pass" class="w-full border rounded-lg px-3 py-2 text-sm" required>
       </div>
       <div>
-        <label class="block text-xs font-bold text="gray-500 uppercase mb-1">Passwort wiederholen</label>
+        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Passwort wiederholen</label>
         <input type="password" name="admin_pass2" class="w-full border rounded-lg px-3 py-2 text-sm" required>
       </div>
       <button class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg">

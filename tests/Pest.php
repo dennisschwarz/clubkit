@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -11,8 +13,8 @@ use Tests\TestCase;
 |--------------------------------------------------------------------------
 | Test Case
 |--------------------------------------------------------------------------
-| Feature-Tests: TestCase + RefreshDatabase (DB nach jedem Test zurückgesetzt)
-| Unit-Tests:    Kein RefreshDatabase nötig (keine DB-Zugriffe)
+| Feature tests: TestCase + RefreshDatabase (DB reset after each test).
+| Unit tests:    No RefreshDatabase needed (no DB access).
 */
 
 pest()->extend(TestCase::class)
@@ -21,12 +23,12 @@ pest()->extend(TestCase::class)
 
 /*
 |--------------------------------------------------------------------------
-| Globale Hilfsfunktionen
+| Global Helper Functions
 |--------------------------------------------------------------------------
 */
 
 /**
- * Legt einen User mit den angegebenen Permissions an.
+ * Create a user and assign the given permissions to them.
  */
 function createUserWithPermission(string ...$permissions): User
 {
@@ -40,7 +42,7 @@ function createUserWithPermission(string ...$permissions): User
         $user->givePermissionTo($permission);
     }
 
-    // Relations neu laden – kein fresh() damit Spatie den selben Objekt-State nutzt
+    // Reload relations – no fresh() to keep Spatie using the same object state.
     $user->load(['roles', 'permissions']);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -48,13 +50,13 @@ function createUserWithPermission(string ...$permissions): User
 }
 
 /**
- * Legt einen User mit der super-admin-Rolle an.
+ * Create a user with the super-admin role.
  *
- * Gate::before in AppServiceProvider prüft $user->hasRole('super-admin').
- * Damit das in Tests zuverlässig klappt:
- *  - KEIN fresh() (würde Relations-Cache verlieren und DB-Reload triggern)
- *  - Rollen explizit laden (load()) NACH assignRole()
- *  - forgetCachedPermissions() NACH dem Laden, nicht davor
+ * Gate::before in AppServiceProvider checks $user->hasRole('super-admin').
+ * For reliable test behaviour:
+ *  - NO fresh() (would lose the relations cache and trigger a DB reload)
+ *  - Reload roles explicitly (load()) AFTER assignRole()
+ *  - forgetCachedPermissions() AFTER loading, not before
  */
 function createSuperAdmin(): User
 {
@@ -63,21 +65,32 @@ function createSuperAdmin(): User
     $role = Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
     $user->assignRole($role);
 
-    // Rollen explizit neu laden – gleiche Objekt-Instanz bleibt erhalten
+    // Reload roles – same object instance is kept.
     $user->load(['roles', 'permissions']);
 
-    // Cache NACH dem Laden leeren
+    // Clear cache AFTER loading.
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     return $user;
 }
 
 /**
- * Legt einen einfachen User ohne jede Permission an.
+ * Create a plain user without any permissions or roles.
  */
 function createPlainUser(): User
 {
     return User::factory()->create();
+}
+
+/**
+ * Flush Spatie's permission cache after seeding installed_modules.
+ *
+ * Call this in beforeEach() after DB::table('installed_modules')->insertOrIgnore()
+ * to ensure freshly registered module permissions are visible in the current test.
+ */
+function seedPermissions(): void
+{
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
 }
 
 /*

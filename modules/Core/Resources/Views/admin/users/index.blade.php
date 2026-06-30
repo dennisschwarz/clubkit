@@ -200,7 +200,7 @@
         }
     };
 </script>
-<script src="{{ asset('js/modules/users-modal.js') }}"></script>
+@vite('resources/js/modules/users-modal.js')
 @endpush
 
 @endsection

@@ -19,11 +19,11 @@
 </div>
 
 {{-- Stat-Kacheln --}}
-<div class="ck-stat-grid" style="margin-bottom:var(--ck-space-6);">
+<div class="ck-stat-grid ck-mb-6">
 
     <div class="ck-stat-card">
         <div class="ck-stat-card__label">ClubKit</div>
-        <div class="ck-stat-card__value" style="font-size:20px;">
+        <div class="ck-stat-card__value ck-stat-card__value--lg">
             {{ $installed[0]->version ?? '–' }}
         </div>
         <div class="ck-stat-card__sub">
@@ -33,7 +33,7 @@
 
     <div class="ck-stat-card">
         <div class="ck-stat-card__label">Laravel</div>
-        <div class="ck-stat-card__value" style="font-size:20px;">{{ $laravelVersion }}</div>
+        <div class="ck-stat-card__value ck-stat-card__value--lg">{{ $laravelVersion }}</div>
         <div class="ck-stat-card__sub">
             Umgebung: {{ config('app.env') }}
             @if(config('app.debug'))
@@ -44,13 +44,13 @@
 
     <div class="ck-stat-card">
         <div class="ck-stat-card__label">PHP</div>
-        <div class="ck-stat-card__value" style="font-size:20px;">{{ $phpVersion }}</div>
+        <div class="ck-stat-card__value ck-stat-card__value--lg">{{ $phpVersion }}</div>
         <div class="ck-stat-card__sub">SAPI: {{ PHP_SAPI }}</div>
     </div>
 
     <div class="ck-stat-card {{ $migrationsStatus['ok'] ? 'ck-stat-card--ok' : 'ck-stat-card--warn' }}">
         <div class="ck-stat-card__label">Datenbank</div>
-        <div class="ck-stat-card__value" style="font-size:20px;">
+        <div class="ck-stat-card__value ck-stat-card__value--lg">
             {{ $migrationsStatus['ok'] ? 'Aktuell' : $migrationsStatus['pending'] . ' ausstehend' }}
         </div>
         <div class="ck-stat-card__sub">{{ $dbName }}</div>
@@ -59,17 +59,16 @@
 </div>
 
 {{-- Details --}}
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--ck-space-4);">
+<div class="ck-two-col-grid">
 
     <x-ck-card>
         <x-slot:header>🔧 Konfiguration</x-slot:header>
         <table class="ck-table">
             <tbody>
                 <tr>
-                    <td class="ck-text-muted" style="width:40%;">App-URL</td>
+                    <td class="ck-text-muted ck-table__label-col">App-URL</td>
                     <td>
-                        <a href="{{ $appUrl }}" target="_blank"
-                           style="color:var(--ck-accent-dark); text-decoration:none;">
+                        <a href="{{ $appUrl }}" target="_blank" class="ck-link">
                             {{ $appUrl }}
                         </a>
                     </td>
@@ -120,7 +119,7 @@
             <tbody>
                 @foreach($installed as $module)
                 <tr>
-                    <td style="font-weight:600;">{{ $module->name }}</td>
+                    <td class="ck-font-weight-bold">{{ $module->name }}</td>
                     <td class="ck-text-muted">{{ $module->version }}</td>
                     <td>
                         @if($module->is_active)

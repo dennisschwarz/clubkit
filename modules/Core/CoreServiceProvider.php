@@ -11,15 +11,33 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Modules\Core\Models\Setting;
 use Modules\Core\Services\HookRegistry;
+use Spatie\Activitylog\Models\Activity;
 
+/**
+ * Boots the Core module of ClubKit.
+ *
+ * Responsibilities:
+ *  - Registers the Hook system as a singleton available to all modules
+ *  - Loads routes, views, and database migrations
+ *  - Registers anonymous Blade components under the 'ck' prefix
+ *  - Registers the @ckHook Blade directive for the extension-point system
+ *  - Shares global application settings with all views
+ *  - Attaches the request IP address to every activity log entry
+ */
 class CoreServiceProvider extends ServiceProvider
 {
+    /**
+     * @return void
+     */
     public function register(): void
     {
-        // Hook-System als Singleton – steht allen Modulen global zur Verfügung
+        // Hook system singleton – globally accessible to all modules via app('ck.hooks')
         $this->app->singleton('ck.hooks', fn () => new HookRegistry());
     }
 
+    /**
+     * @return void
+     */
     public function boot(): void
     {
         $this->loadRoutes();
@@ -28,35 +46,47 @@ class CoreServiceProvider extends ServiceProvider
         $this->registerBladeComponents();
         $this->registerHookDirective();
         $this->shareSettings();
+        $this->configureActivityLog();
     }
 
-    // ── Routen ────────────────────────────────────────────────────────────
+    // ── Routes ────────────────────────────────────────────────────────────────
 
+    /**
+     * @return void
+     */
     private function loadRoutes(): void
     {
         Route::middleware('web')
             ->group(__DIR__ . '/routes.php');
     }
 
-    // ── Views ─────────────────────────────────────────────────────────────
+    // ── Views ─────────────────────────────────────────────────────────────────
 
+    /**
+     * @return void
+     */
     private function loadViews(): void
     {
         $this->loadViewsFrom(__DIR__ . '/Resources/Views', 'core');
     }
 
-    // ── Migrationen ───────────────────────────────────────────────────────
+    // ── Migrations ────────────────────────────────────────────────────────────
 
+    /**
+     * @return void
+     */
     private function loadMigrations(): void
     {
         $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
     }
 
-    // ── Blade Components ──────────────────────────────────────────────────
+    // ── Blade Components ──────────────────────────────────────────────────────
 
     /**
-     * Anonyme Blade-Components unter modules/Core/Resources/Views/components/
-     * als <x-ck-*> registrieren (z. B. <x-ck-button>, <x-ck-modal>).
+     * Registers anonymous Blade components from modules/Core/Resources/Views/components/
+     * under the 'ck' namespace, making them available as <x-ck-button>, <x-ck-modal>, etc.
+     *
+     * @return void
      */
     private function registerBladeComponents(): void
     {
@@ -66,23 +96,25 @@ class CoreServiceProvider extends ServiceProvider
         );
     }
 
-    // ── Hook-Direktive ────────────────────────────────────────────────────
+    // ── Hook Directive ────────────────────────────────────────────────────────
 
     /**
-     * @ckHook('extension.point') – rendert alle registrierten Hook-Views
-     * für den angegebenen Extension Point.
+     * Registers the @ckHook('extension.point') Blade directive.
      *
-     * Alle aktuellen View-Variablen (z. B. $member, $members) werden automatisch
-     * an die Hook-Views weitergegeben. Kein manuelles Übergeben von Daten nötig.
+     * Renders all views that modules have registered for the given extension point.
+     * All variables currently in scope are automatically passed to the hook views,
+     * so modules do not need to receive data explicitly.
      *
-     * Beispiele:
+     * Examples:
      *   @ckHook('member.modal.tabs')
-     *   @ckHook('member.table.row')   ← $member ist im @foreach-Scope verfügbar
+     *   @ckHook('member.table.row')   ← $member is available inside the @foreach scope
+     *
+     * @return void
      */
     private function registerHookDirective(): void
     {
         Blade::directive('ckHook', function (string $expression): string {
-            // Interne PHP/Blade-Variablen aus dem Scope herausfiltern
+            // Filter internal Blade/PHP scope variables from the data passed to hook views
             $exclude = "['__data', '__path', '__env', '__ob_level__', '__ckHookView']";
 
             return "<?php foreach (app('ck.hooks')->get({$expression}) as \$__ckHookView): " .
@@ -92,11 +124,13 @@ class CoreServiceProvider extends ServiceProvider
         });
     }
 
-    // ── Globale Settings ──────────────────────────────────────────────────
+    // ── Global Settings ───────────────────────────────────────────────────────
 
     /**
-     * Settings aus der Datenbank laden und als $ckSettings mit allen Views teilen.
-     * Wenn die settings-Tabelle noch nicht existiert (Erst-Installation), bleibt das Array leer.
+     * Loads settings from the database and shares them as $ckSettings with all views.
+     * Fails gracefully when the settings table does not yet exist (e.g. fresh installation).
+     *
+     * @return void
      */
     private function shareSettings(): void
     {
@@ -107,5 +141,30 @@ class CoreServiceProvider extends ServiceProvider
         }
 
         View::share('ckSettings', $settings);
+    }
+
+    // ── Activity Log ──────────────────────────────────────────────────────────
+
+    /**
+     * Configures the Spatie Activity Log for ClubKit.
+     *
+     * Attaches the request IP address to every activity log entry via
+     * a model saving event. This runs globally for all modules that use
+     * the LogsActivity trait, requiring no per-model configuration.
+     *
+     * v5 schema note:
+     *   The IP is stored in the `properties` column, which in v5 holds
+     *   only custom user data. Tracked model attribute changes live in the
+     *   separate `attribute_changes` column and are not affected by this hook.
+     *
+     * @return void
+     */
+    private function configureActivityLog(): void
+    {
+        Activity::saving(function (Activity $activity): void {
+            $activity->properties = $activity->properties->merge([
+                'ip' => request()->ip(),
+            ]);
+        });
     }
 }

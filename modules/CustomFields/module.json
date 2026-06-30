@@ -2,13 +2,14 @@
     "name": "CustomFields",
     "slug": "custom-fields",
     "version": "1.0.0",
-    "description": "Eigene Felder für Mitglieder, Teams und weitere Objekte.",
+    "description": "Custom fields for members, teams, and other entity types.",
     "requires": ["core", "members"],
     "tables": ["custom_field_definitions", "custom_field_values"],
     "provides": {
         "migrations": true,
         "routes": true,
         "views": true,
+        "nav": [],
         "permissions": [
             "custom-fields.view",
             "custom-fields.manage"

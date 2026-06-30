@@ -5,55 +5,64 @@ declare(strict_types=1);
 namespace Modules\Import;
 
 /**
- * Vertrag für alle Import-Quellen.
- * Neue Quelle = neue Klasse, die dieses Interface implementiert.
- * Kein anderer Code muss geändert werden.
+ * Contract for all CSV import sources.
+ * Adding a new source means creating a new class that implements this interface.
+ * No other code needs to be changed.
  */
 interface ImporterInterface
 {
     /**
-     * Prüft ob diese Datei von diesem Importer verarbeitet werden kann.
-     * Entscheidung basiert auf Dateiname und erster Zeile (Header).
+     * Returns true when this importer can process the given file.
+     * The decision is based on the filename and the first line (header row).
+     *
+     * @param  string $filename
+     * @param  string $firstLine
+     * @return bool
      */
     public function canHandle(string $filename, string $firstLine): bool;
 
     /**
-     * Interner Quellname – wird im Import-Log gespeichert.
-     * Beispiele: 'dfbnet', 'nuliga'
+     * Returns the internal source name stored in the import log.
+     * Examples: 'dfbnet', 'nuliga'
+     *
+     * @return string
      */
     public function getSourceName(): string;
 
     /**
-     * Dekodiert den Roh-Dateiinhalt und gibt alle Datenzeilen als 2D-Array zurück.
-     * Encoding-Konvertierung findet hier statt (z.B. Windows-1252 → UTF-8).
-     * Die Header-Zeile wird übersprungen.
+     * Decodes the raw file content and returns all data rows as a 2D array.
+     * Encoding conversion happens here (e.g. Windows-1252 → UTF-8).
+     * The header row is skipped.
      *
+     * @param  string $rawContent
      * @return array<int, array<int, string>>
      */
     public function getRawRows(string $rawContent): array;
 
     /**
-     * Liest die Spaltenköpfe aus dem Dateiinhalt.
+     * Reads the column headers from the file content.
      *
+     * @param  string $rawContent
      * @return array<int, string>
      */
     public function getColumnHeaders(string $rawContent): array;
 
     /**
-     * Vorgeschlagene Spalten-Zuordnung (wird in Stufe 2 als Default gesetzt).
-     * Schlüssel = Spaltenname aus CSV, Wert = members-Tabellenfeld oder 'skip'.
+     * Returns the suggested column mapping (used as default in step 2).
+     * Keys = CSV column name, values = members table field or 'skip'.
      *
      * @return array<string, string>
      */
     public function getSuggestedMapping(): array;
 
     /**
-     * Wendet das vom User bestätigte Mapping auf eine Roh-Zeile an
-     * und gibt ein quellneutrales MemberData-DTO zurück.
+     * Applies the user-confirmed mapping to a raw row and returns
+     * a source-neutral MemberData DTO.
      *
-     * @param array<int, string>    $rawRow  Eine Zeile aus getRawRows()
-     * @param array<int, string>    $headers Spaltenköpfe aus getColumnHeaders()
-     * @param array<string, string> $mapping Bestätigtes Mapping aus Stufe 2
+     * @param  array<int, string>    $rawRow  One row from getRawRows()
+     * @param  array<int, string>    $headers Column headers from getColumnHeaders()
+     * @param  array<string, string> $mapping Confirmed mapping from step 2
+     * @return MemberData
      */
     public function applyMapping(array $rawRow, array $headers, array $mapping): MemberData;
 }

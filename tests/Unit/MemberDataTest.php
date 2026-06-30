@@ -1,18 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 use Modules\Import\MemberData;
 
 uses(Tests\TestCase::class);
 
-// ── Konstruktor & Defaults ────────────────────────────────────────────────────
+// ── Constructor & defaults ────────────────────────────────────────────────────
 
 test('memberdto speichert pflichtfelder korrekt', function () {
     $dto = new MemberData(
-        first_name:   'Maryam',
-        last_name:    'Akhabach',
+        first_name:    'Maryam',
+        last_name:     'Akhabach',
         date_of_birth: '2012-09-08',
-        gender:       'female',
-        pass_number:  '0765-0056',
+        gender:        'female',
+        pass_number:   '0765-0056',
     );
 
     expect($dto->first_name)->toBe('Maryam');
@@ -31,9 +33,36 @@ test('memberdto hat korrekte standardwerte', function () {
         pass_number:   null,
     );
 
-    expect($dto->eligible_to_play)->toBeTrue();
+    // eligible_to_play_date is null by default (no date → not eligible)
+    expect($dto->eligible_to_play_date)->toBeNull();
     expect($dto->status)->toBe('active');
     expect($dto->custom_fields)->toBe([]);
+});
+
+test('memberdto akzeptiert spielberechtigt-datum', function () {
+    $dto = new MemberData(
+        first_name:            'Test',
+        last_name:             'User',
+        date_of_birth:         null,
+        gender:                null,
+        pass_number:           null,
+        eligible_to_play_date: '2025-07-01',
+    );
+
+    expect($dto->eligible_to_play_date)->toBe('2025-07-01');
+});
+
+test('memberdto akzeptiert null als spielberechtigt-datum (nicht spielberechtigt)', function () {
+    $dto = new MemberData(
+        first_name:            'Test',
+        last_name:             'User',
+        date_of_birth:         null,
+        gender:                null,
+        pass_number:           null,
+        eligible_to_play_date: null,
+    );
+
+    expect($dto->eligible_to_play_date)->toBeNull();
 });
 
 test('memberdto akzeptiert custom fields', function () {
@@ -47,19 +76,6 @@ test('memberdto akzeptiert custom fields', function () {
     );
 
     expect($dto->custom_fields)->toBe(['nationality' => 'D', 'club_number' => '42']);
-});
-
-test('memberdto erlaubt eligible_to_play false', function () {
-    $dto = new MemberData(
-        first_name:      'Test',
-        last_name:       'User',
-        date_of_birth:   null,
-        gender:          null,
-        pass_number:     null,
-        eligible_to_play: false,
-    );
-
-    expect($dto->eligible_to_play)->toBeFalse();
 });
 
 test('memberdto ist readonly', function () {

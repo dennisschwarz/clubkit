@@ -9,31 +9,51 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
+/**
+ * Primary application service provider.
+ *
+ * Responsible for:
+ * - Registering the ModuleLoader singleton
+ * - Booting all active ClubKit modules
+ * - Configuring pagination to use the ClubKit-specific view
+ * - Registering the super-admin gate bypass
+ */
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Register application services.
+     *
+     * @return void
+     */
     public function register(): void
     {
-        // ModuleLoader als Singleton registrieren
+        // Register ModuleLoader as a singleton so all modules share one instance
         $this->app->singleton(ModuleLoader::class);
     }
 
+    /**
+     * Bootstrap application services.
+     *
+     * @return void
+     */
     public function boot(): void
     {
-        // Alle aktiven Module laden
+        // Boot all active modules and register their ServiceProviders
         $this->app->make(ModuleLoader::class)->boot();
 
-        // Pagination: ClubKit-eigene View statt Tailwind-Default registrieren.
-        // Laravels Standard-View nutzt Tailwind-CSS-Klassen (w-5, h-5, …) die
-        // in diesem Projekt nicht verfügbar sind → SVG-Icons würden riesig rendern.
+        // Use the ClubKit-specific pagination view instead of the Tailwind default.
+        // Laravel's default view uses Tailwind CSS classes (w-5, h-5, …) which are
+        // not available in this project and would cause SVG icons to render oversized.
         Paginator::defaultView('pagination.ck-pagination');
         Paginator::defaultSimpleView('pagination.ck-pagination');
 
-        // Super-Admin-Bypass: super-admin darf alles, ohne einzelne Permissions zu brauchen.
+        // Super-admin gate bypass: super-admin may perform any action without
+        // requiring individual permissions.
         //
-        // WICHTIG: Wir verwenden roles()->exists() statt hasRole() (Spatie-Methode).
-        // hasRole() nutzt Spaties internen PermissionRegistrar-Cache, der zwischen
-        // Test-Assertions und dem Gate::before-Aufruf unzuverlässig sein kann.
-        // Die direkte Relationship-Abfrage geht immer frisch gegen die DB.
+        // We use roles()->exists() instead of hasRole() (Spatie method) because
+        // hasRole() relies on Spatie's internal PermissionRegistrar cache, which
+        // can be unreliable between test assertions and Gate::before invocations.
+        // The direct relationship query always hits the database fresh.
         Gate::before(function ($user, string $ability) {
             try {
                 if (
@@ -43,7 +63,7 @@ class AppServiceProvider extends ServiceProvider
                     return true;
                 }
             } catch (\Throwable) {
-                // Ignorieren falls DB noch nicht bereit (z.B. frische Installation)
+                // Ignore if the database is not yet ready (e.g. during a fresh install)
             }
 
             return null;

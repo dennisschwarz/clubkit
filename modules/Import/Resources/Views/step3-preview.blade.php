@@ -73,12 +73,12 @@
                     onclick="importFilter('unchanged', this)">Unverändert ({{ $counts['unchanged'] }})</button>
         </div>
         <div class="ck-row ck-row--gap">
-            <button type="button" class="ck-btn ck-btn--secondary ck-btn--sm"
-                    onclick="importSelectAll()">Alle auswählen</button>
-            <button type="button" class="ck-btn ck-btn--secondary ck-btn--sm"
-                    onclick="importSelectNone()">Auswahl aufheben</button>
-            <button type="button" class="ck-btn ck-btn--secondary ck-btn--sm"
-                    onclick="importSelectNewAndChanged()">Neu + Geänderte</button>
+            <x-ck-button type="button" variant="secondary" size="sm"
+                         onclick="importSelectAll()">Alle auswählen</x-ck-button>
+            <x-ck-button type="button" variant="secondary" size="sm"
+                         onclick="importSelectNone()">Auswahl aufheben</x-ck-button>
+            <x-ck-button type="button" variant="secondary" size="sm"
+                         onclick="importSelectNewAndChanged()">Neu + Geänderte</x-ck-button>
         </div>
     </div>
 
@@ -180,19 +180,19 @@
 @endsection
 
 @push('scripts')
-<script src="{{ asset('js/modules/import-preview.js') }}"></script>
+@vite('resources/js/modules/import-preview.js')
 <script>
     importUpdateCount();
 
     @if(!empty($teams))
-    // Globaler Team-Dropdown → alle per-Zeile Dropdowns synchronisieren.
-    // Kein el.style.* – nur Werte setzen.
+    // Globales Team-Dropdown → synchronisiert alle per-Zeile-Dropdowns.
+    // Kein el.style.* – nur Wert-Zuweisung.
     (function () {
-        var globalSelect = document.getElementById('assignTeamGlobal');
+        const globalSelect = document.getElementById('assignTeamGlobal');
         if (!globalSelect) return;
 
         globalSelect.addEventListener('change', function () {
-            var teamId = this.value;
+            const teamId = this.value;
             document.querySelectorAll('.ck-team-assign').forEach(function (select) {
                 select.value = teamId;
             });

@@ -9,9 +9,11 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Erweiterte Erscheinungsbild-Einstellungen einfügen.
-     * Nutzt updateOrInsert – bestehende Werte werden NICHT überschrieben.
-     * Guard: wenn die settings-Tabelle nicht existiert, nichts tun.
+     * Insert extended appearance settings.
+     * Uses updateOrInsert so existing values are NOT overwritten.
+     * Guard: returns early when the settings table does not exist.
+     *
+     * @return void
      */
     public function up(): void
     {
@@ -20,17 +22,17 @@ return new class extends Migration
         }
 
         $defaults = [
-            // Brand-Bar
+            // Brand bar
             'brand_bar_text'      => '#ffffff',
             'brand_bar_hover'     => '#e2e8f0',
-            // Navigationsleiste
+            // Navigation bar
             'nav_bar_show_emojis' => '1',
             'nav_bar_bg'          => '#132238',
             'nav_bar_text'        => '#a0aec0',
             'nav_bar_hover'       => '#e2e8f0',
             'nav_bar_active_bar'  => '#60a5fa',
             'nav_bar_font_size'   => '14',
-            // Sub-Tab-Leiste
+            // Sub-tab bar
             'subtab_show_emojis'  => '1',
             'subtab_bg'           => '#ffffff',
             'subtab_text'         => '#64748b',
@@ -40,7 +42,7 @@ return new class extends Migration
         ];
 
         foreach ($defaults as $key => $value) {
-            // Nur einfügen wenn der Key noch nicht existiert
+            // Insert only when the key does not yet exist
             DB::table('settings')->updateOrInsert(
                 ['key' => $key],
                 ['value' => $value]
@@ -49,7 +51,9 @@ return new class extends Migration
     }
 
     /**
-     * Rollback: Die hinzugefügten Einstellungen entfernen.
+     * Remove the extended appearance settings added by this migration.
+     *
+     * @return void
      */
     public function down(): void
     {

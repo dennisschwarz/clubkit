@@ -15,6 +15,9 @@ final class ImportSessionFactory extends Factory
 {
     protected $model = ImportSession::class;
 
+    /**
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
         return [
@@ -35,13 +38,22 @@ final class ImportSessionFactory extends Factory
         ];
     }
 
-    /** Session ist abgelaufen */
+    /**
+     * Creates a session that has already expired.
+     *
+     * @return static
+     */
     public function expired(): static
     {
         return $this->state(['expires_at' => now()->subHour()]);
     }
 
-    /** Session hat bereits Mapping + verarbeitete Zeilen */
+    /**
+     * Creates a session with pre-filled mapping and processed rows.
+     *
+     * @param  array $rows
+     * @return static
+     */
     public function withProcessedRows(array $rows = []): static
     {
         $default = [

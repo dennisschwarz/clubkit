@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Modules\Core\Http\Controllers\Admin\ActivityLogController;
 use Modules\Core\Http\Controllers\Admin\AppearanceController;
 use Modules\Core\Http\Controllers\Admin\ModuleController;
 use Modules\Core\Http\Controllers\Admin\ModuleSettingsController;
@@ -11,7 +12,7 @@ use Modules\Core\Http\Controllers\Admin\SystemController;
 use Modules\Core\Http\Controllers\Admin\UserController;
 use Modules\Core\Http\Controllers\DashboardController;
 
-// ── Dashboard ──────────────────────────────────────────────────────────────
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 
 Route::middleware(['auth', 'verified'])
     ->group(function () {
@@ -19,7 +20,7 @@ Route::middleware(['auth', 'verified'])
             ->name('dashboard');
     });
 
-// ── Admin-Bereich (nur Admins + Super-Admins) ──────────────────────────────
+// ── Admin area (admins and super-admins only) ─────────────────────────────────
 
 Route::prefix('admin')
     ->name('admin.')
@@ -29,13 +30,13 @@ Route::prefix('admin')
         // Redirect /admin → /admin/system
         Route::redirect('/', '/admin/system');
 
-        // ── System-Überblick ──────────────────────────────────────────────
+        // ── System overview ───────────────────────────────────────────────
         Route::prefix('system')->name('system.')->group(function () {
             Route::get('/',         [SystemController::class, 'index'])        ->name('index');
             Route::post('/migrate', [SystemController::class, 'runMigrations'])->name('migrate');
         });
 
-        // ── Nutzer-Verwaltung ─────────────────────────────────────────────
+        // ── User management ───────────────────────────────────────────────
         Route::prefix('users')->name('users.')->group(function () {
             Route::get('/',          [UserController::class, 'index'])  ->name('index');
             Route::post('/',         [UserController::class, 'store'])  ->name('store');
@@ -44,7 +45,7 @@ Route::prefix('admin')
             Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
         });
 
-        // ── Rollen & Rechte ────────────────────────────────────────────────
+        // ── Roles and permissions ─────────────────────────────────────────
         Route::prefix('roles')->name('roles.')->group(function () {
             Route::get('/',         [RolesController::class, 'index'])  ->name('index');
             Route::post('/',        [RolesController::class, 'store'])  ->name('store');
@@ -52,7 +53,7 @@ Route::prefix('admin')
             Route::delete('/{role}',[RolesController::class, 'destroy'])->name('destroy');
         });
 
-        // ── Modul-Verwaltung ──────────────────────────────────────────────
+        // ── Module management ─────────────────────────────────────────────
         Route::prefix('modules')->name('modules.')->group(function () {
             Route::get('/',                    [ModuleController::class, 'index'])     ->name('index');
             Route::post('/{slug}/install',     [ModuleController::class, 'install'])   ->name('install');
@@ -61,16 +62,21 @@ Route::prefix('admin')
             Route::delete('/{slug}',           [ModuleController::class, 'remove'])    ->name('remove');
         });
 
-        // ── Modul-Einstellungen (Hook-basierter Hub) ──────────────────────
+        // ── Module settings (hook-based hub) ──────────────────────────────
         Route::prefix('module-settings')->name('module-settings.')->group(function () {
             Route::get('/', [ModuleSettingsController::class, 'index'])->name('index');
         });
 
-        // ── Erscheinungsbild ──────────────────────────────────────────────
+        // ── Appearance ────────────────────────────────────────────────────
         Route::prefix('appearance')->name('appearance.')->group(function () {
             Route::get('/',        [AppearanceController::class, 'index'])     ->name('index');
             Route::patch('/',      [AppearanceController::class, 'update'])    ->name('update');
             Route::delete('/logo', [AppearanceController::class, 'deleteLogo'])->name('logo.delete');
+        });
+
+        // ── Activity log ──────────────────────────────────────────────────
+        Route::prefix('activity-log')->name('activity-log.')->group(function () {
+            Route::get('/', [ActivityLogController::class, 'index'])->name('index');
         });
 
     });

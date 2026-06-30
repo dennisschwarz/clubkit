@@ -33,29 +33,29 @@
   color: var(--ck-danger-text);
   border: 1px solid var(--ck-danger-border);
 }
-.ck-btn--danger:not(:disabled):hover { background: #fee2e2; }
+.ck-btn--danger:not(:disabled):hover { opacity: 0.85; }
 
 .ck-btn--success {
   background: var(--ck-success-bg);
   color: var(--ck-success-text);
   border: 1px solid var(--ck-success-border);
 }
-.ck-btn--success:not(:disabled):hover { background: #dcfce7; }
+.ck-btn--success:not(:disabled):hover { opacity: 0.85; }
 
-/* Gelb/Amber – für Bearbeiten-Aktionen */
+/* Amber/Yellow – for edit actions */
 .ck-btn--warning {
   background: var(--ck-warning-bg);
   color: var(--ck-warning-text);
   border: 1px solid var(--ck-warning-border);
 }
-.ck-btn--warning:not(:disabled):hover { background: #fef08a; }
+.ck-btn--warning:not(:disabled):hover { opacity: 0.85; }
 
-/* ── Größen ──────────────────────────────────────────────────────────── */
+/* ── Sizes ──────────────────────────────────────────────────────────── */
 .ck-btn--xs  { font-size: var(--ck-font-xs); padding: 3px 8px; line-height: 1.4; }
 .ck-btn--sm  { font-size: var(--ck-font-sm); padding: 6px 12px; }
 .ck-btn--lg  { font-size: var(--ck-font-lg); padding: 12px 24px; }
 
-/* Quadratischer Icon-Button: 34×34px, kein Text */
+/* Square icon button: 34×34px, no text */
 .ck-btn--icon {
   padding: 0;
   width: 34px;
@@ -63,13 +63,13 @@
   flex-shrink: 0;
 }
 
-/* Button streckt sich auf volle Höhe einer Grid-Zelle (z.B. 42px wie Inputs) */
+/* Button stretches to full height of a grid cell (e.g. 42px like inputs) */
 .ck-btn--stretch {
   height: 42px;
   width: 100%;
 }
 
-/* ── Ladezustand (Spinner) ──────────────────────────────────────────── */
+/* ── Loading state (spinner) ──────────────────────────────────────── */
 .ck-btn--loading {
   pointer-events: none;
   opacity: 0.75;

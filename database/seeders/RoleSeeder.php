@@ -11,21 +11,26 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * RoleSeeder
+ * Seeds all default roles from config/clubkit.php and assigns
+ * all currently installed module permissions to the admin role.
  *
- * Legt die drei Standard-Rollen an und verknüpft die Admin-Rolle
- * mit allen bisher installierten Permissions.
+ * Role definitions are driven by config('clubkit.roles') so that
+ * adding or renaming a role requires only a config change, not code changes here.
  *
- * Ausführen: php artisan db:seed --class=RoleSeeder
+ * Run standalone: php artisan db:seed --class=RoleSeeder
+ * Idempotent: safe to run multiple times.
  */
 class RoleSeeder extends Seeder
 {
+    /**
+     * @return void
+     */
     public function run(): void
     {
-        // Spatie Cache leeren bevor wir beginnen
+        // Clear the Spatie permission cache before starting
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // ── 1. Permissions aller installierten Module anlegen ──────────────
+        // 1. Create permissions for all installed modules
         $moduleLoader = app(ModuleLoader::class);
         $installed    = $moduleLoader->getInstalled();
 
@@ -33,25 +38,33 @@ class RoleSeeder extends Seeder
             $moduleLoader->seedPermissions((string) $slug);
         }
 
-        // ── 2. Standard-Rollen anlegen (idempotent) ────────────────────────
-        $superAdmin = Role::findOrCreate('super-admin', 'web');
-        $admin      = Role::findOrCreate('admin',       'web');
-        Role::findOrCreate('user', 'web');
+        // 2. Create all default roles from config (idempotent)
+        $roles = config('clubkit.roles', []);
 
-        // super-admin bekommt KEINE Permissions – Gate::before() bypass genügt
+        foreach ($roles as $slug => $label) {
+            Role::findOrCreate($slug, 'web');
+        }
 
-        // admin bekommt alle vorhandenen Permissions
+        // 3. super-admin: Gate::before() bypass — no explicit permissions needed
+
+        // 4. admin: all currently available permissions
+        $admin = Role::findByName('admin', 'web');
         $admin->syncPermissions(Permission::all());
 
-        // user bekommt nur Lesezugriff
+        // 5. trainer and member: view-only permissions as a sensible default
         $viewPermissions = Permission::where('name', 'like', '%.view%')->get();
-        $userRole = Role::findByName('user', 'web');
-        $userRole->syncPermissions($viewPermissions);
 
-        // Spatie Cache erneut leeren
+        foreach (['trainer', 'member'] as $roleSlug) {
+            if (array_key_exists($roleSlug, $roles)) {
+                Role::findByName($roleSlug, 'web')->syncPermissions($viewPermissions);
+            }
+        }
+
+        // 6. Clear the Spatie permission cache after changes
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $this->command->info('✅ Rollen angelegt: super-admin, admin, user');
-        $this->command->info('   admin hat ' . Permission::count() . ' Permissions.');
+        $roleNames = implode(', ', array_keys($roles));
+        $this->command->info('Roles created: ' . $roleNames);
+        $this->command->info('admin has ' . Permission::count() . ' permissions.');
     }
 }

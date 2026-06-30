@@ -1,11 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Creates the management_function_team pivot table.
+     *
+     * team_id is stored without a FK constraint. Management is independent of the Teams module.
+     * team_id is a reference, not an enforced relation. Migration 000030 adds the FK
+     * conditionally when Teams is installed.
+     *
+     * @return void
+     */
     public function up(): void
     {
         if (Schema::hasTable('management_function_team')) {
@@ -18,8 +29,8 @@ return new class extends Migration
                   ->constrained('management_functions')
                   ->cascadeOnDelete();
 
-            // Kein FK auf teams – Management ist unabhängig vom Teams-Modul.
-            // team_id ist eine Referenz, keine erzwungene Relation.
+            // No FK on teams – Management is independent of the Teams module.
+            // team_id is a reference, not an enforced relation.
             $table->unsignedBigInteger('team_id');
 
             $table->foreignId('created_by')
@@ -33,6 +44,9 @@ return new class extends Migration
         });
     }
 
+    /**
+     * @return void
+     */
     public function down(): void
     {
         Schema::dropIfExists('management_function_team');

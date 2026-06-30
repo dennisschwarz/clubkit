@@ -175,7 +175,9 @@ $teamColors = [
 <x-ck-card>
     <p class="ck-empty-state">
         Noch keine Teams angelegt.
-        <a href="javascript:void(0)" onclick="teamsModalOpen('create')">Jetzt anlegen</a>
+        <x-ck-button type="button" variant="primary" size="sm" onclick="teamsModalOpen('create')">
+            Jetzt anlegen
+        </x-ck-button>
     </p>
 </x-ck-card>
 @endforelse
@@ -282,7 +284,7 @@ $teamColors = [
         }
     };
 </script>
-<script src="{{ asset('js/modules/teams-modal.js') }}"></script>
+@vite('resources/js/modules/teams-modal.js')
 @ckHook('team.page.scripts')
 @endpush
 

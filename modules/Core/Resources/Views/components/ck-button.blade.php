@@ -17,7 +17,7 @@
 <button
     type="{{ $type }}"
     class="{{ $classes }}"
-    {{ $confirm ? "onclick=\"return confirm('" . addslashes($confirm) . "')\"" : '' }}
+    @if($confirm) onclick="return confirm({{ Illuminate\Support\Js::from($confirm) }})" @endif
     {{ $attributes }}
 >{{ $slot }}</button>
 @endif

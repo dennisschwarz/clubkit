@@ -1,0 +1,38 @@
+{
+    "name": "Treasury",
+    "slug": "treasury",
+    "version": "1.0.0",
+    "description": "Club treasury: accounts, transactions, contribution tracking and financial overview.",
+    "requires": ["core", "members", "management"],
+    "tables": [
+        "treasury_accounts",
+        "treasury_account_team",
+        "treasury_categories",
+        "treasury_transactions",
+        "treasury_task_meta",
+        "treasury_contribution_payments"
+    ],
+    "provides": {
+        "migrations": true,
+        "routes": true,
+        "views": true,
+        "nav": [
+            {
+                "label": "💰 Kasse",
+                "route": "treasury.index",
+                "module": "treasury",
+                "permission": "treasury.view",
+                "nav_order": 5
+            }
+        ],
+        "permissions": [
+            "treasury.view",
+            "treasury.transactions.manage",
+            "treasury.accounts.manage",
+            "treasury.categories.manage",
+            "treasury.contributions.manage",
+            "treasury.export"
+        ]
+    },
+    "author": "ClubKit"
+}

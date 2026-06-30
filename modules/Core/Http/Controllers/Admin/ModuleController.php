@@ -13,10 +13,26 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
+/**
+ * Manages the ClubKit module lifecycle: install, activate, deactivate, remove.
+ *
+ * Install:    runs migrations, inserts into installed_modules, seeds permissions.
+ * Activate:   sets is_active = true, no migration needed.
+ * Deactivate: sets is_active = false, data is preserved.
+ * Remove:     drops module tables, deletes migration records, removes permissions.
+ *
+ * The Core module is protected and can never be deactivated or removed.
+ */
 class ModuleController extends Controller
 {
+    /**
+     * @param ModuleLoader $moduleLoader
+     */
     public function __construct(private readonly ModuleLoader $moduleLoader) {}
 
+    /**
+     * @return View
+     */
     public function index(): View
     {
         $installed = $this->moduleLoader->getInstalled();
@@ -25,6 +41,16 @@ class ModuleController extends Controller
         return view('core::admin.modules.index', compact('installed', 'available'));
     }
 
+    /**
+     * Installs a module by running its migrations, recording it in installed_modules,
+     * and seeding its permissions.
+     *
+     * Validates that all required dependencies are already installed and active
+     * before proceeding.
+     *
+     * @param  string $slug
+     * @return RedirectResponse
+     */
     public function install(string $slug): RedirectResponse
     {
         $available = $this->moduleLoader->detectAvailable();
@@ -37,9 +63,11 @@ class ModuleController extends Controller
             return back()->with('error', "Modul '$slug' ist bereits installiert.");
         }
 
-        // Abhängigkeiten prüfen
+        // Verify all declared dependencies are installed and active
         foreach ($available[$slug]['requires'] ?? [] as $dep) {
-            if ($dep === 'core') continue;
+            if ($dep === 'core') {
+                continue;
+            }
             if (!DB::table('installed_modules')->where('slug', $dep)->where('is_active', true)->exists()) {
                 return back()->with('error', "Abhängigkeit '$dep' muss zuerst installiert werden.");
             }
@@ -61,11 +89,10 @@ class ModuleController extends Controller
                 'updated_at'   => now(),
             ]);
 
-            // Permissions des neuen Moduls in der DB anlegen
+            // Create the module's permissions in the database
             $this->moduleLoader->seedPermissions($slug);
 
             Artisan::call('optimize:clear');
-
         } catch (\Throwable $e) {
             return back()->with('error', 'Fehler bei Installation: ' . $e->getMessage());
         }
@@ -73,6 +100,12 @@ class ModuleController extends Controller
         return back()->with('success', "Modul '{$available[$slug]['name']}' installiert.");
     }
 
+    /**
+     * Re-activates a previously deactivated module without running migrations.
+     *
+     * @param  string $slug
+     * @return RedirectResponse
+     */
     public function activate(string $slug): RedirectResponse
     {
         DB::table('installed_modules')
@@ -84,6 +117,14 @@ class ModuleController extends Controller
         return back()->with('success', "Modul '$slug' aktiviert.");
     }
 
+    /**
+     * Deactivates a module without removing any data or migrations.
+     *
+     * The Core module cannot be deactivated.
+     *
+     * @param  string $slug
+     * @return RedirectResponse
+     */
     public function deactivate(string $slug): RedirectResponse
     {
         if ($slug === 'core') {
@@ -99,6 +140,20 @@ class ModuleController extends Controller
         return back()->with('success', "Modul '$slug' deaktiviert. Daten bleiben erhalten.");
     }
 
+    /**
+     * Fully removes a module: drops its tables, deletes migration records,
+     * removes permissions, and removes the installed_modules entry.
+     *
+     * Blocked when other active modules depend on the module being removed.
+     * The Core module can never be removed.
+     *
+     * Tables listed in module.json are expected in creation order (main tables
+     * first, pivot tables last). array_reverse() drops pivots before main tables,
+     * preventing FK constraint violations.
+     *
+     * @param  string $slug
+     * @return RedirectResponse
+     */
     public function remove(string $slug): RedirectResponse
     {
         if ($slug === 'core') {
@@ -111,12 +166,14 @@ class ModuleController extends Controller
             return back()->with('error', "Modul '$slug' ist nicht installiert.");
         }
 
-        // Abhängige aktive Module prüfen
+        // Block removal if other active modules depend on this one
         $available  = $this->moduleLoader->detectAvailable();
         $dependents = [];
 
         foreach ($available as $s => $cfg) {
-            if ($s === $slug) continue;
+            if ($s === $slug) {
+                continue;
+            }
             if (in_array($slug, $cfg['requires'] ?? [], true)) {
                 if (DB::table('installed_modules')->where('slug', $s)->where('is_active', true)->exists()) {
                     $dependents[] = $cfg['name'];
@@ -131,14 +188,10 @@ class ModuleController extends Controller
         }
 
         try {
-            // 1. Permissions des Moduls entfernen
+            // Step 1: Remove the module's permissions
             $this->moduleLoader->removePermissions($slug);
 
-            // 2. Tabellen droppen
-            //    Tabellen in module.json müssen in Erstellungs-Reihenfolge gelistet sein
-            //    (Haupttabellen zuerst, Pivot-Tabellen danach).
-            //    array_reverse() kehrt die Reihenfolge um → Pivot/FK-Tabellen werden zuerst gedroppt.
-            //    FK-Constraints werden zusätzlich deaktiviert als Sicherheitsnetz.
+            // Step 2: Drop module tables (reversed to handle FK constraints)
             $tables = $available[$slug]['tables'] ?? [];
 
             Schema::disableForeignKeyConstraints();
@@ -147,7 +200,7 @@ class ModuleController extends Controller
             }
             Schema::enableForeignKeyConstraints();
 
-            // 3. Migrations-Einträge entfernen
+            // Step 3: Remove migration records from the migrations table
             $migrationPath = base_path('modules/' . $this->slugToFolder($slug) . '/Database/Migrations');
             if (File::isDirectory($migrationPath)) {
                 foreach (File::files($migrationPath) as $file) {
@@ -157,13 +210,12 @@ class ModuleController extends Controller
                 }
             }
 
-            // 4. Aus installed_modules entfernen
+            // Step 4: Remove from installed_modules
             DB::table('installed_modules')->where('slug', $slug)->delete();
 
             Artisan::call('optimize:clear');
-
         } catch (\Throwable $e) {
-            // Sicherstellen dass FK-Constraints wieder aktiv sind
+            // Ensure FK constraints are always re-enabled even on failure
             Schema::enableForeignKeyConstraints();
             return back()->with('error', 'Fehler beim Entfernen: ' . $e->getMessage());
         }
@@ -171,8 +223,16 @@ class ModuleController extends Controller
         return back()->with('success', "Modul '$slug' und alle zugehörigen Daten wurden entfernt.");
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
+    /**
+     * Converts a module slug to its folder name by PascalCasing each hyphen-separated segment.
+     *
+     * Examples: 'members' → 'Members', 'youth-club-mode' → 'YouthClubMode'
+     *
+     * @param  string $slug
+     * @return string
+     */
     private function slugToFolder(string $slug): string
     {
         return implode('', array_map('ucfirst', explode('-', $slug)));

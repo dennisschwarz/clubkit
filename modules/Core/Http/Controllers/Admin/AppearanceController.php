@@ -6,20 +6,23 @@ namespace Modules\Core\Http\Controllers\Admin;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
+use Modules\Core\Http\Requests\UpdateAppearanceRequest;
 use Modules\Core\Models\Setting;
 
 /**
- * Verwaltung des Erscheinungsbilds.
- * Unterstützt normale Form-Submits UND AJAX-Requests.
- * AJAX-Response enthält die geänderten CSS-Variablen für sofortige Anwendung.
+ * Manages the application appearance settings.
+ *
+ * Supports both regular HTML form submits and AJAX requests from the
+ * live-preview editor. AJAX responses include the changed CSS variable
+ * values so the browser can apply them immediately without a page reload.
  */
 class AppearanceController extends Controller
 {
-    /** Alle konfigurierbaren Settings mit ihren Standardwerten */
+    /** All configurable settings with their default values. */
     private const DEFAULTS = [
         'club_name'           => 'ClubKit',
         'logo_path'           => '',
@@ -41,7 +44,7 @@ class AppearanceController extends Controller
         'body_bg'             => '#f0f3f8',
     ];
 
-    /** Mapping: Setting-Key → CSS-Variable-Name */
+    /** Maps setting keys to their corresponding CSS custom property names. */
     private const CSS_VAR_MAP = [
         'header_bg'          => '--ck-brand-bar-bg',
         'brand_bar_text'     => '--ck-brand-bar-text',
@@ -50,21 +53,27 @@ class AppearanceController extends Controller
         'nav_bar_text'       => '--ck-nav-bar-text',
         'nav_bar_hover'      => '--ck-nav-bar-hover',
         'nav_bar_active_bar' => '--ck-nav-bar-active-bar',
-        'nav_bar_font_size'  => '--ck-nav-bar-font-size',  // px-Suffix nötig
+        'nav_bar_font_size'  => '--ck-nav-bar-font-size',  // needs 'px' suffix
         'subtab_bg'          => '--ck-subtab-bg',
         'subtab_text'        => '--ck-subtab-text',
         'subtab_hover'       => '--ck-subtab-hover',
         'subtab_active_bar'  => '--ck-subtab-active-bar',
-        'subtab_font_size'   => '--ck-subtab-font-size',   // px-Suffix nötig
+        'subtab_font_size'   => '--ck-subtab-font-size',   // needs 'px' suffix
         'body_bg'            => '--ck-bg',
     ];
 
-    /** Erlaubte Schriftgrößen */
+    /**
+     * Allowed font size values passed to the view for the dropdown.
+     * Validation of these values is handled by UpdateAppearanceRequest.
+     */
     private const FONT_SIZES = ['11', '12', '13', '14', '15', '16'];
 
-    // ── View ───────────────────────────────────────────────────────────────
+    // ── View ──────────────────────────────────────────────────────────────────
 
-    public function index(): \Illuminate\View\View
+    /**
+     * @return View
+     */
+    public function index(): View
     {
         $settings = self::DEFAULTS;
         $settings['club_name'] = config('app.name', 'ClubKit');
@@ -84,48 +93,27 @@ class AppearanceController extends Controller
         ]);
     }
 
-    // ── Update (Form + AJAX) ────────────────────────────────────────────────
+    // ── Update (form submit + AJAX) ────────────────────────────────────────────
 
     /**
-     * Einstellungen speichern.
+     * Persists appearance settings.
      *
-     * Alle Felder sind `sometimes` – erlaubt pro-Sektion-AJAX-Saves.
+     * All fields use 'sometimes' so sections can be saved via individual AJAX calls.
+     * Validation is fully delegated to UpdateAppearanceRequest.
      *
-     * BUG-FIX Emoji-Checkbox:
-     *   HTML-Forms senden eine unchecked Checkbox NICHT → has() = false → '0' korrekt.
-     *   AJAX (FormData) sendet IMMER einen Wert ('0' oder '1') → has() = immer true.
-     *   Lösung: input() direkt auf '1' prüfen, NICHT has() als Schalter nutzen.
+     * Checkbox normalisation note:
+     *   HTML forms do NOT send unchecked checkboxes → has() returns false → '0' is correct.
+     *   AJAX (FormData) always sends an explicit value ('0' or '1') → has() is always true.
+     *   Solution: check input() directly against '1', do NOT use has() as the toggle.
+     *
+     * @param  UpdateAppearanceRequest $request
+     * @return JsonResponse|RedirectResponse
      */
-    public function update(Request $request): JsonResponse|RedirectResponse
+    public function update(UpdateAppearanceRequest $request): JsonResponse|RedirectResponse
     {
-        $hexRule  = ['sometimes', 'required', 'regex:/^#[0-9a-fA-F]{6}$/'];
-        $fontRule = ['sometimes', 'required', 'in:' . implode(',', self::FONT_SIZES)];
+        $validated = $request->validated();
 
-        $validated = $request->validate([
-            'club_name'           => ['sometimes', 'required', 'string', 'max:60'],
-            'logo'                => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:3072'],
-            'header_bg'           => $hexRule,
-            'brand_bar_text'      => $hexRule,
-            'brand_bar_hover'     => $hexRule,
-            'nav_bar_show_emojis' => ['sometimes', 'nullable', 'in:0,1'],
-            'nav_bar_bg'          => $hexRule,
-            'nav_bar_text'        => $hexRule,
-            'nav_bar_hover'       => $hexRule,
-            'nav_bar_active_bar'  => $hexRule,
-            'nav_bar_font_size'   => $fontRule,
-            'subtab_show_emojis'  => ['sometimes', 'nullable', 'in:0,1'],
-            'subtab_bg'           => $hexRule,
-            'subtab_text'         => $hexRule,
-            'subtab_hover'        => $hexRule,
-            'subtab_active_bar'   => $hexRule,
-            'subtab_font_size'    => $fontRule,
-            'body_bg'             => $hexRule,
-        ]);
-
-        // ── Checkbox-Normalisierung (BUG-FIX) ─────────────────────────────
-        // Nur wenn der Emoji-Key tatsächlich in dieser Sektion gesendet wurde.
-        // AJAX sendet immer '0' oder '1' explizit → input() direkt prüfen.
-        // HTML-Form: unchecked → nicht gesendet → has() = false → '0' korrekt.
+        // Normalise emoji checkboxes (see docblock above)
         if ($request->has('nav_bar_show_emojis')) {
             $validated['nav_bar_show_emojis'] = $request->input('nav_bar_show_emojis') === '1' ? '1' : '0';
         }
@@ -133,13 +121,12 @@ class AppearanceController extends Controller
             $validated['subtab_show_emojis'] = $request->input('subtab_show_emojis') === '1' ? '1' : '0';
         }
 
-        // Logo herausnehmen – separater Upload-Pfad
+        // Exclude logo – handled separately below
         unset($validated['logo']);
 
-        // Werte speichern
         Setting::setMany($validated);
 
-        // Logo verarbeiten
+        // Handle logo upload
         $logoChanged = false;
         if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
             $oldPath = Setting::getValue('logo_path');
@@ -151,10 +138,10 @@ class AppearanceController extends Controller
             $logoChanged = true;
         }
 
-        // ── AJAX-Response ──────────────────────────────────────────────────
+        // ── AJAX response ─────────────────────────────────────────────────────
         if ($request->ajax() || $request->wantsJson()) {
 
-            // CSS-Variablen für die sofortige Anwendung im Browser
+            // Build the CSS variable map for immediate browser application
             $cssVars = [];
             foreach ($validated as $key => $value) {
                 if (isset(self::CSS_VAR_MAP[$key])) {
@@ -165,7 +152,7 @@ class AppearanceController extends Controller
                 }
             }
 
-            // Seitenreload nötig wenn Emojis, Vereinsname oder Logo geändert wurden
+            // A page reload is required when emojis, club name, or logo change
             $needsReload = $request->has('nav_bar_show_emojis')
                         || $request->has('subtab_show_emojis')
                         || array_key_exists('club_name', $validated)
@@ -179,12 +166,17 @@ class AppearanceController extends Controller
             ]);
         }
 
-        // ── Normaler Form-Submit ────────────────────────────────────────────
+        // ── Standard form submit ──────────────────────────────────────────────
         return back()->with('success', 'Erscheinungsbild gespeichert.');
     }
 
-    // ── Logo löschen ────────────────────────────────────────────────────────
+    // ── Logo deletion ─────────────────────────────────────────────────────────
 
+    /**
+     * Deletes the stored logo file and clears the logo_path setting.
+     *
+     * @return JsonResponse|RedirectResponse
+     */
     public function deleteLogo(): JsonResponse|RedirectResponse
     {
         $oldPath = Setting::getValue('logo_path');

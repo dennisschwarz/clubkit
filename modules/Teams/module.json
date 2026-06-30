@@ -2,7 +2,7 @@
     "name": "Teams",
     "slug": "teams",
     "version": "1.0.0",
-    "description": "Mannschaftsverwaltung: Teams, Kader und Spielerzuordnung.",
+    "description": "Team management: squads, rosters, and player assignments.",
     "requires": ["core", "members"],
     "tables": ["teams", "team_member"],
     "provides": {

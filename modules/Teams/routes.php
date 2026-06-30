@@ -5,39 +5,40 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Modules\Teams\Http\Controllers\TeamController;
 
+// Note: 'web' middleware is already applied by TeamsServiceProvider.
 Route::middleware(['auth'])->prefix('teams')->name('teams.')->group(function () {
 
-    // Team-Liste
+    // Team list
     Route::get('/',                [TeamController::class, 'index'])
         ->name('index')
         ->middleware('permission:teams.view');
 
-    // Team-Detail
+    // Team detail
     Route::get('/{team}',          [TeamController::class, 'show'])
         ->name('show')
         ->middleware('permission:teams.view');
 
-    // Team anlegen
+    // Create team
     Route::post('/',               [TeamController::class, 'store'])
         ->name('store')
         ->middleware('permission:teams.manage');
 
-    // Team bearbeiten
+    // Update team
     Route::patch('/{team}',        [TeamController::class, 'update'])
         ->name('update')
         ->middleware('permission:teams.manage');
 
-    // Team löschen
+    // Delete team
     Route::delete('/{team}',       [TeamController::class, 'destroy'])
         ->name('destroy')
         ->middleware('permission:teams.manage');
 
-    // Mitglied in Kader aufnehmen
+    // Add member to squad
     Route::post('/{team}/members', [TeamController::class, 'addMember'])
         ->name('addMember')
         ->middleware('permission:teams.members.manage');
 
-    // Mitglied aus Kader entfernen
+    // Remove member from squad
     Route::delete('/{team}/members/{member}', [TeamController::class, 'removeMember'])
         ->name('removeMember')
         ->middleware('permission:teams.members.manage');

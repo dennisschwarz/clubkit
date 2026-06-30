@@ -100,11 +100,11 @@
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; flex-shrink: 0;
 }
-.ck-section-header__icon--blue  { background: #dbeafe; }
-.ck-section-header__icon--green { background: #dcfce7; }
-.ck-section-header__icon--amber { background: #fef9c3; }
+.ck-section-header__icon--blue  { background: var(--ck-team-blue-bg); }
+.ck-section-header__icon--green { background: var(--ck-team-green-bg); }
+.ck-section-header__icon--amber { background: var(--ck-team-amber-bg); }
 .ck-section-header__icon--slate { background: var(--ck-border); }
-.ck-section-header__icon--red   { background: #fee2e2; }
+.ck-section-header__icon--red   { background: var(--ck-danger-bg); }
 
 .ck-section-header__text {
   display: flex;
@@ -148,25 +148,27 @@
 .ck-section-header--colored .ck-section-header__icon { background: rgba(255,255,255,0.22); }
 .ck-section-header--colored .ck-section-header__title,
 .ck-section-header--colored .ck-section-header__meta,
-.ck-section-header--colored .ck-accordion-chevron { color: #fff; }
-.ck-section-header--colored .ck-section-header__meta--inactive { color: #fca5a5; }
+.ck-section-header--colored .ck-accordion-chevron { color: var(--ck-text-white); }
+.ck-section-header--colored .ck-section-header__meta--inactive { color: var(--ck-danger-border); }
 
-.ck-section-header--team-blue   { background: #3b82f6; }
-.ck-section-header--team-navy   { background: #1e3a8a; }
-.ck-section-header--team-green  { background: #16a34a; }
-.ck-section-header--team-teal   { background: #0d9488; }
-.ck-section-header--team-red    { background: #dc2626; }
-.ck-section-header--team-orange { background: #ea580c; }
-.ck-section-header--team-amber  { background: #f59e0b; }
-.ck-section-header--team-purple { background: #9333ea; }
-.ck-section-header--team-pink   { background: #db2777; }
-.ck-section-header--team-slate  { background: #475569; }
+/* Team-Farben als CSS-Tokens (base.css: --ck-team-*) */
+.ck-section-header--team-blue   { background: var(--ck-team-blue); }
+.ck-section-header--team-navy   { background: var(--ck-team-navy); }
+.ck-section-header--team-green  { background: var(--ck-team-green); }
+.ck-section-header--team-teal   { background: var(--ck-team-teal); }
+.ck-section-header--team-red    { background: var(--ck-team-red); }
+.ck-section-header--team-orange { background: var(--ck-team-orange); }
+.ck-section-header--team-amber  { background: var(--ck-team-amber); }
+.ck-section-header--team-purple { background: var(--ck-team-purple-dot); }
+.ck-section-header--team-pink   { background: var(--ck-team-pink); }
+.ck-section-header--team-slate  { background: var(--ck-team-slate); }
 
+/* Amber is light – override text and icon to dark for legibility */
 .ck-section-header--team-amber .ck-section-header__title,
 .ck-section-header--team-amber .ck-section-header__meta,
-.ck-section-header--team-amber .ck-accordion-chevron { color: #1e293b; }
+.ck-section-header--team-amber .ck-accordion-chevron { color: var(--ck-text); }
 .ck-section-header--team-amber .ck-section-header__icon { background: rgba(0,0,0,0.1); }
-.ck-section-header--team-amber .ck-section-header__meta--inactive { color: #991b1b; }
+.ck-section-header--team-amber .ck-section-header__meta--inactive { color: var(--ck-danger-text); }
 
 /* ══════════════════════════════════════════════════════════════════════
    Farb-Swatch-Picker (Teams-Modal)
@@ -201,21 +203,22 @@
 }
 .ck-color-swatch:hover .ck-color-swatch__dot { transform: scale(1.18); }
 .ck-color-swatch--selected .ck-color-swatch__dot {
-  outline: 2px solid var(--ck-accent-dark, #0a1628);
+  outline: 2px solid var(--ck-accent-dark);
   outline-offset: 3px;
 }
 
+/* Swatch dot colors via CSS tokens (base.css: --ck-team-*) */
 .ck-color-swatch__dot--default { background: var(--ck-border); border: 1px solid var(--ck-border-light); }
-.ck-color-swatch__dot--blue    { background: #3b82f6; }
-.ck-color-swatch__dot--navy    { background: #1e3a8a; }
-.ck-color-swatch__dot--green   { background: #16a34a; }
-.ck-color-swatch__dot--teal    { background: #0d9488; }
-.ck-color-swatch__dot--red     { background: #dc2626; }
-.ck-color-swatch__dot--orange  { background: #ea580c; }
-.ck-color-swatch__dot--amber   { background: #f59e0b; }
-.ck-color-swatch__dot--purple  { background: #9333ea; }
-.ck-color-swatch__dot--pink    { background: #db2777; }
-.ck-color-swatch__dot--slate   { background: #475569; }
+.ck-color-swatch__dot--blue    { background: var(--ck-team-blue); }
+.ck-color-swatch__dot--navy    { background: var(--ck-team-navy); }
+.ck-color-swatch__dot--green   { background: var(--ck-team-green); }
+.ck-color-swatch__dot--teal    { background: var(--ck-team-teal); }
+.ck-color-swatch__dot--red     { background: var(--ck-team-red); }
+.ck-color-swatch__dot--orange  { background: var(--ck-team-orange); }
+.ck-color-swatch__dot--amber   { background: var(--ck-team-amber); }
+.ck-color-swatch__dot--purple  { background: var(--ck-team-purple-dot); }
+.ck-color-swatch__dot--pink    { background: var(--ck-team-pink); }
+.ck-color-swatch__dot--slate   { background: var(--ck-team-slate); }
 
 /* ══════════════════════════════════════════════════════════════════════
    Alert-Box
@@ -229,7 +232,7 @@
 }
 .ck-alert--danger  { background: var(--ck-danger-bg);  color: var(--ck-danger-text);  border-color: var(--ck-danger-border); }
 .ck-alert--success { background: var(--ck-success-bg); color: var(--ck-success-text); border-color: var(--ck-success-border); }
-.ck-alert--warning { background: #fef9c3; color: #713f12; border-color: #fde047; }
+.ck-alert--warning { background: var(--ck-warning-bg); color: var(--ck-warning-text); border-color: var(--ck-warning-border); }
 
 /* ══════════════════════════════════════════════════════════════════════
    YouthClubMode – Familie-Liste
@@ -285,7 +288,7 @@
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
-  margin-bottom: -2px;   /* überlappt den Container-Border → nahtloser Balken */
+  margin-bottom: -2px;   /* overlaps container border → seamless bar */
   font-family: var(--ck-font);
   white-space: nowrap;
   color: var(--ck-text-secondary);
@@ -294,13 +297,13 @@
 
 .ck-local-tab:hover { color: var(--ck-text); }
 
-/* Aktiv: Standard-Blau */
+/* Active: default blue */
 .ck-local-tab--active {
   color: var(--ck-text);
   border-bottom-color: var(--ck-accent);
 }
 
-/* ── Farb-Modifier: Tab-Balken passt zur Sektion im Modal ───────────── */
+/* ── Color modifiers: tab bar matches section color in modal ─────────── */
 .ck-local-tab--purple.ck-local-tab--active {
   color: var(--ck-purple-text);
   border-bottom-color: var(--ck-purple);
@@ -314,10 +317,123 @@
   border-bottom-color: var(--ck-success);
 }
 .ck-local-tab--amber.ck-local-tab--active {
-  color: #92400e;
+  color: var(--ck-team-amber-text);
   border-bottom-color: var(--ck-warning);
 }
 
-/* Sektions-Sichtbarkeit */
+/* Section visibility */
 .ck-local-section         { display: none; }
 .ck-local-section--active { display: block; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Modul-Karte (Admin > Module)
+══════════════════════════════════════════════════════════════════════ */
+.ck-module-card {
+  background: var(--ck-white);
+  border: 1px solid var(--ck-border);
+  border-left-width: 4px;
+  border-radius: var(--ck-radius-lg);
+  padding: var(--ck-space-4);
+  margin-bottom: var(--ck-space-3);
+}
+
+.ck-module-card--active   { border-left-color: var(--ck-accent-dark); }
+.ck-module-card--inactive { border-left-color: var(--ck-text-muted); }
+.ck-module-card--available {
+  border-style: dashed;
+  border-left-style: dashed;
+  border-left-color: var(--ck-border);
+}
+
+.ck-module-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ck-space-4);
+}
+
+.ck-module-card__info { flex: 1; min-width: 0; }
+
+.ck-module-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ck-space-2);
+  margin-bottom: var(--ck-space-1);
+  flex-wrap: wrap;
+}
+
+.ck-module-card__name {
+  font-size: var(--ck-font-lg);
+  font-weight: 700;
+  color: var(--ck-text);
+}
+
+.ck-module-card__version {
+  font-size: var(--ck-font-xs);
+  color: var(--ck-text-muted);
+}
+
+.ck-module-card__meta {
+  font-size: var(--ck-font-sm);
+  color: var(--ck-text-secondary);
+}
+
+.ck-module-card__requires {
+  font-size: var(--ck-font-xs);
+  color: var(--ck-warning);
+  margin-top: var(--ck-space-1);
+}
+
+.ck-module-card__actions {
+  display: flex;
+  gap: var(--ck-space-2);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.ck-module-card__empty {
+  background: var(--ck-white);
+  border: 1px solid var(--ck-border);
+  border-radius: var(--ck-radius-lg);
+  padding: var(--ck-space-6) var(--ck-space-5);
+  text-align: center;
+  color: var(--ck-text-muted);
+  font-size: var(--ck-font-md);
+}
+
+/* Question text in remove modal */
+.ck-module-remove__question {
+  font-size: var(--ck-font-base);
+  font-weight: 600;
+  color: var(--ck-text);
+  margin-bottom: var(--ck-space-3);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   System-Seite (Admin > System)
+══════════════════════════════════════════════════════════════════════ */
+
+/* Two-column grid for detail cards */
+.ck-two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ck-space-4);
+}
+
+/* Table column for label (fixed width) */
+.ck-table__label-col { width: 40%; }
+
+/* Stat card: large version number / value */
+.ck-stat-card__value--lg { font-size: 20px; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Utility classes (global)
+══════════════════════════════════════════════════════════════════════ */
+
+/* Inline link without underline */
+.ck-link { color: var(--ck-accent-dark); text-decoration: none; }
+.ck-link:hover { text-decoration: underline; }
+
+/* Action spacer – same width as an icon button,
+   prevents layout shift when no button is present */
+.ck-action-spacer { width: 34px; flex-shrink: 0; }

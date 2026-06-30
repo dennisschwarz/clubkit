@@ -7,9 +7,9 @@
         <h1 class="ck-page-title">Mitglieder importieren</h1>
         <p class="ck-page-subtitle">Schritt 1 von 3 – CSV-Datei hochladen</p>
     </div>
-    <a href="{{ route('members.index') }}" class="ck-btn ck-btn--secondary">
+    <x-ck-button :href="route('members.index')" variant="secondary">
         ← Zurück zu Mitglieder
-    </a>
+    </x-ck-button>
 </div>
 
 {{-- Fehlermeldungen --}}

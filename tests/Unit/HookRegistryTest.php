@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use Modules\Core\Services\HookRegistry;
 
-// ── Leere Zustände ───────────────────────────────────────────────────────────
+// ── Empty states ──────────────────────────────────────────────────────────────
 
 test('leerer Extension Point gibt leeres Array zurück', function () {
     $registry = new HookRegistry();
@@ -16,7 +18,7 @@ test('has() gibt false zurück wenn kein Hook registriert', function () {
     expect($registry->has('member.modal.tabs'))->toBeFalse();
 });
 
-// ── Registrierung ────────────────────────────────────────────────────────────
+// ── Registration ──────────────────────────────────────────────────────────────
 
 test('has() gibt true zurück nach Registrierung', function () {
     $registry = new HookRegistry();
@@ -33,7 +35,7 @@ test('registrierter Hook wird in get() zurückgegeben', function () {
         ->toBe(['youth-club-mode::member-modal-tab']);
 });
 
-// ── Prioritäts-Sortierung ────────────────────────────────────────────────────
+// ── Priority sorting ──────────────────────────────────────────────────────────
 
 test('hooks werden nach Priorität aufsteigend sortiert', function () {
     $registry = new HookRegistry();
@@ -47,8 +49,8 @@ test('hooks werden nach Priorität aufsteigend sortiert', function () {
 
 test('standard-Priorität ist 10', function () {
     $registry = new HookRegistry();
-    $registry->register('member.modal.tabs', 'default-view');        // Priorität 10
-    $registry->register('member.modal.tabs', 'high-prio-view', 5);  // Priorität 5
+    $registry->register('member.modal.tabs', 'default-view');        // priority 10
+    $registry->register('member.modal.tabs', 'high-prio-view', 5);  // priority 5
 
     expect($registry->get('member.modal.tabs'))
         ->toBe(['high-prio-view', 'default-view']);
@@ -63,7 +65,7 @@ test('gleiche Priorität behält Eintragsreihenfolge', function () {
         ->toBe(['view-x', 'view-y']);
 });
 
-// ── Isolation zwischen Extension Points ─────────────────────────────────────
+// ── Isolation between extension points ───────────────────────────────────────
 
 test('verschiedene Extension Points beeinflussen sich nicht', function () {
     $registry = new HookRegistry();
@@ -83,7 +85,7 @@ test('has() gibt false für anderen Extension Point', function () {
     expect($registry->has('member.modal.sections'))->toBeFalse();
 });
 
-// ── Mehrere Hooks am selben Point ────────────────────────────────────────────
+// ── Multiple hooks on the same point ─────────────────────────────────────────
 
 test('mehrere Module können sich an denselben Point hängen', function () {
     $registry = new HookRegistry();

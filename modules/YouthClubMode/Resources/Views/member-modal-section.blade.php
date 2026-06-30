@@ -32,10 +32,9 @@
                 <option value="">– erst Beziehung wählen –</option>
             </select>
 
-            <button type="button" id="mBtnAddRelation"
-                    class="ck-btn ck-btn--primary ck-btn--sm" disabled>
+            <x-ck-button type="button" id="mBtnAddRelation" variant="primary" size="sm" disabled>
                 + Hinzufügen
-            </button>
+            </x-ck-button>
 
         </div>
         {{-- Fehler-Bereich für AJAX-Fehler --}}

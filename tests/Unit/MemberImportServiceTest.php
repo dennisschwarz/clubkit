@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Import\MemberData;
 use Modules\Import\Models\MemberImportLog;
@@ -10,50 +12,65 @@ uses(Tests\TestCase::class, RefreshDatabase::class);
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
+/**
+ * Creates a MemberData DTO with sensible default values.
+ *
+ * Uses eligible_to_play_date (YYYY-MM-DD) instead of the old boolean eligible_to_play.
+ * Default: yesterday → member is currently eligible.
+ * Override: makeMemberData(['eligible_to_play_date' => null]) → not eligible.
+ *
+ * @param  array $overrides
+ * @return MemberData
+ */
 function makeMemberData(array $overrides = []): MemberData
 {
-    // array_merge statt ?? – so kann null als expliziter Override übergeben werden.
-    // Beispiel: makeMemberData(['pass_number' => null])
-    //   Mit ??: null ?? '0765-0056' = '0765-0056'  ← FALSCH
-    //   Mit array_merge: pass_number wird zu null  ← RICHTIG
+    // array_merge instead of ?? so that null can be passed as an explicit override
     $data = array_merge([
-        'first_name'       => 'Maryam',
-        'last_name'        => 'Akhabach',
-        'date_of_birth'    => '2012-09-08',
-        'gender'           => 'female',
-        'pass_number'      => '0765-0056',
-        'eligible_to_play' => true,
-        'status'           => 'active',
-        'custom_fields'    => [],
+        'first_name'            => 'Maryam',
+        'last_name'             => 'Akhabach',
+        'date_of_birth'         => '2012-09-08',
+        'gender'                => 'female',
+        'pass_number'           => '0765-0056',
+        'eligible_to_play_date' => now()->subDay()->toDateString(),
+        'status'                => 'active',
+        'custom_fields'         => [],
     ], $overrides);
 
     return new MemberData(
-        first_name:       $data['first_name'],
-        last_name:        $data['last_name'],
-        date_of_birth:    $data['date_of_birth'],
-        gender:           $data['gender'],
-        pass_number:      $data['pass_number'],
-        eligible_to_play: $data['eligible_to_play'],
-        status:           $data['status'],
-        custom_fields:    $data['custom_fields'],
+        first_name:            $data['first_name'],
+        last_name:             $data['last_name'],
+        date_of_birth:         $data['date_of_birth'],
+        gender:                $data['gender'],
+        pass_number:           $data['pass_number'],
+        eligible_to_play_date: $data['eligible_to_play_date'],
+        status:                $data['status'],
+        custom_fields:         $data['custom_fields'],
     );
 }
 
+/**
+ * Creates an existing member directly in the database.
+ *
+ * Uses eligible_to_play_date instead of the old boolean eligible_to_play.
+ *
+ * @param  array $attrs
+ * @return Member
+ */
 function makeExistingMember(array $attrs = []): Member
 {
     return Member::create(array_merge([
-        'first_name'       => 'Maryam',
-        'last_name'        => 'Akhabach',
-        'date_of_birth'    => '2012-09-08',
-        'gender'           => 'female',
-        'pass_number'      => '0765-0056',
-        'eligible_to_play' => true,
-        'status'           => 'active',
-        'created_by'       => null,
+        'first_name'            => 'Maryam',
+        'last_name'             => 'Akhabach',
+        'date_of_birth'         => '2012-09-08',
+        'gender'                => 'female',
+        'pass_number'           => '0765-0056',
+        'eligible_to_play_date' => now()->subDay()->toDateString(),
+        'status'                => 'active',
+        'created_by'            => null,
     ], $attrs));
 }
 
-// ── compare(): Neuer Member ───────────────────────────────────────────────────
+// ── compare(): new member ─────────────────────────────────────────────────────
 
 test('compare gibt new zurück wenn kein mitglied in der db existiert', function () {
     $service = new MemberImportService();
@@ -64,7 +81,7 @@ test('compare gibt new zurück wenn kein mitglied in der db existiert', function
     expect($result['diff'])->toBe([]);
 });
 
-// ── compare(): Unverändert ────────────────────────────────────────────────────
+// ── compare(): unchanged ──────────────────────────────────────────────────────
 
 test('compare gibt unchanged zurück wenn alle felder übereinstimmen', function () {
     makeExistingMember();
@@ -72,20 +89,18 @@ test('compare gibt unchanged zurück wenn alle felder übereinstimmen', function
     $service = new MemberImportService();
     $result  = $service->compare(makeMemberData());
 
-    // diff ZUERST prüfen: Pest zeigt den tatsächlichen Diff-Inhalt wenn dieser Test fehlschlägt.
-    // Damit kann direkt abgelesen werden, welches Feld den Unterschied auslöst.
+    // Check diff first: Pest shows the actual diff content when this test fails
     expect($result['diff'])->toBe([]);
     expect($result['status'])->toBe('unchanged');
 });
 
 test('compare findet mitglied per passnummer', function () {
-    // Name absichtlich abweichend – Passnummer hat Priorität
+    // Name intentionally different – pass number takes priority
     $member = makeExistingMember(['first_name' => 'Maria']);
 
     $service = new MemberImportService();
     $result  = $service->compare(makeMemberData(['first_name' => 'Maryam']));
 
-    // Muss das vorhandene Mitglied gefunden haben (nicht 'new')
     expect($result['existing_id'])->toBe($member->id);
     expect($result['status'])->not->toBe('new');
 });
@@ -96,7 +111,6 @@ test('compare findet mitglied per name und geburtsdatum wenn keine passnummer', 
     $service = new MemberImportService();
     $result  = $service->compare(makeMemberData(['pass_number' => null]));
 
-    // Fallback: Name + Geburtsdatum → unchanged
     expect($result['diff'])->toBe([]);
     expect($result['status'])->toBe('unchanged');
 });
@@ -105,13 +119,12 @@ test('compare gibt new zurück wenn weder passnummer noch name+dob übereinstimm
     makeExistingMember(['pass_number' => '9999-0000', 'last_name' => 'AnderesName']);
 
     $service = new MemberImportService();
-    // Passnummer stimmt nicht, Name stimmt nicht → kein Match → new
     $result  = $service->compare(makeMemberData(['pass_number' => '0765-0056']));
 
     expect($result['status'])->toBe('new');
 });
 
-// ── compare(): Geändert ───────────────────────────────────────────────────────
+// ── compare(): changed ────────────────────────────────────────────────────────
 
 test('compare gibt changed zurück wenn felder abweichen', function () {
     makeExistingMember(['gender' => 'male']);
@@ -126,8 +139,8 @@ test('compare gibt changed zurück wenn felder abweichen', function () {
 });
 
 test('compare normalisiert carbon-datumsobjekt korrekt', function () {
-    // Reproduziert den Bug: $existing->date_of_birth ist ein Carbon-Objekt.
-    // Falsche Normalisierung via (string) Carbon würde "2012-09-08 00:00:00" != "2012-09-08" ergeben.
+    // Reproduces the bug: $existing->date_of_birth is a Carbon object.
+    // Wrong normalisation via (string) Carbon would yield "2012-09-08 00:00:00" != "2012-09-08".
     makeExistingMember(['date_of_birth' => '2012-09-08']);
 
     $service = new MemberImportService();
@@ -138,30 +151,45 @@ test('compare normalisiert carbon-datumsobjekt korrekt', function () {
     expect($result['status'])->toBe('unchanged');
 });
 
-test('compare normalisiert boolean eligible_to_play korrekt', function () {
-    // Bug: (string) true = '1', (string) false = '' (nicht '0').
-    // Falsches Casting könnte true vs true als unterschiedlich markieren.
-    makeExistingMember(['eligible_to_play' => true]);
+test('compare normalisiert eligible_to_play_date korrekt', function () {
+    // Both sides have the same date → no diff.
+    // Also tests that the Carbon date from the DB is correctly normalised to YYYY-MM-DD.
+    $date = '2025-01-15';
+    makeExistingMember(['eligible_to_play_date' => $date]);
 
     $service = new MemberImportService();
-    $result  = $service->compare(makeMemberData(['eligible_to_play' => true]));
+    $result  = $service->compare(makeMemberData(['eligible_to_play_date' => $date]));
 
-    expect($result['diff'])->not->toHaveKey('eligible_to_play');
+    expect($result['diff'])->not->toHaveKey('eligible_to_play_date');
     expect($result['diff'])->toBe([]);
     expect($result['status'])->toBe('unchanged');
 });
 
-test('compare erkennt changed eligible_to_play korrekt', function () {
-    makeExistingMember(['eligible_to_play' => true]);
+test('compare erkennt geänderte eligible_to_play_date korrekt', function () {
+    // Old date in DB, new date in import → changed with diff
+    makeExistingMember(['eligible_to_play_date' => '2024-01-01']);
 
     $service = new MemberImportService();
-    $result  = $service->compare(makeMemberData(['eligible_to_play' => false]));
+    $result  = $service->compare(makeMemberData(['eligible_to_play_date' => '2025-06-01']));
 
     expect($result['status'])->toBe('changed');
-    expect($result['diff'])->toHaveKey('eligible_to_play');
+    expect($result['diff'])->toHaveKey('eligible_to_play_date');
+    expect($result['diff']['eligible_to_play_date']['old'])->toBe('2024-01-01');
+    expect($result['diff']['eligible_to_play_date']['new'])->toBe('2025-06-01');
 });
 
-// ── execute(): Import ausführen ───────────────────────────────────────────────
+test('compare erkennt null eligible_to_play_date korrekt', function () {
+    // DB: no date → import provides date → changed
+    makeExistingMember(['eligible_to_play_date' => null]);
+
+    $service = new MemberImportService();
+    $result  = $service->compare(makeMemberData(['eligible_to_play_date' => '2025-06-01']));
+
+    expect($result['status'])->toBe('changed');
+    expect($result['diff'])->toHaveKey('eligible_to_play_date');
+});
+
+// ── execute(): run the import ─────────────────────────────────────────────────
 
 test('execute legt neuen member an und schreibt import-log', function () {
     $user    = createPlainUser();
@@ -169,7 +197,15 @@ test('execute legt neuen member an und schreibt import-log', function () {
 
     $processedRows = [
         0 => [
-            'mapped'        => ['first_name' => 'Maryam', 'last_name' => 'Akhabach', 'date_of_birth' => '2012-09-08', 'gender' => 'female', 'pass_number' => '0765-0056', 'eligible_to_play' => true, 'status' => 'active'],
+            'mapped'        => [
+                'first_name'            => 'Maryam',
+                'last_name'             => 'Akhabach',
+                'date_of_birth'         => '2012-09-08',
+                'gender'                => 'female',
+                'pass_number'           => '0765-0056',
+                'eligible_to_play_date' => now()->subDay()->toDateString(),
+                'status'                => 'active',
+            ],
             'custom_fields' => [],
             'status'        => 'new',
             'existing_id'   => null,
@@ -200,7 +236,15 @@ test('execute aktualisiert bestehenden member bei status changed', function () {
 
     $processedRows = [
         0 => [
-            'mapped'        => ['first_name' => 'Maryam', 'last_name' => 'Akhabach', 'date_of_birth' => '2012-09-08', 'gender' => 'female', 'pass_number' => '0765-0056', 'eligible_to_play' => true, 'status' => 'active'],
+            'mapped'        => [
+                'first_name'            => 'Maryam',
+                'last_name'             => 'Akhabach',
+                'date_of_birth'         => '2012-09-08',
+                'gender'                => 'female',
+                'pass_number'           => '0765-0056',
+                'eligible_to_play_date' => now()->subDay()->toDateString(),
+                'status'                => 'active',
+            ],
             'custom_fields' => [],
             'status'        => 'changed',
             'existing_id'   => $member->id,
@@ -228,8 +272,14 @@ test('execute überspringt nicht ausgewählte zeilen', function () {
     $service = new MemberImportService();
 
     $processedRows = [
-        0 => ['mapped' => ['first_name' => 'A', 'last_name' => 'B', 'date_of_birth' => null, 'gender' => null, 'pass_number' => null, 'eligible_to_play' => true, 'status' => 'active'], 'custom_fields' => [], 'status' => 'new', 'existing_id' => null, 'diff' => []],
-        1 => ['mapped' => ['first_name' => 'C', 'last_name' => 'D', 'date_of_birth' => null, 'gender' => null, 'pass_number' => null, 'eligible_to_play' => true, 'status' => 'active'], 'custom_fields' => [], 'status' => 'new', 'existing_id' => null, 'diff' => []],
+        0 => [
+            'mapped'        => ['first_name' => 'A', 'last_name' => 'B', 'date_of_birth' => null, 'gender' => null, 'pass_number' => null, 'eligible_to_play_date' => null, 'status' => 'active'],
+            'custom_fields' => [], 'status' => 'new', 'existing_id' => null, 'diff' => [],
+        ],
+        1 => [
+            'mapped'        => ['first_name' => 'C', 'last_name' => 'D', 'date_of_birth' => null, 'gender' => null, 'pass_number' => null, 'eligible_to_play_date' => null, 'status' => 'active'],
+            'custom_fields' => [], 'status' => 'new', 'existing_id' => null, 'diff' => [],
+        ],
     ];
 
     $stats = $service->execute(
@@ -250,13 +300,18 @@ test('execute rollt alles zurück wenn ein datensatz fehlschlägt', function () 
     $user    = createPlainUser();
     $service = new MemberImportService();
 
-    // Zweiter Eintrag hat ungültige existing_id → findOrFail wirft ModelNotFoundException
+    // Second entry has an invalid existing_id → findOrFail throws ModelNotFoundException
     $processedRows = [
-        0 => ['mapped' => ['first_name' => 'Maryam', 'last_name' => 'Akhabach', 'date_of_birth' => null, 'gender' => null, 'pass_number' => null, 'eligible_to_play' => true, 'status' => 'active'], 'custom_fields' => [], 'status' => 'new', 'existing_id' => null, 'diff' => []],
-        1 => ['mapped' => ['first_name' => 'X', 'last_name' => 'Y', 'date_of_birth' => null, 'gender' => null, 'pass_number' => null, 'eligible_to_play' => true, 'status' => 'active'], 'custom_fields' => [], 'status' => 'changed', 'existing_id' => 99999, 'diff' => ['gender' => ['old' => 'male', 'new' => 'female']]],
+        0 => [
+            'mapped'        => ['first_name' => 'Maryam', 'last_name' => 'Akhabach', 'date_of_birth' => null, 'gender' => null, 'pass_number' => null, 'eligible_to_play_date' => null, 'status' => 'active'],
+            'custom_fields' => [], 'status' => 'new', 'existing_id' => null, 'diff' => [],
+        ],
+        1 => [
+            'mapped'        => ['first_name' => 'X', 'last_name' => 'Y', 'date_of_birth' => null, 'gender' => null, 'pass_number' => null, 'eligible_to_play_date' => null, 'status' => 'active'],
+            'custom_fields' => [], 'status' => 'changed', 'existing_id' => 99999, 'diff' => ['gender' => ['old' => 'male', 'new' => 'female']],
+        ],
     ];
 
-    // Pest: toThrow() erwartet eine Closure die die Exception wirft
     $threw = false;
     try {
         $service->execute(
@@ -272,7 +327,7 @@ test('execute rollt alles zurück wenn ein datensatz fehlschlägt', function () 
 
     expect($threw)->toBeTrue();
 
-    // Dank Transaktion: kein Member angelegt, kein Log
+    // Due to the transaction: no member created, no log
     expect(Member::where('last_name', 'Akhabach')->exists())->toBeFalse();
     expect(MemberImportLog::where('source', 'dfbnet')->exists())->toBeFalse();
 });

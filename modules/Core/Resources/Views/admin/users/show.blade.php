@@ -1,93 +1,101 @@
 @extends('core::admin.layout')
 
-@section('title', 'Nutzer bearbeiten')
+@section('title', 'Nutzer: ' . $user->name)
 
 @section('content')
-<div class="max-w-lg space-y-6">
 
+<div class="ck-page-header">
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">{{ $user->name }}</h1>
-        <p class="text-sm text-gray-500 mt-1">
-            <a href="{{ route('admin.users.index') }}" class="text-blue-600 hover:underline">&larr; Zurück zur Liste</a>
+        <h1 class="ck-page-title">{{ $user->name }}</h1>
+        <p class="ck-page-subtitle">
+            <a href="{{ route('admin.users.index') }}" class="ck-link">← Zurück zur Übersicht</a>
         </p>
     </div>
+</div>
 
-    <form method="POST" action="{{ route('admin.users.update', $user) }}"
-          class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-5">
-        @csrf
-        @method('PATCH')
+<div class="ck-two-col-grid">
 
-        <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Name *</label>
-            <input type="text" name="name" value="{{ old('name', $user->name) }}" autofocus required
-                   class="w-full border rounded-lg px-3 py-2 text-sm @error('name') border-red-400 @enderror">
-            @error('name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-        </div>
-
-        <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">E-Mail *</label>
-            <input type="email" name="email" value="{{ old('email', $user->email) }}" required
-                   class="w-full border rounded-lg px-3 py-2 text-sm @error('email') border-red-400 @enderror">
-            @error('email')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-        </div>
-
-        <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">
-                Neues Passwort
-                <span class="text-gray-400 font-normal normal-case">(leer lassen = nicht ändern)</span>
-            </label>
-            <input type="password" name="password"
-                   class="w-full border rounded-lg px-3 py-2 text-sm @error('password') border-red-400 @enderror">
-            @error('password')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
-        </div>
-
-        <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Passwort wiederholen</label>
-            <input type="password" name="password_confirmation"
-                   class="w-full border rounded-lg px-3 py-2 text-sm">
-        </div>
-
-        <div>
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Rollen</label>
-            <div class="space-y-2">
-                @foreach($roles as $role)
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" name="roles[]" value="{{ $role->name }}"
-                           {{ $user->hasRole($role->name) ? 'checked' : '' }}
-                           class="accent-blue-600">
-                    <span class="text-sm text-gray-700">{{ $role->name }}</span>
-                </label>
-                @endforeach
+    {{-- ── Login-Daten ─────────────────────────────────────────────────────── --}}
+    <x-ck-card>
+        <x-slot:header>🔑 Login-Daten</x-slot:header>
+        <form method="POST" action="{{ route('admin.users.update', $user) }}">
+            @csrf
+            @method('PATCH')
+            <div class="ck-form-grid ck-form-grid--2">
+                <x-ck-field label="Name"   name="name"  id="showFieldName"
+                    :value="old('name', $user->name)"   :required="true" />
+                <x-ck-field label="E-Mail" name="email" id="showFieldEmail"
+                    type="email"
+                    :value="old('email', $user->email)" :required="true" />
+                <x-ck-field label="Neues Passwort" name="password" type="password"
+                    id="showFieldPassword"
+                    hint="(leer lassen = nicht ändern)" />
+                <x-ck-field label="Passwort wiederholen" name="password_confirmation"
+                    type="password" />
             </div>
-        </div>
-
-        <div class="flex gap-3 pt-2">
-            <button type="submit"
-                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg">
-                Speichern
-            </button>
-            <a href="{{ route('admin.users.index') }}"
-               class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold rounded-lg">
-                Abbrechen
-            </a>
-        </div>
-    </form>
-
-    <!-- Löschen -->
-    @if($user->id !== auth()->id())
-    <div class="bg-red-50 border border-red-200 rounded-xl p-5">
-        <h3 class="text-sm font-bold text-red-700 mb-2">Nutzer löschen</h3>
-        <p class="text-xs text-red-600 mb-3">Dieser Nutzer und alle seine Daten werden unwiderruflich gelöscht.</p>
-        <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
-              onsubmit="return confirm('Nutzer {{ $user->name }} wirklich löschen?')">
-            @csrf @method('DELETE')
-            <button type="submit"
-                    class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg">
-                Nutzer löschen
-            </button>
+            <div class="ck-form-actions">
+                <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
+                <x-ck-button variant="secondary" href="{{ route('admin.users.index') }}">
+                    Abbrechen
+                </x-ck-button>
+            </div>
         </form>
-    </div>
-    @endif
+    </x-ck-card>
+
+    {{-- ── Rollen & Rechte ─────────────────────────────────────────────────── --}}
+    <x-ck-card>
+        <x-slot:header>🔒 Rollen &amp; Rechte</x-slot:header>
+        <form method="POST" action="{{ route('admin.users.update', $user) }}">
+            @csrf
+            @method('PATCH')
+            <input type="hidden" name="rights_only" value="1">
+            <div class="ck-field">
+                <label class="ck-field__label" for="showRoleSelect">Rolle zuweisen</label>
+                <select name="role" id="showRoleSelect" class="ck-field__input">
+                    <option value="">– Keine Rolle –</option>
+                    @foreach($roles as $role)
+                    <option value="{{ $role->name }}"
+                        {{ $user->hasRole($role->name) ? 'selected' : '' }}>
+                        {{ ucfirst($role->name) }}
+                        @if($role->name === 'super-admin') (Vollzugriff)@endif
+                    </option>
+                    @endforeach
+                </select>
+            </div>
+            @if($user->roles->isEmpty() && $user->permissions->isNotEmpty())
+            <p class="ck-text-muted ck-mt-2">
+                Dieser Nutzer hat benutzerdefinierte Einzelrechte.
+                Rollenzuweisung überschreibt diese.
+            </p>
+            @endif
+            <div class="ck-form-actions">
+                <x-ck-button type="submit" variant="primary">Rechte speichern</x-ck-button>
+            </div>
+        </form>
+    </x-ck-card>
 
 </div>
+
+{{-- ── Nutzer löschen ──────────────────────────────────────────────────────── --}}
+@if($user->id !== auth()->id())
+<x-ck-card class="ck-mt-5" accent="red">
+    <x-slot:header>⚠️ Nutzer löschen</x-slot:header>
+    <p class="ck-text-muted">
+        Dieser Nutzer und alle seine Sitzungsdaten werden unwiderruflich gelöscht.
+    </p>
+    <div class="ck-form-actions ck-mt-3">
+        <form method="POST" action="{{ route('admin.users.destroy', $user) }}">
+            @csrf
+            @method('DELETE')
+            <x-ck-button
+                type="submit"
+                variant="danger"
+                :confirm="'Nutzer ' . $user->name . ' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'">
+                Nutzer löschen
+            </x-ck-button>
+        </form>
+    </div>
+</x-ck-card>
+@endif
+
 @endsection

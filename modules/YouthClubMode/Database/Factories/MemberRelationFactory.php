@@ -15,6 +15,11 @@ final class MemberRelationFactory extends Factory
 {
     protected $model = MemberRelation::class;
 
+    /**
+     * Default state: random relationship between two freshly created members.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
         return [
@@ -25,16 +30,31 @@ final class MemberRelationFactory extends Factory
         ];
     }
 
+    /**
+     * Creates a father–child relation.
+     *
+     * @return static
+     */
     public function father(): static
     {
         return $this->state(['relationship' => 'father']);
     }
 
+    /**
+     * Creates a mother–child relation.
+     *
+     * @return static
+     */
     public function mother(): static
     {
         return $this->state(['relationship' => 'mother']);
     }
 
+    /**
+     * Creates a sibling relation.
+     *
+     * @return static
+     */
     public function sibling(): static
     {
         return $this->state(['relationship' => 'sibling']);

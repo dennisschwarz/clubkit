@@ -1,8 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\DB;
 use Modules\Members\Models\Member;
 
-// ── Auth-Schutz ────────────────────────────────────────────────────────────────
+beforeEach(function () {
+    DB::table('installed_modules')->insertOrIgnore([
+        ['slug' => 'core',    'is_active' => 1],
+        ['slug' => 'members', 'is_active' => 1],
+    ]);
+    seedPermissions();
+});
+
+// ── Auth guard ─────────────────────────────────────────────────────────────────
 
 test('gast wird bei GET /members auf login weitergeleitet', function () {
     $this->get('/members')->assertRedirect('/login');
@@ -22,7 +33,7 @@ test('gast wird bei DELETE /members/{id} auf login weitergeleitet', function () 
     $this->delete('/members/' . $member->id)->assertRedirect('/login');
 });
 
-// ── Permission-Schutz ──────────────────────────────────────────────────────────
+// ── Permission guard ───────────────────────────────────────────────────────────
 
 test('user ohne permission kann GET /members nicht aufrufen', function () {
     $user = createPlainUser();
@@ -65,16 +76,31 @@ test('user mit members.create kann neues Mitglied anlegen', function () {
     $user = createUserWithPermission('members.create');
 
     $this->actingAs($user)->post('/members', [
-        'first_name'       => 'Max',
-        'last_name'        => 'Mustermann',
-        'status'           => 'active',
-        'eligible_to_play' => '1',
+        'first_name'            => 'Max',
+        'last_name'             => 'Mustermann',
+        'status'                => 'active',
+        'eligible_to_play_date' => now()->subYear()->toDateString(),
     ])->assertRedirect('/members');
 
     $this->assertDatabaseHas('members', [
         'first_name' => 'Max',
         'last_name'  => 'Mustermann',
         'status'     => 'active',
+    ]);
+});
+
+test('store setzt created_by korrekt auf den angemeldeten User', function () {
+    $user = createUserWithPermission('members.create');
+
+    $this->actingAs($user)->post('/members', [
+        'first_name' => 'Max',
+        'last_name'  => 'Muster',
+        'status'     => 'active',
+    ])->assertRedirect('/members');
+
+    $this->assertDatabaseHas('members', [
+        'last_name'  => 'Muster',
+        'created_by' => $user->id,
     ]);
 });
 
@@ -104,10 +130,10 @@ test('user mit members.edit kann Mitglied aktualisieren', function () {
     $user   = createUserWithPermission('members.edit');
 
     $this->actingAs($user)->patch('/members/' . $member->id, [
-        'first_name'       => $member->first_name,
-        'last_name'        => 'Neu',
-        'status'           => 'active',
-        'eligible_to_play' => '1',
+        'first_name'            => $member->first_name,
+        'last_name'             => 'Neu',
+        'status'                => 'active',
+        'eligible_to_play_date' => now()->subYear()->toDateString(),
     ])->assertRedirect('/members');
 
     $this->assertDatabaseHas('members', ['id' => $member->id, 'last_name' => 'Neu']);

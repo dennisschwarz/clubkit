@@ -7,40 +7,57 @@ namespace Modules\Import\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
-use Modules\Import\Importers\DfbNetImporter;
-use Modules\Import\Importers\NuLigaImporter;
-use Modules\Import\ImporterInterface;
+use Modules\Import\Http\Requests\SaveMappingRequest;
+use Modules\Import\Http\Requests\UploadCsvRequest;
+use Modules\Import\ImporterRegistry;
 use Modules\Import\Models\ImportSession;
 use Modules\Import\Services\MemberImportService;
 
+/**
+ * Drives the three-step CSV import wizard.
+ *
+ * Step 1 (index/upload): file upload and format detection via ImporterRegistry.
+ * Step 2 (mapping/saveMapping): column-to-field assignment confirmed by the user.
+ * Step 3 (preview/execute): row comparison and final write inside one transaction.
+ *
+ * Validation is delegated to UploadCsvRequest and SaveMappingRequest.
+ * The ImporterRegistry is injected – no hard-coded importer instances in the controller.
+ */
 class ImportController extends Controller
 {
-    private array $importers;
+    /**
+     * @param  MemberImportService $importService
+     * @param  ImporterRegistry    $importerRegistry
+     */
+    public function __construct(
+        private readonly MemberImportService $importService,
+        private readonly ImporterRegistry    $importerRegistry,
+    ) {}
 
-    public function __construct(private readonly MemberImportService $importService)
-    {
-        $this->importers = [
-            new DfbNetImporter(),
-            new NuLigaImporter(),
-        ];
-    }
-
+    /**
+     * Renders the file upload form (step 1).
+     *
+     * @return View
+     */
     public function index(): View
     {
         return view('import::step1-upload');
     }
 
-    public function upload(Request $request): RedirectResponse
+    /**
+     * Processes the uploaded CSV file and redirects to the mapping step.
+     *
+     * Validation is handled by UploadCsvRequest – no manual $request->validate() here.
+     *
+     * @param  UploadCsvRequest $request
+     * @return RedirectResponse
+     */
+    public function upload(UploadCsvRequest $request): RedirectResponse
     {
-        $request->validate([
-            'csv_file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
-        ], [
-            'csv_file.required' => 'Bitte eine CSV-Datei auswählen.',
-            'csv_file.mimes'    => 'Nur CSV-Dateien werden unterstützt.',
-            'csv_file.max'      => 'Maximale Dateigröße: 10 MB.',
-        ]);
-
         $file       = $request->file('csv_file');
         $filename   = $file->getClientOriginalName();
         $rawContent = file_get_contents($file->getPathname());
@@ -50,7 +67,8 @@ class ImportController extends Controller
             "\n"
         );
 
-        $importer = $this->findImporterByCanHandle($filename, $firstLine);
+        // Detect the file format via the registry instead of a hard-coded array
+        $importer = $this->importerRegistry->findByCanHandle($filename, $firstLine);
         if (! $importer) {
             return back()->withErrors(['csv_file' => 'Dateiformat nicht erkannt.']);
         }
@@ -82,19 +100,31 @@ class ImportController extends Controller
         return redirect()->route('import.mapping', $session->id);
     }
 
-    public function mapping(string $sessionId): View|RedirectResponse
+    /**
+     * Renders the column mapping form (step 2).
+     *
+     * @param  Request $request
+     * @param  string  $sessionId
+     * @return View|RedirectResponse
+     */
+    public function mapping(Request $request, string $sessionId): View|RedirectResponse
     {
-        $session = $this->findSession($sessionId);
+        $session = $this->findSession($sessionId, $request->user()->id);
         if (! $session) return $this->sessionExpired();
 
-        $importer  = $this->findImporterBySource($session->source);
+        // Resolve the importer from the registry using the stored source name
+        $importer  = $this->importerRegistry->findBySource($session->source);
         $suggested = $importer ? $importer->getSuggestedMapping() : [];
 
-        $memberFields        = $this->getMemberFields();
-        $customFields        = [];
-        $objectTypes         = [];
-        $fieldTypes          = [];
-        $customFieldsEnabled = class_exists(\Modules\CustomFields\Models\CustomFieldDefinition::class);
+        $memberFields = $this->getMemberFields();
+        $customFields = [];
+        $objectTypes  = [];
+        $fieldTypes   = [];
+
+        // Schema::hasTable() checks the actual DB structure.
+        // class_exists() can give false-positives after module uninstall when
+        // the autoloader cache has not been cleared yet.
+        $customFieldsEnabled = Schema::hasTable('custom_field_definitions');
 
         if ($customFieldsEnabled) {
             $customFields = \Modules\CustomFields\Models\CustomFieldDefinition::where('object_type', 'member')
@@ -113,15 +143,24 @@ class ImportController extends Controller
         ));
     }
 
-    public function saveMapping(Request $request, string $sessionId): RedirectResponse
+    /**
+     * Saves the column mapping and processes all rows (step 2 → 3).
+     *
+     * Validation is handled by SaveMappingRequest.
+     *
+     * @param  SaveMappingRequest $request
+     * @param  string             $sessionId
+     * @return RedirectResponse
+     */
+    public function saveMapping(SaveMappingRequest $request, string $sessionId): RedirectResponse
     {
-        $session = $this->findSession($sessionId);
+        $session = $this->findSession($sessionId, $request->user()->id);
         if (! $session) return $this->sessionExpired();
 
-        $importer = $this->findImporterBySource($session->source);
+        $importer = $this->importerRegistry->findBySource($session->source);
         if (! $importer) return $this->sessionExpired();
 
-        $mapping = $request->input('mapping', []);
+        $mapping = $request->validated()['mapping'] ?? [];
         $headers = $session->column_headers;
         $rawRows = $session->raw_rows;
 
@@ -156,9 +195,16 @@ class ImportController extends Controller
         return redirect()->route('import.preview', $session->id);
     }
 
-    public function preview(string $sessionId): View|RedirectResponse
+    /**
+     * Renders the preview page with row comparison results (step 3).
+     *
+     * @param  Request $request
+     * @param  string  $sessionId
+     * @return View|RedirectResponse
+     */
+    public function preview(Request $request, string $sessionId): View|RedirectResponse
     {
-        $session = $this->findSession($sessionId);
+        $session = $this->findSession($sessionId, $request->user()->id);
         if (! $session) return $this->sessionExpired();
 
         if (empty($session->processed_rows)) {
@@ -175,7 +221,8 @@ class ImportController extends Controller
         ];
 
         $teams = [];
-        if (class_exists(\Modules\Teams\Models\Team::class)) {
+        // Schema::hasTable() checks the actual DB structure (not class_exists())
+        if (Schema::hasTable('teams')) {
             $teams = \Modules\Teams\Models\Team::where('is_active', true)
                         ->orderBy('name')
                         ->get(['id', 'name', 'eligible_only'])
@@ -185,9 +232,19 @@ class ImportController extends Controller
         return view('import::step3-preview', compact('session', 'rows', 'counts', 'teams'));
     }
 
+    /**
+     * Executes the final import for the selected rows.
+     *
+     * Members import and team assignment run inside a single atomic transaction.
+     * If team assignment fails, the created members are also rolled back.
+     *
+     * @param  Request $request
+     * @param  string  $sessionId
+     * @return RedirectResponse
+     */
     public function execute(Request $request, string $sessionId): RedirectResponse
     {
-        $session = $this->findSession($sessionId);
+        $session = $this->findSession($sessionId, $request->user()->id);
         if (! $session) return $this->sessionExpired();
 
         $selectedIndexes = array_map('intval', $request->input('selected', []));
@@ -196,25 +253,37 @@ class ImportController extends Controller
             return back()->withErrors(['selected' => 'Keine Datensätze ausgewählt.']);
         }
 
-        try {
-            $stats = $this->importService->execute(
-                processedRows:   $session->processed_rows,
-                selectedIndexes: $selectedIndexes,
-                source:          $session->source,
-                filename:        $session->filename,
-                importedBy:      $request->user()->id,
-            );
-        } catch (\Throwable $e) {
-            return back()->withErrors([
-                'import' => 'Import fehlgeschlagen – alle Änderungen wurden rückgängig gemacht. Fehler: ' . $e->getMessage(),
-            ]);
-        }
-
-        // Per-Zeile Team-Zuweisung (außerhalb der Haupttransaktion)
-        // assign_team_id[rowIndex] = teamId (leer = kein Team für diesen Datensatz)
+        // Read team assignments from the request before entering the transaction
         $teamAssignments = $request->input('assign_team_id', []);
-        if (! empty($teamAssignments) && ! empty($stats['created_ids'])) {
-            $this->assignPerRow($teamAssignments, $stats['created_ids']);
+        $stats           = null;
+
+        try {
+            DB::transaction(function () use ($session, $selectedIndexes, $request, $teamAssignments, &$stats): void {
+                $stats = $this->importService->execute(
+                    processedRows:   $session->processed_rows,
+                    selectedIndexes: $selectedIndexes,
+                    source:          $session->source,
+                    filename:        $session->filename,
+                    importedBy:      $request->user()->id,
+                );
+
+                if (! empty($teamAssignments) && ! empty($stats['created_ids'])) {
+                    $this->assignPerRow($teamAssignments, $stats['created_ids']);
+                }
+            });
+        } catch (\Throwable $e) {
+            // Log exception details without exposing internal stack traces to the user
+            Log::error('Import fehlgeschlagen', [
+                'session_id' => $sessionId,
+                'user_id'    => $request->user()->id,
+                'message'    => $e->getMessage(),
+                'trace'      => $e->getTraceAsString(),
+            ]);
+
+            // Never expose SQL, file paths, or stack traces to the user
+            return back()->withErrors([
+                'import' => 'Import fehlgeschlagen – alle Änderungen wurden rückgängig gemacht. Bitte den Administrator kontaktieren.',
+            ]);
         }
 
         $session->delete();
@@ -229,6 +298,12 @@ class ImportController extends Controller
         );
     }
 
+    /**
+     * Cancels an import session and deletes it.
+     *
+     * @param  string $sessionId
+     * @return RedirectResponse
+     */
     public function cancel(string $sessionId): RedirectResponse
     {
         $session = ImportSession::find($sessionId);
@@ -237,19 +312,21 @@ class ImportController extends Controller
         return redirect()->route('members.index')->with('info', 'Import abgebrochen.');
     }
 
-    // ── Private Helpers ───────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
-     * Per-Zeile Team-Zuweisung nach dem Import.
+     * Assigns newly created members to teams on a per-row basis.
+     * Called inside DB::transaction() in execute() – rolls back with the rest on failure.
      *
-     * @param  array<int|string, string>  $teamAssignments  rowIndex => teamId (als String aus Request)
-     * @param  array<int, int>            $createdIds        rowIndex => memberId
+     * @param  array<int|string, string>  $teamAssignments  rowIndex → teamId
+     * @param  array<int, int>            $createdIds        rowIndex → memberId
+     * @return void
      */
     private function assignPerRow(array $teamAssignments, array $createdIds): void
     {
-        if (! class_exists(\Modules\Teams\Models\Team::class)) return;
+        // Schema::hasTable() checks the actual DB structure (not class_exists())
+        if (! Schema::hasTable('teams')) return;
 
-        // Teams vorab laden um N+1 zu vermeiden
         $teamIds = array_unique(array_filter(array_map('intval', $teamAssignments)));
         if (empty($teamIds)) return;
 
@@ -257,7 +334,6 @@ class ImportController extends Controller
                         ->get()
                         ->keyBy('id');
 
-        // Gruppierung: teamId → [memberIds]
         $grouped = [];
         foreach ($createdIds as $rowIndex => $memberId) {
             $teamId = (int) ($teamAssignments[$rowIndex] ?? 0);
@@ -269,12 +345,10 @@ class ImportController extends Controller
             $team = $teamsById->get($teamId);
             if (! $team) continue;
 
-            // Bereits zugewiesene herausfiltern
             $existingIds = $team->members()->pluck('members.id')->toArray();
             $toAssign    = array_diff($memberIds, $existingIds);
             if (empty($toAssign)) continue;
 
-            // Wenn eligible_only: nur spielberechtigte zuweisen
             if ($team->eligible_only) {
                 $toAssign = \Modules\Members\Models\Member::whereIn('id', $toAssign)
                                 ->whereNotNull('eligible_to_play_date')
@@ -289,35 +363,46 @@ class ImportController extends Controller
         }
     }
 
-    private function findSession(string $id): ?ImportSession
+    /**
+     * Loads an import session and verifies ownership.
+     *
+     * Only the session owner can access it – prevents session hijacking via URL manipulation.
+     * The authenticated user's ID is passed explicitly from the calling controller method
+     * ($request->user()->id) – never resolved via auth()->id() here.
+     *
+     * @param  string $id
+     * @param  int    $userId
+     * @return ImportSession|null
+     */
+    private function findSession(string $id, int $userId): ?ImportSession
     {
         $session = ImportSession::find($id);
+
         if (! $session || $session->isExpired()) return null;
+
+        if ($session->created_by === null || (int) $session->created_by !== $userId) {
+            return null;
+        }
+
         return $session;
     }
 
-    private function findImporterByCanHandle(string $filename, string $firstLine): ?ImporterInterface
-    {
-        foreach ($this->importers as $importer) {
-            if ($importer->canHandle($filename, $firstLine)) return $importer;
-        }
-        return null;
-    }
-
-    private function findImporterBySource(string $source): ?ImporterInterface
-    {
-        foreach ($this->importers as $importer) {
-            if ($importer->getSourceName() === $source) return $importer;
-        }
-        return null;
-    }
-
+    /**
+     * Returns a redirect to the upload page with a session-expired error message.
+     *
+     * @return RedirectResponse
+     */
     private function sessionExpired(): RedirectResponse
     {
         return redirect()->route('import.index')
             ->withErrors(['session' => 'Die Import-Sitzung ist abgelaufen oder ungültig. Bitte erneut hochladen.']);
     }
 
+    /**
+     * Returns the list of mappable members table fields with their German labels.
+     *
+     * @return array<string, string>
+     */
     private function getMemberFields(): array
     {
         return [

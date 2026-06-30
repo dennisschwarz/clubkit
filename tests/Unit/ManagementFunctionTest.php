@@ -1,69 +1,72 @@
 <?php
 
-// Ersetzt das obsolete ManagementRoleTest.php.
-// ManagementRole wurde zu ManagementFunction umbenannt.
-// Pivot-Spalten heißen weiterhin role_id (Tabellenname geändert, Spaltenname nicht).
+declare(strict_types=1);
 
+// Note: pivot FK column is still named role_id (legacy schema, not renamed).
+
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Management\Models\ManagementFunction;
 use Modules\Members\Models\Member;
 use Modules\Teams\Models\Team;
+use Spatie\Activitylog\Models\Activity;
 
-uses(Tests\TestCase::class, Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(Tests\TestCase::class, RefreshDatabase::class);
 
-// ── Anlegen ───────────────────────────────────────────────────────────────────
+// ── Create ────────────────────────────────────────────────────────────────────
 
-test('eine Funktion kann angelegt werden', function () {
+test('a management function can be created', function () {
     $func = ManagementFunction::create(['name' => 'Trainer']);
 
-    $this->assertDatabaseHas('management_functions', ['id' => $func->id, 'name' => 'Trainer']);
+    expect(ManagementFunction::where('id', $func->id)->where('name', 'Trainer')->exists())->toBeTrue();
 });
 
-test('gleicher Funktionsname darf mehrfach existieren', function () {
+test('duplicate function names are allowed', function () {
     ManagementFunction::create(['name' => 'Betreuer']);
     ManagementFunction::create(['name' => 'Betreuer']);
 
     expect(ManagementFunction::where('name', 'Betreuer')->count())->toBe(2);
 });
 
-test('created_by wird korrekt gespeichert', function () {
-    $user = App\Models\User::factory()->create();
+test('created_by is stored correctly', function () {
+    $user = User::factory()->create();
     $func = ManagementFunction::create(['name' => 'Kassenwart', 'created_by' => $user->id]);
 
     expect($func->created_by)->toBe($user->id);
     expect($func->creator->is($user))->toBeTrue();
 });
 
-test('created_by darf null sein', function () {
+test('created_by may be null', function () {
     $func = ManagementFunction::create(['name' => 'Ordner', 'created_by' => null]);
 
     expect($func->created_by)->toBeNull();
 });
 
-// ── Scope: Allgemein / Team ───────────────────────────────────────────────────
+// ── Scopes ────────────────────────────────────────────────────────────────────
 
-test('Funktion ohne Team-Zuweisung gilt als allgemein', function () {
+test('a function without a team assignment is considered general', function () {
     $func = ManagementFunction::create(['name' => 'Schriftführer']);
 
     expect($func->teams)->toHaveCount(0);
     expect(ManagementFunction::general()->where('id', $func->id)->exists())->toBeTrue();
 });
 
-test('scope forTeam filtert korrekt', function () {
+test('scopeForTeam filters correctly', function () {
     $d1        = Team::factory()->create(['name' => 'D1']);
     $trainer   = ManagementFunction::create(['name' => 'Trainer D1']);
-    $allgemein = ManagementFunction::create(['name' => 'Kassenwart Allgemein']);
+    $general   = ManagementFunction::create(['name' => 'Kassenwart Allgemein']);
 
     $trainer->teams()->sync([$d1->id]);
 
     $result = ManagementFunction::forTeam($d1->id)->get();
 
     expect($result->contains($trainer))->toBeTrue();
-    expect($result->contains($allgemein))->toBeFalse();
+    expect($result->contains($general))->toBeFalse();
 });
 
-// ── Zuweisungen: Teams ────────────────────────────────────────────────────────
+// ── Team assignments ──────────────────────────────────────────────────────────
 
-test('Funktion kann mehreren Teams zugeordnet werden', function () {
+test('a function can be assigned to multiple teams', function () {
     $func = ManagementFunction::create(['name' => 'Betreuer']);
     $d1   = Team::factory()->create(['name' => 'D1']);
     $d2   = Team::factory()->create(['name' => 'D2']);
@@ -73,7 +76,7 @@ test('Funktion kann mehreren Teams zugeordnet werden', function () {
     expect($func->fresh()->teams)->toHaveCount(2);
 });
 
-test('beim Löschen eines Teams wird Pivot entfernt aber nicht die Funktion', function () {
+test('deleting a team removes the pivot row but not the function', function () {
     $func = ManagementFunction::create(['name' => 'Trainer']);
     $team = Team::factory()->create();
 
@@ -81,13 +84,16 @@ test('beim Löschen eines Teams wird Pivot entfernt aber nicht die Funktion', fu
     $funcId = $func->id;
     $team->delete();
 
-    $this->assertDatabaseMissing('management_function_team', ['role_id' => $funcId, 'team_id' => $team->id]);
-    $this->assertDatabaseHas('management_functions', ['id' => $funcId]);
+    expect(
+        \Illuminate\Support\Facades\DB::table('management_function_team')
+            ->where('role_id', $funcId)->where('team_id', $team->id)->exists()
+    )->toBeFalse();
+    expect(ManagementFunction::find($funcId))->not->toBeNull();
 });
 
-// ── Zuweisungen: Mitglieder ───────────────────────────────────────────────────
+// ── Member assignments ────────────────────────────────────────────────────────
 
-test('mehrere Mitglieder können einer Funktion zugewiesen werden', function () {
+test('multiple members can be assigned to a function', function () {
     $func    = ManagementFunction::create(['name' => 'Betreuer']);
     $mueller = Member::factory()->create(['last_name' => 'Müller']);
     $schmidt = Member::factory()->create(['last_name' => 'Schmidt']);
@@ -97,7 +103,7 @@ test('mehrere Mitglieder können einer Funktion zugewiesen werden', function () 
     expect($func->fresh()->members)->toHaveCount(2);
 });
 
-test('eine Person kann dieselbe Funktion nicht doppelt haben', function () {
+test('a member cannot be assigned to the same function twice', function () {
     $func   = ManagementFunction::create(['name' => 'Trainer']);
     $member = Member::factory()->create();
 
@@ -107,9 +113,9 @@ test('eine Person kann dieselbe Funktion nicht doppelt haben', function () {
         ->toThrow(Illuminate\Database\QueryException::class);
 });
 
-// ── Cascade-Delete ────────────────────────────────────────────────────────────
+// ── Cascade delete ────────────────────────────────────────────────────────────
 
-test('beim Löschen einer Funktion werden alle Zuweisungen entfernt', function () {
+test('deleting a function cascades to all its pivot assignments', function () {
     $func   = ManagementFunction::create(['name' => 'Trainer']);
     $team   = Team::factory()->create();
     $member = Member::factory()->create();
@@ -120,17 +126,52 @@ test('beim Löschen einer Funktion werden alle Zuweisungen entfernt', function (
     $funcId = $func->id;
     $func->delete();
 
-    $this->assertDatabaseMissing('management_function_team',   ['role_id' => $funcId]);
-    $this->assertDatabaseMissing('management_function_member', ['role_id' => $funcId]);
-    $this->assertDatabaseMissing('management_functions',       ['id'      => $funcId]);
+    expect(\Illuminate\Support\Facades\DB::table('management_function_team')->where('role_id', $funcId)->exists())->toBeFalse();
+    expect(\Illuminate\Support\Facades\DB::table('management_function_member')->where('role_id', $funcId)->exists())->toBeFalse();
+    expect(ManagementFunction::find($funcId))->toBeNull();
 });
 
-test('das Löschen einer Funktion entfernt nicht die Mitglieder', function () {
+test('deleting a function does not delete its members', function () {
     $func   = ManagementFunction::create(['name' => 'Betreuer']);
     $member = Member::factory()->create(['last_name' => 'Bleibt']);
 
     $func->members()->attach($member->id);
     $func->delete();
 
-    $this->assertDatabaseHas('members', ['id' => $member->id, 'last_name' => 'Bleibt']);
+    expect(Member::find($member->id))->not->toBeNull();
+});
+
+// ── Activity Logging (LogsActivity, Spatie v6) ────────────────────────────────
+//
+// S20: ClubKit now has a published activity_log migration with the attribute_changes column.
+// Spatie ActivityLog v6: when attribute_changes column exists, attribute diffs are stored
+// in attribute_changes — NOT in properties. properties only holds custom data (e.g. IP).
+//
+// CORRECT:   $activity->attribute_changes['attributes']['field']
+// INCORRECT: $activity->properties['attributes']['field']   ← was wrong in S11
+
+test('creating a management function writes a created activity log entry', function () {
+    $func = ManagementFunction::create(['name' => 'Log Function']);
+
+    $activity = Activity::where('subject_type', ManagementFunction::class)
+        ->where('subject_id', $func->id)
+        ->where('event', 'created')
+        ->first();
+
+    expect($activity)->not->toBeNull();
+    expect($activity->log_name)->toBe('management');
+});
+
+test('updating a management function writes an updated activity log entry', function () {
+    $func = ManagementFunction::create(['name' => 'Original']);
+    $func->update(['name' => 'Updated']);
+
+    $activity = Activity::where('subject_type', ManagementFunction::class)
+        ->where('subject_id', $func->id)
+        ->where('event', 'updated')
+        ->first();
+
+    expect($activity)->not->toBeNull();
+    // v6 with attribute_changes column: diffs live in attribute_changes, not properties
+    expect($activity->attribute_changes['attributes']['name'])->toBe('Updated');
 });

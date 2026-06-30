@@ -1,14 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Creates the members table if it does not already exist.
+     *
+     * @return void
+     */
     public function up(): void
     {
-        // Guard: Tabelle nicht nochmal erstellen wenn sie schon existiert
+        // Guard: skip if the table already exists (idempotent re-install)
         if (Schema::hasTable('members')) {
             return;
         }
@@ -29,6 +36,9 @@ return new class extends Migration
         });
     }
 
+    /**
+     * @return void
+     */
     public function down(): void
     {
         Schema::dropIfExists('members');

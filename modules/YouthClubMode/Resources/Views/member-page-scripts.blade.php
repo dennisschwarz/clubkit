@@ -15,4 +15,4 @@
         relations:  @json($relationsJs  ?? [])
     };
 </script>
-<script src="{{ asset('js/modules/youth-club-mode.js') }}"></script>
+@vite(['resources/js/modules/youth-club-mode.js'])

@@ -6,12 +6,12 @@ use Illuminate\Support\Facades\Route;
 use Modules\CustomFields\Http\Controllers\CustomFieldDefinitionController;
 use Modules\CustomFields\Http\Controllers\CustomFieldValueController;
 
-// Hinweis: 'web'-Middleware wird bereits vom CustomFieldsServiceProvider hinzugefügt.
+// Note: 'web' middleware is already applied by CustomFieldsServiceProvider.
 Route::middleware(['auth'])->prefix('custom-fields')->name('custom-fields.')->group(function () {
 
-    // ── Feld-Definitionen (nur Admins) ────────────────────────────────────────
-    // Definitionen werden ausschließlich über die Modul-Einstellungsseite verwaltet.
-    // Der Index leitet auf admin.module-settings.index weiter.
+    // ── Field definitions (admins only) ───────────────────────────────────────
+    // Definitions are managed exclusively on the module settings page.
+    // The index route redirects to admin.module-settings.index.
 
     Route::get('/',        [CustomFieldDefinitionController::class, 'index'])
         ->name('index')
@@ -29,9 +29,9 @@ Route::middleware(['auth'])->prefix('custom-fields')->name('custom-fields.')->gr
         ->name('destroy')
         ->middleware('permission:custom-fields.manage');
 
-    // ── Feldwerte per Objekt-Typ (Nutzer mit Schreibrecht auf das jeweilige Modul) ──
-    // Das `custom-fields.manage`-Recht wird bei Modulinstallation automatisch
-    // an die admin-Rolle vergeben. Eigene Rollen können es zusätzlich erhalten.
+    // ── Field values per object type (users with write access to the module) ──
+    // The custom-fields.manage permission is automatically assigned to the admin
+    // role on module installation. Custom roles can be granted it additionally.
 
     Route::get('/values/{objectType}', [CustomFieldValueController::class, 'index'])
         ->name('values.index')

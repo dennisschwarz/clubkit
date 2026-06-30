@@ -14,6 +14,11 @@ final class CustomFieldDefinitionFactory extends Factory
 {
     protected $model = CustomFieldDefinition::class;
 
+    /**
+     * Default state: a random text/number/select/checkbox/date field for a random object type.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
         $label = $this->faker->words(2, true);
@@ -31,21 +36,42 @@ final class CustomFieldDefinitionFactory extends Factory
         ];
     }
 
+    /**
+     * Scopes the definition to the 'member' object type.
+     *
+     * @return static
+     */
     public function forMember(): static
     {
         return $this->state(['object_type' => 'member']);
     }
 
+    /**
+     * Scopes the definition to the 'team' object type.
+     *
+     * @return static
+     */
     public function forTeam(): static
     {
         return $this->state(['object_type' => 'team']);
     }
 
+    /**
+     * Creates a select field with the given option list.
+     *
+     * @param  list<string> $options
+     * @return static
+     */
     public function asSelect(array $options = ['Option A', 'Option B', 'Option C']): static
     {
         return $this->state(['field_type' => 'select', 'options' => $options]);
     }
 
+    /**
+     * Marks the field as required.
+     *
+     * @return static
+     */
     public function required(): static
     {
         return $this->state(['is_required' => true]);

@@ -1,13 +1,14 @@
 {
     "name": "Management",
     "slug": "management",
-    "version": "1.3.0",
-    "description": "Vereins-Management: Funktionen, Aufgaben, Zuweisungen und Verantwortliche. Erweitert Termine um Vereinsfunktionen.",
+    "version": "1.4.0",
+    "description": "Club management: functions, tasks, categories, assignments, and responsible persons. Extends Events with management function integration.",
     "requires": ["core", "members"],
     "tables": [
         "management_functions",
         "management_function_team",
         "management_function_member",
+        "management_task_categories",
         "management_tasks",
         "management_task_team",
         "management_task_member",

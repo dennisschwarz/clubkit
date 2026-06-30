@@ -1,31 +1,8 @@
-@php
-use Modules\CustomFields\Models\CustomFieldDefinition;
-use Modules\CustomFields\Services\CustomFieldRegistry;
-
-$cfAllDefs   = CustomFieldDefinition::orderBy('object_type')->orderBy('sort_order')->orderBy('label')->get();
-$objectTypes = CustomFieldRegistry::availableObjectTypes();
-$fieldTypes  = CustomFieldRegistry::fieldTypes();
-$cfGrouped   = $cfAllDefs->groupBy('object_type');
-
-// Data Bridge für JS
-$cfDefsJs = [];
-foreach ($cfAllDefs as $d) {
-    $cfDefsJs[$d->id] = [
-        'id'          => $d->id,
-        'object_type' => $d->object_type,
-        'label'       => $d->label,
-        'field_type'  => $d->field_type,
-        'options_raw' => $d->optionsAsText(),
-        'placeholder' => $d->placeholder ?? '',
-        'is_required' => $d->is_required,
-        'sort_order'  => $d->sort_order,
-    ];
-}
-
-$chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-  <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-</svg>';
-@endphp
+{{--
+    Hook-View: Modul-Einstellungen — Benutzerdefinierte Felder
+    Daten werden per View Composer in CustomFieldsServiceProvider bereitgestellt:
+    $cfAllDefs, $cfGrouped, $objectTypes, $fieldTypes, $cfDefsJs
+--}}
 
 <x-ck-card class="ck-mb-5">
 
@@ -68,8 +45,11 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                     </span>
                 </div>
 
-                <span class="ck-accordion-chevron ck-accordion-chevron--open"
-                      id="{{ $chevronId }}">{!! $chevronSvg !!}</span>
+                <span class="ck-accordion-chevron ck-accordion-chevron--open" id="{{ $chevronId }}">
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </span>
             </div>
 
             <div id="{{ $bodyId }}">
@@ -198,5 +178,5 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
         }
     };
 </script>
-<script src="{{ asset('js/modules/custom-fields-modal.js') }}"></script>
+@vite(['resources/js/modules/custom-fields-modal.js'])
 @endpush

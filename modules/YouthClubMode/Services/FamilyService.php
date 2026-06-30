@@ -7,25 +7,25 @@ namespace Modules\YouthClubMode\Services;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * Berechnet Familiendaten für Mitglieder aus dem MemberRelation-Set.
+ * Computes family data for members from a MemberRelation collection snapshot.
  *
- * Die Klasse hat keinen DB-Zugriff – sie transformiert nur einen bereits
- * geladenen Collection-Snapshot. So kann sie in Tests ohne DB verwendet werden.
+ * This service has no database access – it transforms an already-loaded
+ * collection. This keeps it fully testable without a database connection.
  *
- * Beziehungstypen im DB-Schema:
- *   primary_member_id   = Elternteil (oder linkes Geschwisterkind)
- *   secondary_member_id = Kind (oder rechtes Geschwisterkind)
+ * Database storage convention:
+ *   primary_member_id   = parent (or canonical left-side sibling)
+ *   secondary_member_id = child  (or canonical right-side sibling)
  *   relationship        = 'father' | 'mother' | 'sibling'
  */
 class FamilyService
 {
     /**
-     * Familiendaten für ein einzelnes Mitglied berechnen.
+     * Builds the family data structure for a single member.
      *
      * @param  int        $memberId
-     * @param  Collection $allRelations   Vollständige MemberRelation-Collection (ungepaginiert)
-     * @param  array      $allMembersJs   [id => ['id', 'name', 'gender', 'date_of_birth']]
-     * @return array{father: ?array, mother: ?array, children: array, siblings: array}
+     * @param  Collection $allRelations  Complete MemberRelation collection (unpaginated)
+     * @param  array<int, array{id: int, name: string, gender: string|null, date_of_birth: string|null}>  $allMembersJs
+     * @return array{father: array|null, mother: array|null, children: array, siblings: array}
      */
     public function buildFamilyData(int $memberId, Collection $allRelations, array $allMembersJs): array
     {
@@ -36,7 +36,7 @@ class FamilyService
             $sid = $r->secondary_member_id;
             $rel = $r->relationship;
 
-            // Dieses Mitglied ist das KIND – das primary-Mitglied ist der Elternteil
+            // This member is the CHILD – the primary member is the parent
             if ($sid === $memberId && $rel === 'father') {
                 $family['father'] = [
                     'relation_id' => $r->id,
@@ -53,17 +53,17 @@ class FamilyService
                 ];
             }
 
-            // Dieses Mitglied ist ELTERNTEIL – secondary ist das Kind
+            // This member is the PARENT – secondary is the child
             if ($pid === $memberId && in_array($rel, ['father', 'mother'], true)) {
                 $family['children'][] = [
                     'relation_id'     => $r->id,
                     'id'              => $sid,
                     'name'            => $allMembersJs[$sid]['name'] ?? '?',
-                    'parent_relation' => $rel, // was dieses Mitglied für das Kind ist
+                    'parent_relation' => $rel, // what this member is to the child
                 ];
             }
 
-            // Geschwister (kanonische Form: niedrigere ID = primary; beide Richtungen prüfen)
+            // Siblings (canonical form: lower ID = primary; check both directions)
             if ($rel === 'sibling' && ($pid === $memberId || $sid === $memberId)) {
                 $otherId = $pid === $memberId ? $sid : $pid;
                 $family['siblings'][] = [
@@ -78,8 +78,7 @@ class FamilyService
     }
 
     /**
-     * Leeres Familien-Array als Grundstruktur.
-     * Wird verwendet wenn noch keine Verbindungen existieren.
+     * Returns the empty family structure used when no relations exist.
      *
      * @return array{father: null, mother: null, children: array, siblings: array}
      */

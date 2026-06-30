@@ -9,30 +9,30 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     {{-- ══════════════════════════════════════════════════════════════
-         Dynamische CSS-Variablen aus der settings-Tabelle.
-         id="ck-dynamic-css" → wird von appearance-modal.js gelesen
-         und bei AJAX-Speichern aktualisiert (kein el.style.*, kein Reload).
+         Dynamic CSS variables from the settings table.
+         id="ck-dynamic-css" is read by appearance-modal.js and updated
+         on AJAX save without requiring a full page reload.
     ══════════════════════════════════════════════════════════════ --}}
     @php $s = $ckSettings ?? []; @endphp
     <style id="ck-dynamic-css">
     :root {
-        /* Brand-Bar */
+        /* Brand bar */
         --ck-brand-bar-bg:          {{ $s['header_bg']           ?? '#0a1628' }};
         --ck-brand-bar-text:        {{ $s['brand_bar_text']      ?? '#ffffff' }};
         --ck-brand-bar-hover:       {{ $s['brand_bar_hover']     ?? '#e2e8f0' }};
-        /* Navigationsleiste */
+        /* Navigation bar */
         --ck-nav-bar-bg:            {{ $s['nav_bar_bg']          ?? '#132238' }};
         --ck-nav-bar-text:          {{ $s['nav_bar_text']        ?? '#a0aec0' }};
         --ck-nav-bar-hover:         {{ $s['nav_bar_hover']       ?? '#e2e8f0' }};
         --ck-nav-bar-active-bar:    {{ $s['nav_bar_active_bar']  ?? '#60a5fa' }};
         --ck-nav-bar-font-size:     {{ ($s['nav_bar_font_size']  ?? '14') }}px;
-        /* Sub-Tab-Leiste */
+        /* Sub-tab bar */
         --ck-subtab-bg:             {{ $s['subtab_bg']           ?? '#ffffff' }};
         --ck-subtab-text:           {{ $s['subtab_text']         ?? '#64748b' }};
         --ck-subtab-hover:          {{ $s['subtab_hover']        ?? '#1e293b' }};
         --ck-subtab-active-bar:     {{ $s['subtab_active_bar']   ?? '#60a5fa' }};
         --ck-subtab-font-size:      {{ ($s['subtab_font_size']   ?? '14') }}px;
-        /* Allgemein */
+        /* General */
         --ck-bg:                    {{ $s['body_bg']             ?? '#f0f3f8' }};
     }
     </style>
@@ -57,7 +57,7 @@
 ══════════════════════════════════════════════════════════════ --}}
 <div class="ck-header">
 
-    {{-- Zeile 1: Brand-Bar --}}
+    {{-- Row 1: brand bar --}}
     <div class="ck-brand-bar">
         <a href="{{ route('dashboard') }}" class="ck-header__brand">
             <div class="ck-header__logo">
@@ -82,7 +82,7 @@
         </div>
     </div>
 
-    {{-- Zeile 2: Nav-Bar --}}
+    {{-- Row 2: main navigation bar --}}
     <div class="ck-nav-bar">
         <div class="ck-nav-bar__inner">
             <div class="ck-nav-bar__left">
@@ -112,7 +112,7 @@
 
 </div>
 
-{{-- Sub-Tabs --}}
+{{-- Admin sub-tab bar --}}
 @if($hasSubtabs)
 <div class="ck-subtabbar-wrap">
     <nav class="ck-subtabbar">
@@ -140,6 +140,10 @@
            class="ck-subtab {{ request()->routeIs('admin.module-settings.*') ? 'ck-subtab--active' : '' }}">
             {{ $showSubEmojis ? '🔧 ' : '' }}Modul-Einstellungen
         </a>
+        <a href="{{ route('admin.activity-log.index') }}"
+           class="ck-subtab {{ request()->routeIs('admin.activity-log.*') ? 'ck-subtab--active' : '' }}">
+            {{ $showSubEmojis ? '📋 ' : '' }}Aktivitätsprotokoll
+        </a>
     </nav>
 </div>
 @endif
@@ -165,19 +169,19 @@
 
 {{-- ══════════════════════════════════════════════════════════════
      MODAL ROOT
-     Alle .ck-modal-overlay Elemente werden per JS hierher
-     teleportiert (app.js: ckTeleportModals). Dadurch liegen sie
-     direkt unter <body> – kein Stacking-Context-Problem mehr.
+     All .ck-modal-overlay elements are teleported here by app.js
+     so they sit above all page content in the DOM stacking context.
 ══════════════════════════════════════════════════════════════ --}}
 <div id="ck-modal-root"></div>
 
 {{-- ══════════════════════════════════════════════════════════════
      LOADING OVERLAY
-     Wird per JS eingeblendet sobald ein Formular abgeschickt wird.
-     Verhindert Doppelklicks und gibt visuelles Feedback.
+     CSS: resources/css/components/modals.css → .ck-loading-overlay
+     JS:  resources/js/app.js → showLoading() / pageshow
+     Both id and class are required: id for JS lookup, class for CSS.
 ══════════════════════════════════════════════════════════════ --}}
-<div id="ck-loading-overlay" class="ck-loading-overlay" aria-hidden="true">
-    <div class="ck-loading-spinner" role="status" aria-label="Wird geladen…"></div>
+<div id="ck-loading-overlay" class="ck-loading-overlay">
+    <div class="ck-loading-spinner"></div>
 </div>
 
 </body>

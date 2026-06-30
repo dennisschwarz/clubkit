@@ -142,7 +142,7 @@
         upsertBase: "{{ url('custom-fields/values/' . $objectType) }}"
     };
 </script>
-<script src="{{ asset('js/modules/custom-fields-modal.js') }}"></script>
+@vite(['resources/js/modules/custom-fields-modal.js'])
 @endpush
 
 @endsection

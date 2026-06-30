@@ -6,29 +6,42 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Creates the member_relations table.
+ *
+ * Stores family relationships between two club members in canonical form:
+ *   primary_member_id   = parent (or lower-ID sibling)
+ *   secondary_member_id = child  (or higher-ID sibling)
+ *   relationship        = 'father' | 'mother' | 'sibling'
+ *
+ * cascadeOnDelete on both member FKs: a relation without either member is meaningless.
+ * created_by uses nullOnDelete so deleting a user does not erase relation history.
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('member_relations')) return;
+        if (Schema::hasTable('member_relations')) {
+            return;
+        }
 
         Schema::create('member_relations', function (Blueprint $table) {
             $table->id();
 
-            // Elternteil (bei 'father'/'mother') oder erster Geschwisterteil (bei 'sibling')
+            // Parent (for 'father'/'mother') or canonical left-side sibling (for 'sibling')
             $table->foreignId('primary_member_id')
                   ->constrained('members')
                   ->cascadeOnDelete();
 
-            // Kind (bei 'father'/'mother') oder zweiter Geschwisterteil (bei 'sibling')
+            // Child (for 'father'/'mother') or canonical right-side sibling (for 'sibling')
             $table->foreignId('secondary_member_id')
                   ->constrained('members')
                   ->cascadeOnDelete();
 
-            // 'father' | 'mother' | 'sibling'
+            // Relationship type: 'father' | 'mother' | 'sibling'
             $table->string('relationship', 20);
 
-            // Wer hat den Eintrag angelegt (System-Nutzer, nullable)
+            // Who created this record (nullable – deleting a user must not erase relations)
             $table->foreignId('created_by')
                   ->nullable()
                   ->constrained('users')
@@ -36,7 +49,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            // Kein identisches Duplikat (primary, secondary, relationship)
+            // No identical duplicates (primary, secondary, relationship)
             $table->unique(
                 ['primary_member_id', 'secondary_member_id', 'relationship'],
                 'uniq_member_relation'

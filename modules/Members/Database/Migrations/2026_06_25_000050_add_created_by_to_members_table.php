@@ -7,13 +7,16 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Fügt created_by zur members-Tabelle hinzu.
+ * Adds the created_by foreign key to the members table.
  *
- * Guard: Spalte wird nur hinzugefügt wenn sie noch nicht existiert
- * (idempotent bei mehrfachem migrate).
+ * Guard: the column is only added when it does not already exist
+ * (idempotent on repeated migrate runs).
  */
 return new class extends Migration
 {
+    /**
+     * @return void
+     */
     public function up(): void
     {
         if (!Schema::hasTable('members') || Schema::hasColumn('members', 'created_by')) {
@@ -29,6 +32,9 @@ return new class extends Migration
         });
     }
 
+    /**
+     * @return void
+     */
     public function down(): void
     {
         if (!Schema::hasTable('members') || !Schema::hasColumn('members', 'created_by')) {

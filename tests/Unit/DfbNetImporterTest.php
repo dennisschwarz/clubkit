@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 use Modules\Import\Importers\DfbNetImporter;
 use Modules\Import\MemberData;
 
 uses(Tests\TestCase::class);
 
-// ── Hilfsfunktion: DFBnet-CSV als UTF-8 String ──────────────────────────────
-
+// Helper: DFBnet CSV as UTF-8 string
 function dfbnetCsvUtf8(): string
 {
     return implode("\n", [
@@ -17,7 +18,7 @@ function dfbnetCsvUtf8(): string
     ]) . "\n";
 }
 
-// Windows-1252 enkodierter CSV-String für Encoding-Tests
+// Windows-1252 encoded CSV string for encoding tests
 function dfbnetCsvWindows1252(): string
 {
     return mb_convert_encoding(dfbnetCsvUtf8(), 'Windows-1252', 'UTF-8');
@@ -77,7 +78,7 @@ test('getRawRows konvertiert windows-1252 encoding zu utf-8', function () {
     $importer = new DfbNetImporter();
     $rows     = $importer->getRawRows(dfbnetCsvWindows1252());
 
-    // 'Müller' enthält Umlaut – muss korrekt als UTF-8 ankommen
+    // 'Müller' contains an umlaut – must arrive correctly as UTF-8
     expect($rows[1][0])->toBe('Müller');
 });
 
@@ -85,13 +86,12 @@ test('getRawRows trimmt leerzeichen aus spalten', function () {
     $importer = new DfbNetImporter();
     $rows     = $importer->getRawRows(dfbnetCsvWindows1252());
 
-    // 'Akhabach ' hat trailing space im Original
+    // 'Akhabach ' has a trailing space in the original
     expect($rows[0][0])->toBe('Akhabach');
 });
 
 test('getRawRows ignoriert leere zeilen', function () {
     $csv = dfbnetCsvUtf8() . "\n\n   \n";
-    // Windows-1252 Konvertierung für diesen Test ggf. überspringen
     $importer = new DfbNetImporter();
     $rows     = $importer->getRawRows(mb_convert_encoding($csv, 'Windows-1252', 'UTF-8'));
 
@@ -128,7 +128,7 @@ test('applyMapping erstellt korrektes memberdto', function () {
     expect($dto->date_of_birth)->toBe('2012-09-08');
     expect($dto->gender)->toBe('female');
     expect($dto->pass_number)->toBe('0765-0056');
-    expect($dto->eligible_to_play)->toBeTrue();
+    expect($dto->eligible_to_play_date)->toBe('2025-07-08');
     expect($dto->status)->toBe('active');
 });
 
@@ -148,7 +148,7 @@ test('applyMapping entfernt rufname-klammer aus vorname', function () {
     $rows     = $importer->getRawRows(dfbnetCsvWindows1252());
     $mapping  = $importer->getSuggestedMapping();
 
-    // Zeile 1: 'Anna Maria (w)' → 'Anna Maria'
+    // Row 1: 'Anna Maria (w)' → 'Anna Maria'
     $dto = $importer->applyMapping($rows[1], $headers, $mapping);
     expect($dto->first_name)->toBe('Anna Maria');
 });
@@ -169,7 +169,7 @@ test('applyMapping setzt pass_number auf null wenn leer', function () {
     $rows     = $importer->getRawRows(dfbnetCsvWindows1252());
     $mapping  = $importer->getSuggestedMapping();
 
-    // Zeile 2: Yilmaz hat keine Passnummer
+    // Row 2: Yilmaz has no pass number
     $dto = $importer->applyMapping($rows[2], $headers, $mapping);
     expect($dto->pass_number)->toBeNull();
 });
@@ -181,7 +181,7 @@ test('applyMapping überspringt spalten mit skip-mapping', function () {
     $mapping  = [
         'Name Künstlername' => 'last_name',
         'Vorname Rufname'   => 'first_name',
-        'Geb.'              => 'skip',        // Datum überspringen
+        'Geb.'              => 'skip',        // skip the date
         'Passnummer'        => 'pass_number',
     ];
 
@@ -189,7 +189,71 @@ test('applyMapping überspringt spalten mit skip-mapping', function () {
 
     expect($dto->last_name)->toBe('Muster');
     expect($dto->first_name)->toBe('Max');
-    expect($dto->date_of_birth)->toBeNull();  // übersprungen
+    expect($dto->date_of_birth)->toBeNull();  // skipped
     expect($dto->pass_number)->toBe('1234-5678');
     expect($dto->gender)->toBe('male');
+});
+
+// ── parseEligibleDate() – tested via applyMapping() ───────────────────────────
+// parseEligibleDate() is private. Tests cover all parsing paths via applyMapping().
+
+test('parseEligibleDate: vollständiges dfbnet-format P+F-datum extrahiert F-datum', function () {
+    $importer = new DfbNetImporter();
+    $headers  = ['Spielrecht ab'];
+    $mapping  = ['Spielrecht ab' => 'eligible_to_play_date'];
+
+    $dto = $importer->applyMapping(['P 08.07.2025 F 15.03.2026'], $headers, $mapping);
+
+    // F-date (release date) is authoritative, not P-date
+    expect($dto->eligible_to_play_date)->toBe('2026-03-15');
+});
+
+test('parseEligibleDate: nur F-datum ohne P-datum wird erkannt', function () {
+    $importer = new DfbNetImporter();
+    $headers  = ['Spielrecht ab'];
+    $mapping  = ['Spielrecht ab' => 'eligible_to_play_date'];
+
+    $dto = $importer->applyMapping(['F 20.08.2025'], $headers, $mapping);
+
+    expect($dto->eligible_to_play_date)->toBe('2025-08-20');
+});
+
+test('parseEligibleDate: direktes dd.mm.yyyy format (fallback für andere quellen)', function () {
+    $importer = new DfbNetImporter();
+    $headers  = ['Spielrecht ab'];
+    $mapping  = ['Spielrecht ab' => 'eligible_to_play_date'];
+
+    $dto = $importer->applyMapping(['15.03.2026'], $headers, $mapping);
+
+    expect($dto->eligible_to_play_date)->toBe('2026-03-15');
+});
+
+test('parseEligibleDate: bereits yyyy-mm-dd format wird durchgereicht', function () {
+    $importer = new DfbNetImporter();
+    $headers  = ['Spielrecht ab'];
+    $mapping  = ['Spielrecht ab' => 'eligible_to_play_date'];
+
+    $dto = $importer->applyMapping(['2026-03-15'], $headers, $mapping);
+
+    expect($dto->eligible_to_play_date)->toBe('2026-03-15');
+});
+
+test('parseEligibleDate: leerer string ergibt null', function () {
+    $importer = new DfbNetImporter();
+    $headers  = ['Spielrecht ab'];
+    $mapping  = ['Spielrecht ab' => 'eligible_to_play_date'];
+
+    $dto = $importer->applyMapping([''], $headers, $mapping);
+
+    expect($dto->eligible_to_play_date)->toBeNull();
+});
+
+test('parseEligibleDate: ungültiges format ergibt null', function () {
+    $importer = new DfbNetImporter();
+    $headers  = ['Spielrecht ab'];
+    $mapping  = ['Spielrecht ab' => 'eligible_to_play_date'];
+
+    $dto = $importer->applyMapping(['kein datum'], $headers, $mapping);
+
+    expect($dto->eligible_to_play_date)->toBeNull();
 });

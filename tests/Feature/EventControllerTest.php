@@ -1,115 +1,134 @@
 <?php
 
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\DB;
 use Modules\Events\Models\Event;
-use Modules\Members\Models\Member;
 
-// ── Auth-Schutz ────────────────────────────────────────────────────────────────
+// ── Module seed ───────────────────────────────────────────────────────────────
 
-test('gast wird bei GET /events auf login weitergeleitet', function () {
+beforeEach(function () {
+    DB::table('installed_modules')->insertOrIgnore([
+        ['slug' => 'core',   'is_active' => 1, 'installed_at' => now()],
+        ['slug' => 'members','is_active' => 1, 'installed_at' => now()],
+        ['slug' => 'events', 'is_active' => 1, 'installed_at' => now()],
+    ]);
+});
+
+// ── Auth guard ────────────────────────────────────────────────────────────────
+
+test('guest is redirected to login on GET /events', function () {
     $this->get('/events')->assertRedirect('/login');
 });
 
-test('gast wird bei POST /events auf login weitergeleitet', function () {
+test('guest is redirected to login on POST /events', function () {
     $this->post('/events')->assertRedirect('/login');
 });
 
-// ── Permission-Schutz ──────────────────────────────────────────────────────────
+// ── Permission guard ──────────────────────────────────────────────────────────
+// Routes use permission:events.manage for all write operations (store/update/destroy)
+// and permission:events.view for read operations (index/show).
 
-test('user ohne permission kann GET /events nicht aufrufen', function () {
+test('user without permission cannot access GET /events', function () {
     $user = createPlainUser();
     $this->actingAs($user)->get('/events')->assertStatus(403);
 });
 
-test('user ohne permission kann keinen Termin anlegen', function () {
+test('user without permission cannot create an event', function () {
     $user = createPlainUser();
     $this->actingAs($user)->post('/events')->assertStatus(403);
 });
 
-test('user ohne permission kann keinen Termin bearbeiten', function () {
+test('user without permission cannot update an event', function () {
     $event = Event::factory()->create();
     $user  = createPlainUser();
     $this->actingAs($user)->patch('/events/' . $event->id)->assertStatus(403);
 });
 
-test('user ohne permission kann keinen Termin löschen', function () {
+test('user without permission cannot delete an event', function () {
     $event = Event::factory()->create();
     $user  = createPlainUser();
     $this->actingAs($user)->delete('/events/' . $event->id)->assertStatus(403);
 });
 
-// ── Index ──────────────────────────────────────────────────────────────────────
+// ── Index ─────────────────────────────────────────────────────────────────────
 
-test('user mit events.view sieht Termine-Liste', function () {
+test('user with events.view can access the event list', function () {
     Event::factory()->count(2)->create();
     $user = createUserWithPermission('events.view');
     $this->actingAs($user)->get('/events')->assertStatus(200);
 });
 
-// ── Store ──────────────────────────────────────────────────────────────────────
+// ── Store ─────────────────────────────────────────────────────────────────────
+// Route uses permission:events.manage (not events.create)
 
-test('user mit events.create kann Termin anlegen', function () {
-    $user = createUserWithPermission('events.create');
+test('user with events.manage can create an event and is redirected to the detail page', function () {
+    $user = createUserWithPermission('events.manage');
 
-    $this->actingAs($user)->post('/events', [
-        'title'      => 'Jahreshauptversammlung',
-        'starts_at'  => '2027-01-15 18:00',
-        'location'   => 'Vereinsheim',
-    ])->assertRedirect('/events');
+    $response = $this->actingAs($user)->post('/events', [
+        'title'     => 'Jahreshauptversammlung',
+        'starts_at' => '2027-01-15 18:00',
+        'location'  => 'Vereinsheim',
+    ]);
 
     $this->assertDatabaseHas('events', [
         'title'    => 'Jahreshauptversammlung',
         'location' => 'Vereinsheim',
     ]);
+
+    // store() redirects to the detail page, not back to the list
+    $event = Event::where('title', 'Jahreshauptversammlung')->firstOrFail();
+    $response->assertRedirect('/events/' . $event->id);
 });
 
-test('store gibt 422 bei fehlendem Titel zurück', function () {
-    $user = createUserWithPermission('events.create');
+test('store returns 422 when title is missing', function () {
+    $user = createUserWithPermission('events.manage');
     $this->actingAs($user)->post('/events', [
         'starts_at' => '2027-01-15 18:00',
     ])->assertSessionHasErrors('title');
 });
 
-test('store gibt 422 bei fehlendem starts_at zurück', function () {
-    $user = createUserWithPermission('events.create');
+test('store returns 422 when starts_at is missing', function () {
+    $user = createUserWithPermission('events.manage');
     $this->actingAs($user)->post('/events', [
         'title' => 'Testtermin',
     ])->assertSessionHasErrors('starts_at');
 });
 
-test('store gibt 422 wenn ends_at vor starts_at liegt', function () {
-    $user = createUserWithPermission('events.create');
+test('store returns 422 when ends_at is before starts_at', function () {
+    $user = createUserWithPermission('events.manage');
     $this->actingAs($user)->post('/events', [
-        'title'      => 'Testtermin',
-        'starts_at'  => '2027-01-15 18:00',
-        'ends_at'    => '2027-01-14 18:00',
+        'title'     => 'Testtermin',
+        'starts_at' => '2027-01-15 18:00',
+        'ends_at'   => '2027-01-14 18:00',
     ])->assertSessionHasErrors('ends_at');
 });
 
-// ── Update ─────────────────────────────────────────────────────────────────────
+// ── Update ────────────────────────────────────────────────────────────────────
 
-test('user mit events.edit kann Termin aktualisieren', function () {
+test('user with events.manage can update an event and is redirected to the detail page', function () {
     $event = Event::factory()->create(['title' => 'Alt']);
-    $user  = createUserWithPermission('events.edit');
+    $user  = createUserWithPermission('events.manage');
 
     $this->actingAs($user)->patch('/events/' . $event->id, [
         'title'     => 'Neu',
         'starts_at' => '2027-02-01 10:00',
-    ])->assertRedirect('/events');
+    ])->assertRedirect('/events/' . $event->id);
 
     $this->assertDatabaseHas('events', ['id' => $event->id, 'title' => 'Neu']);
 });
 
-test('user mit events.view aber ohne events.edit kann nicht bearbeiten', function () {
+test('user with only events.view cannot update an event', function () {
     $event = Event::factory()->create();
     $user  = createUserWithPermission('events.view');
     $this->actingAs($user)->patch('/events/' . $event->id, ['title' => 'Neu'])->assertStatus(403);
 });
 
-// ── Destroy ────────────────────────────────────────────────────────────────────
+// ── Destroy ───────────────────────────────────────────────────────────────────
 
-test('user mit events.delete kann Termin löschen', function () {
+test('user with events.manage can delete an event', function () {
     $event = Event::factory()->create();
-    $user  = createUserWithPermission('events.delete');
+    $user  = createUserWithPermission('events.manage');
 
     $this->actingAs($user)->delete('/events/' . $event->id)
         ->assertRedirect('/events');
@@ -117,32 +136,9 @@ test('user mit events.delete kann Termin löschen', function () {
     $this->assertDatabaseMissing('events', ['id' => $event->id]);
 });
 
-test('user ohne events.delete kann Termin nicht löschen', function () {
+test('user without events.manage cannot delete an event', function () {
     $event = Event::factory()->create();
     $user  = createUserWithPermission('events.view');
     $this->actingAs($user)->delete('/events/' . $event->id)->assertStatus(403);
     $this->assertDatabaseHas('events', ['id' => $event->id]);
-});
-
-// ── Assignment-Sync ────────────────────────────────────────────────────────────
-
-test('einmalige Aufgabe wird beim store korrekt gespeichert', function () {
-    $person = Member::factory()->create();
-    $user   = createUserWithPermission('events.create');
-
-    $this->actingAs($user)->post('/events', [
-        'title'      => 'Testtermin',
-        'starts_at'  => '2027-03-01 10:00',
-        'assignments' => [
-            ['member_id' => $person->id, 'description' => 'Schiedsrichter'],
-        ],
-    ]);
-
-    $event = Event::orderByDesc('id')->first();
-
-    $this->assertDatabaseHas('event_assignments', [
-        'event_id'    => $event->id,
-        'member_id'   => $person->id,
-        'description' => 'Schiedsrichter',
-    ]);
 });

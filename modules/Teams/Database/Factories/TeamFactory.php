@@ -14,6 +14,11 @@ final class TeamFactory extends Factory
 {
     protected $model = Team::class;
 
+    /**
+     * Default state: active, non-competition team without eligibility restriction.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
         return [
@@ -29,11 +34,21 @@ final class TeamFactory extends Factory
         ];
     }
 
+    /**
+     * Creates a competition team that requires playing eligibility for all members.
+     *
+     * @return static
+     */
     public function competition(): static
     {
         return $this->state(['is_competition' => true, 'eligible_only' => true]);
     }
 
+    /**
+     * Creates a team with is_active = false.
+     *
+     * @return static
+     */
     public function inactive(): static
     {
         return $this->state(['is_active' => false]);

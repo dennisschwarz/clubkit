@@ -1,0 +1,212 @@
+/* ── Treasury Module ──────────────────────────────────────────────────────── */
+
+/* ── Amount colour indicators ─────────────────────────────────────────────── */
+
+.ck-amount--income {
+    color: var(--ck-success);
+    font-weight: 600;
+}
+
+.ck-amount--expense {
+    color: var(--ck-danger);
+    font-weight: 600;
+}
+
+/* ── Stats row (Zusammenfassung top) ──────────────────────────────────────── */
+
+.ck-stats-row {
+    display: flex;
+    gap: var(--ck-space-4);
+    flex-wrap: wrap;
+}
+
+.ck-stat-card {
+    flex: 1 1 160px;
+    min-width: 160px;
+    padding: var(--ck-space-4) var(--ck-space-5);
+    border-radius: var(--ck-radius);
+    border: 1px solid var(--ck-border);
+    background: var(--ck-surface);
+}
+
+.ck-stat-card__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ck-text-muted);
+    margin-bottom: var(--ck-space-1);
+}
+
+.ck-stat-card__value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ck-text);
+}
+
+.ck-stat-card--green  { border-left: 4px solid var(--ck-success); }
+.ck-stat-card--red    { border-left: 4px solid var(--ck-danger);  }
+.ck-stat-card--blue   { border-left: 4px solid var(--ck-info);    }
+.ck-stat-card--orange { border-left: 4px solid var(--ck-warning); }
+
+/* ── Zusammenfassung: account selector ────────────────────────────────────── */
+
+.ck-summary-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--ck-space-3);
+}
+
+.ck-summary-selector__select {
+    min-width: 220px;
+}
+
+/* ── Buchungen: toolbar row (filter + button) ─────────────────────────────── */
+
+.ck-buchungen-toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--ck-space-3);
+    flex-wrap: wrap;
+}
+
+.ck-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ck-space-2);
+    align-items: flex-end;
+    flex: 1;
+}
+
+/* ── Buchungen: 50 / 50 split layout ──────────────────────────────────────── */
+
+.ck-buchungen-split {
+    display: flex;
+    gap: var(--ck-space-4);
+    align-items: flex-start;
+}
+
+.ck-buchungen-col {
+    flex: 1;
+    min-width: 0; /* prevent table overflow */
+    border-radius: var(--ck-radius);
+    border: 1px solid var(--ck-border);
+    overflow: hidden;
+}
+
+/* Coloured top border per type */
+.ck-buchungen-col--income {
+    border-top: 3px solid var(--ck-success);
+}
+
+.ck-buchungen-col--expense {
+    border-top: 3px solid var(--ck-danger);
+}
+
+.ck-buchungen-col__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--ck-space-3) var(--ck-space-4);
+    background: var(--ck-surface);
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--ck-border);
+}
+
+/* Table inside a column: remove outer border (column provides it) */
+.ck-buchungen-col__table {
+    border: none;
+    border-radius: 0;
+}
+
+.ck-buchungen-col__table thead th {
+    background: var(--ck-surface);
+}
+
+.ck-buchungen-col__empty {
+    padding: var(--ck-space-5) var(--ck-space-4);
+    color: var(--ck-text-muted);
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.ck-buchungen-col__more {
+    padding: var(--ck-space-2) var(--ck-space-4);
+    font-size: 0.75rem;
+    color: var(--ck-text-muted);
+    border-top: 1px solid var(--ck-border);
+    background: var(--ck-surface);
+}
+
+/* Mobile: stack columns vertically */
+@media (max-width: 900px) {
+    .ck-buchungen-split {
+        flex-direction: column;
+    }
+
+    .ck-buchungen-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* ── Contribution progress bar ────────────────────────────────────────────── */
+
+.ck-contribution-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--ck-space-3);
+    padding: var(--ck-space-2) 0;
+}
+
+.ck-progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--ck-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/*
+ * Width is driven by data-width attribute set by JS.
+ * Values map to fixed CSS steps to avoid any el.style.width usage.
+ */
+.ck-progress-bar__fill {
+    height: 100%;
+    background: var(--ck-success);
+    border-radius: 4px;
+    width: 0%;
+}
+
+.ck-progress-bar__fill[data-width="0"]   { width:   0%; }
+.ck-progress-bar__fill[data-width="5"]   { width:   5%; }
+.ck-progress-bar__fill[data-width="10"]  { width:  10%; }
+.ck-progress-bar__fill[data-width="20"]  { width:  20%; }
+.ck-progress-bar__fill[data-width="25"]  { width:  25%; }
+.ck-progress-bar__fill[data-width="33"]  { width:  33%; }
+.ck-progress-bar__fill[data-width="40"]  { width:  40%; }
+.ck-progress-bar__fill[data-width="50"]  { width:  50%; }
+.ck-progress-bar__fill[data-width="60"]  { width:  60%; }
+.ck-progress-bar__fill[data-width="67"]  { width:  67%; }
+.ck-progress-bar__fill[data-width="75"]  { width:  75%; }
+.ck-progress-bar__fill[data-width="80"]  { width:  80%; }
+.ck-progress-bar__fill[data-width="90"]  { width:  90%; }
+.ck-progress-bar__fill[data-width="100"] { width: 100%; }
+
+/* ── Shared helper ────────────────────────────────────────────────────────── */
+
+.ck-empty-state--small {
+    padding: var(--ck-space-3) 0;
+    font-size: 0.875rem;
+    color: var(--ck-text-muted);
+}
+
+/*
+ * Toggled by JS via classList.add/remove — never via el.style.
+ * Also used by the account team section in the modal.
+ */
+.is-hidden {
+    display: none !important;
+}

@@ -3,129 +3,186 @@
 @section('title', 'Module')
 
 @section('content')
-<div class="space-y-6">
 
+<div class="ck-page-header">
     <div>
-        <h1 style="font-size:22px; font-weight:800; color:#1e293b;">Module</h1>
-        <p style="font-size:13px; color:#94a3b8; margin-top:4px;">
-            Installierte und verfügbare Module verwalten.
-        </p>
+        <h1 class="ck-page-title">Module</h1>
+        <p class="ck-page-subtitle">Installierte und verfügbare Module verwalten.</p>
+    </div>
+</div>
+
+{{-- Installierte Module --}}
+<div>
+    <div class="ck-section-label ck-mb-3">
+        Installiert ({{ count($installed) }})
     </div>
 
-    <!-- Installierte Module -->
-    <div>
-        <div style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px;">
-            Installiert ({{ count($installed) }})
-        </div>
-
-        @forelse($installed as $slug => $module)
-        <div style="background:white; border:1px solid #e2e8f0; border-left:4px solid {{ $module->is_active ? '#1a6fc4' : '#94a3b8' }}; border-radius:12px; padding:16px; margin-bottom:10px;">
-            <div style="display:flex; align-items:flex-start; gap:14px;">
-                <div style="flex:1; min-width:0;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                        <span style="font-size:15px; font-weight:700; color:#1e293b;">{{ $module->name }}</span>
-                        <span style="font-size:11px; color:#94a3b8;">v{{ $module->version }}</span>
-                        @if($module->is_active)
-                            <span style="background:#dcfce7; color:#166534; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">Aktiv</span>
-                        @else
-                            <span style="background:#f1f5f9; color:#64748b; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">Inaktiv</span>
-                        @endif
-                        @if($slug === 'core')
-                            <span style="background:#dbeafe; color:#1d4ed8; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">Pflicht</span>
-                        @endif
-                    </div>
-                    <div style="font-size:12px; color:#64748b;">
-                        Installiert: {{ \Carbon\Carbon::parse($module->installed_at)->format('d.m.Y H:i') }}
-                    </div>
-                </div>
-
-                @if($slug !== 'core')
-                <div style="display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap;">
+    @forelse($installed as $slug => $module)
+    <div class="ck-module-card {{ $module->is_active ? 'ck-module-card--active' : 'ck-module-card--inactive' }}">
+        <div class="ck-module-card__header">
+            <div class="ck-module-card__info">
+                <div class="ck-module-card__title-row">
+                    <span class="ck-module-card__name">{{ $module->name }}</span>
+                    <span class="ck-module-card__version">v{{ $module->version }}</span>
                     @if($module->is_active)
-                    <form method="POST" action="{{ route('admin.modules.deactivate', $slug) }}">
-                        @csrf
-                        <button type="submit"
-                                style="background:#fef3c7; color:#92400e; border:1px solid #fde047; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">
-                            Deaktivieren
-                        </button>
-                    </form>
+                        <x-ck-badge color="green">Aktiv</x-ck-badge>
                     @else
-                    <form method="POST" action="{{ route('admin.modules.activate', $slug) }}">
-                        @csrf
-                        <button type="submit"
-                                style="background:#dcfce7; color:#166534; border:1px solid #86efac; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">
-                            Aktivieren
-                        </button>
-                    </form>
+                        <x-ck-badge color="gray">Inaktiv</x-ck-badge>
                     @endif
+                    @if($slug === 'core')
+                        <x-ck-badge color="blue">Pflicht</x-ck-badge>
+                    @endif
+                </div>
+                <div class="ck-module-card__meta">
+                    Installiert: {{ \Carbon\Carbon::parse($module->installed_at)->format('d.m.Y H:i') }}
+                </div>
+            </div>
 
-                    <form method="POST" action="{{ route('admin.modules.remove', $slug) }}"
-                          onsubmit="return confirm('Modul {{ $module->name }} wirklich entfernen?\n\nAchtung: Alle Tabellen und Daten dieses Moduls werden GELÖSCHT.')">
-                        @csrf @method('DELETE')
-                        <button type="submit"
-                                style="background:#fef2f2; color:#991b1b; border:1px solid #fca5a5; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">
-                            Entfernen
-                        </button>
-                    </form>
+            @if($slug !== 'core')
+            <div class="ck-module-card__actions">
+                @if($module->is_active)
+                <form method="POST" action="{{ route('admin.modules.deactivate', $slug) }}">
+                    @csrf
+                    <x-ck-button type="submit" variant="warning" size="sm">Deaktivieren</x-ck-button>
+                </form>
+                @else
+                <form method="POST" action="{{ route('admin.modules.activate', $slug) }}">
+                    @csrf
+                    <x-ck-button type="submit" variant="secondary" size="sm">Aktivieren</x-ck-button>
+                </form>
+                @endif
+
+                {{-- Öffnet das Bestätigungs-Modal statt browser confirm() --}}
+                <x-ck-button type="button" variant="danger" size="sm"
+                    onclick="ckModuleRemoveOpen('{{ $slug }}', '{{ $module->name }}', '{{ route('admin.modules.remove', $slug) }}')">
+                    Entfernen
+                </x-ck-button>
+            </div>
+            @endif
+        </div>
+    </div>
+    @empty
+    <div class="ck-module-card__empty">
+        Keine Module installiert.
+    </div>
+    @endforelse
+</div>
+
+{{-- Verfügbare (noch nicht installierte) Module --}}
+@php
+    $notInstalled = array_filter($available, fn($slug) => !isset($installed[$slug]), ARRAY_FILTER_USE_KEY);
+@endphp
+
+@if(!empty($notInstalled))
+<div class="ck-mt-5">
+    <div class="ck-section-label ck-mb-3">
+        Verfügbar – nicht installiert ({{ count($notInstalled) }})
+    </div>
+
+    @foreach($notInstalled as $slug => $config)
+    <div class="ck-module-card ck-module-card--available">
+        <div class="ck-module-card__header">
+            <div class="ck-module-card__info">
+                <div class="ck-module-card__title-row">
+                    <span class="ck-module-card__name">{{ $config['name'] }}</span>
+                    <span class="ck-module-card__version">v{{ $config['version'] ?? '1.0.0' }}</span>
+                </div>
+                @if(!empty($config['description']))
+                <div class="ck-module-card__meta">{{ $config['description'] }}</div>
+                @endif
+                @if(!empty(array_filter($config['requires'] ?? [], fn($r) => $r !== 'core')))
+                <div class="ck-module-card__requires">
+                    Benötigt: {{ implode(', ', array_filter($config['requires'], fn($r) => $r !== 'core')) }}
                 </div>
                 @endif
             </div>
+            <form method="POST" action="{{ route('admin.modules.install', $slug) }}" class="ck-module-card__actions">
+                @csrf
+                <x-ck-button type="submit" variant="primary" size="sm">+ Installieren</x-ck-button>
+            </form>
         </div>
-        @empty
-        <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:24px; text-align:center; color:#94a3b8; font-size:13px;">
-            Keine Module installiert.
-        </div>
-        @endforelse
     </div>
+    @endforeach
+</div>
+@endif
 
-    <!-- Verfügbare (noch nicht installierte) Module -->
-    @php
-        $notInstalled = array_filter($available, fn($slug) => !isset($installed[$slug]), ARRAY_FILTER_USE_KEY);
-    @endphp
+{{-- Keine module.json gefunden --}}
+@if(empty($available))
+<div class="ck-alert ck-alert--warning">
+    ⚠️ Keine Module in <code>modules/</code> gefunden. Prüfe ob die Modul-Ordner mit <code>module.json</code> vorhanden sind.
+</div>
+@endif
 
-    @if(!empty($notInstalled))
-    <div>
-        <div style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px;">
-            Verfügbar – nicht installiert ({{ count($notInstalled) }})
+{{-- ══════════════════════════════════════════════════════════════
+     SHARED DELETE FORM
+     Action wird dynamisch durch ckModuleRemoveOpen() gesetzt.
+══════════════════════════════════════════════════════════════ --}}
+<form id="ck-module-remove-form" method="POST" action="">
+    @csrf
+    @method('DELETE')
+</form>
+
+{{-- ══════════════════════════════════════════════════════════════
+     MODULE REMOVE CONFIRM MODAL
+══════════════════════════════════════════════════════════════ --}}
+<div id="ck-module-remove-modal" class="ck-modal-overlay" onclick="ckModalClose(event, 'ck-module-remove-modal')">
+    <div class="ck-modal ck-modal--sm">
+        <div class="ck-modal__header">
+            <h2 class="ck-modal__title">🗑 Modul entfernen</h2>
         </div>
 
-        @foreach($notInstalled as $slug => $config)
-        <div style="background:white; border:1px dashed #cbd5e1; border-radius:12px; padding:16px; margin-bottom:10px;">
-            <div style="display:flex; align-items:flex-start; gap:14px;">
-                <div style="flex:1; min-width:0;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                        <span style="font-size:15px; font-weight:700; color:#1e293b;">{{ $config['name'] }}</span>
-                        <span style="font-size:11px; color:#94a3b8;">v{{ $config['version'] ?? '1.0.0' }}</span>
-                    </div>
-                    @if(!empty($config['description']))
-                    <div style="font-size:12px; color:#64748b; margin-bottom:6px;">{{ $config['description'] }}</div>
-                    @endif
-                    @if(!empty(array_filter($config['requires'] ?? [], fn($r) => $r !== 'core')))
-                    <div style="font-size:11px; color:#d97706;">
-                        Benötigt: {{ implode(', ', array_filter($config['requires'], fn($r) => $r !== 'core')) }}
-                    </div>
-                    @endif
-                </div>
-
-                <form method="POST" action="{{ route('admin.modules.install', $slug) }}" style="flex-shrink:0;">
-                    @csrf
-                    <button type="submit"
-                            style="background:#0a1628; color:white; border:none; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer;">
-                        + Installieren
-                    </button>
-                </form>
+        <div class="ck-modal__body">
+            <p class="ck-module-remove__question">
+                Modul <strong id="ck-module-remove-name"></strong> wirklich entfernen?
+            </p>
+            <div class="ck-alert ck-alert--danger">
+                ⚠️ <strong>Achtung:</strong> Alle Tabellen und Daten dieses Moduls werden
+                <strong>unwiderruflich gelöscht</strong>. Dieser Vorgang kann nicht rückgängig
+                gemacht werden.
             </div>
         </div>
-        @endforeach
-    </div>
-    @endif
 
-    <!-- Dateien vorhanden aber kein module.json -->
-    @if(empty($available))
-    <div style="background:#fef9c3; border:1px solid #fde047; border-radius:12px; padding:16px; font-size:13px; color:#854d0e;">
-        ⚠️ Keine Module in <code>modules/</code> gefunden. Prüfe ob die Modul-Ordner mit <code>module.json</code> vorhanden sind.
+        <div class="ck-modal__footer">
+            <x-ck-button variant="secondary" onclick="ckModalClose(null, 'ck-module-remove-modal')">
+                Abbrechen
+            </x-ck-button>
+            <x-ck-button variant="danger" onclick="ckModuleRemoveConfirm()">
+                Endgültig entfernen
+            </x-ck-button>
+        </div>
     </div>
-    @endif
-
 </div>
+
+@push('scripts')
+<script>
+(function () {
+    'use strict';
+
+    /**
+     * Opens the module remove confirmation modal.
+     * Sets the module name in the modal text and the DELETE route on the shared form.
+     *
+     * @param {string} slug   - Module slug
+     * @param {string} name   - Human-readable module name for the modal text
+     * @param {string} action - DELETE route to set on the form
+     */
+    window.ckModuleRemoveOpen = function (slug, name, action) {
+        document.getElementById('ck-module-remove-name').textContent = name;
+        document.getElementById('ck-module-remove-form').action = action;
+        ckModalOpen('ck-module-remove-modal');
+    };
+
+    /**
+     * Submits the shared delete form and closes the modal.
+     * The loading overlay is shown automatically by app.js' form-submit listener.
+     */
+    window.ckModuleRemoveConfirm = function () {
+        ckModalClose(null, 'ck-module-remove-modal');
+        document.getElementById('ck-module-remove-form').submit();
+    };
+
+}());
+</script>
+@endpush
+
 @endsection

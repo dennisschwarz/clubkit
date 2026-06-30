@@ -2,7 +2,7 @@
   "name": "Import",
   "slug": "import",
   "version": "1.0.0",
-  "description": "Mehrstufiger CSV-Import-Assistent für Mitgliederdaten (DFBnet, NuLiga u.a.).",
+  "description": "Multi-step CSV import wizard for member data (DFBnet, NuLiga, etc.).",
   "requires": ["members"],
   "tables": ["import_sessions", "member_external_ids", "member_import_logs"],
   "provides": {

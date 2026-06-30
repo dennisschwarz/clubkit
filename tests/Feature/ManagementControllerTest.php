@@ -1,9 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\DB;
 use Modules\Management\Models\ManagementFunction;
 use Modules\Management\Models\ManagementTask;
 
-// ── Auth-Schutz ────────────────────────────────────────────────────────────────
+beforeEach(function () {
+    DB::table('installed_modules')->insertOrIgnore([
+        ['slug' => 'core',       'is_active' => 1],
+        ['slug' => 'members',    'is_active' => 1],
+        ['slug' => 'management', 'is_active' => 1],
+    ]);
+    seedPermissions();
+});
+
+// ── Auth guard ────────────────────────────────────────────────────────────────
 
 test('gast wird bei GET /management auf login weitergeleitet', function () {
     $this->get('/management')->assertRedirect('/login');
@@ -17,7 +29,7 @@ test('gast wird bei POST /management/tasks auf login weitergeleitet', function (
     $this->post('/management/tasks')->assertRedirect('/login');
 });
 
-// ── Permission-Schutz ──────────────────────────────────────────────────────────
+// ── Permission guard ──────────────────────────────────────────────────────────
 
 test('user ohne permission kann GET /management nicht aufrufen', function () {
     $user = createPlainUser();
@@ -113,6 +125,20 @@ test('user mit management.tasks.manage kann Aufgabe anlegen', function () {
 test('store Aufgabe gibt 422 bei fehlendem Namen zurück', function () {
     $user = createUserWithPermission('management.tasks.manage');
     $this->actingAs($user)->post('/management/tasks', [])->assertSessionHasErrors('name');
+});
+
+test('store Aufgabe speichert Priorität korrekt', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $this->actingAs($user)->post('/management/tasks', [
+        'name'     => 'Wichtige Aufgabe',
+        'priority' => 'important',
+    ])->assertRedirect();
+
+    $this->assertDatabaseHas('management_tasks', [
+        'name'     => 'Wichtige Aufgabe',
+        'priority' => 'important',
+    ]);
 });
 
 // ── Aufgaben: Update ───────────────────────────────────────────────────────────

@@ -7,27 +7,27 @@ use Modules\Members\Http\Controllers\MemberController;
 
 Route::middleware(['auth'])->prefix('members')->name('members.')->group(function () {
 
-    // Mitglieder-Liste
+    // Member list
     Route::get('/',                [MemberController::class, 'index'])
         ->name('index')
         ->middleware('permission:members.view');
 
-    // Neues Mitglied anlegen
+    // Create new member
     Route::post('/',               [MemberController::class, 'store'])
         ->name('store')
         ->middleware('permission:members.create');
 
-    // Mitglied bearbeiten
+    // Update member
     Route::patch('/{member}',      [MemberController::class, 'update'])
         ->name('update')
         ->middleware('permission:members.edit');
 
-    // Profilfoto aktualisieren
+    // Update profile photo
     Route::patch('/{member}/photo', [MemberController::class, 'updatePhoto'])
         ->name('photo')
         ->middleware('permission:members.edit');
 
-    // Mitglied löschen
+    // Delete member
     Route::delete('/{member}',     [MemberController::class, 'destroy'])
         ->name('destroy')
         ->middleware('permission:members.delete');

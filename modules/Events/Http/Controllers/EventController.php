@@ -5,201 +5,140 @@ declare(strict_types=1);
 namespace Modules\Events\Http\Controllers;
 
 use App\Repositories\CustomFieldRepository;
-use App\Services\ModuleLoader;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
+use Modules\Events\Http\Requests\StoreEventRequest;
+use Modules\Events\Http\Requests\StoreEventTaskRequest;
+use Modules\Events\Http\Requests\UpdateEventRequest;
 use Modules\Events\Models\Event;
+use Modules\Events\Models\EventTaskMember;
 use Modules\Members\Models\Member;
 
+/**
+ * Handles event CRUD and the Event Detail Page.
+ *
+ * ── Architecture note ─────────────────────────────────────────────────────────
+ *
+ * Events has no direct PHP model dependencies on Management or Teams.
+ * No `use Modules\Management\...` or `use Modules\Teams\...` in this file.
+ *
+ * Cross-module wiring runs through the hook system:
+ *   ManagementServiceProvider → tasks panel, JS data, assignment column
+ *   TeamsServiceProvider      → teams column, teams panel
+ *
+ * AJAX endpoints (completeTask, addTask, removeTask) use DB::table() directly
+ * on the Events-owned tables event_task and event_task_member.
+ * The {task} route parameter is an integer — no ManagementTask route-model binding.
+ *
+ * ── View data for optional modules ───────────────────────────────────────────
+ *
+ * All three booleans and the $teams collection use Schema::hasTable() / DB::table()
+ * so no Eloquent cross-module imports are needed.
+ *
+ * $teamsInstalled      — bool: whether the teams table exists.
+ * $managementInstalled — bool: whether the management_tasks table exists.
+ * $teams               — collection of team records (DB::table) when installed;
+ *                        empty collection otherwise.
+ *
+ * ── The two-screen pattern ────────────────────────────────────────────────────
+ *
+ *   index() / store()   → list with quick-create modal (basic fields only)
+ *   show() / update()   → full detail page, managed via AJAX by events-detail.js
+ */
 class EventController extends Controller
 {
+    /**
+     * @param  CustomFieldRepository $cfRepository
+     */
     public function __construct(
-        private readonly CustomFieldRepository $cfRepository,
-        private readonly ModuleLoader $moduleLoader
+        private readonly CustomFieldRepository $cfRepository
     ) {}
 
+    /**
+     * Renders the paginated event list.
+     *
+     * Passes three optional-module flags so the view can conditionally render
+     * the Management and Teams columns without any direct Eloquent dependency.
+     *
+     * @return View
+     */
     public function index(): View
     {
-        $managementInstalled = $this->moduleLoader->isActive('management');
-        $teamsInstalled      = $this->moduleLoader->isActive('teams');
+        $events = Event::with('creator')
+            ->orderByDesc('starts_at')
+            ->paginate(25);
 
-        // Assignments immer eager-loaden (event-spezifische Einmalzuweisungen)
-        $events = Event::with(['assignments'])
-            ->orderBy('starts_at')
-            ->paginate(25)
-            ->withQueryString();
+        $teamsInstalled      = Schema::hasTable('teams');
+        $managementInstalled = Schema::hasTable('management_tasks');
 
-        $eventIds = $events->pluck('id')->toArray();
+        // DB::table instead of Eloquent Team model — keeps Events decoupled from Teams.
+        $teams = $teamsInstalled
+            ? DB::table('teams')->orderBy('name')->get()
+            : collect();
 
-        // Mitglieder für Assignment-Auswahl (immer nötig für Sektion 3)
-        $members = Member::select('id', 'first_name', 'last_name')
-            ->orderBy('last_name')
-            ->get();
+        return view('events::index', compact('events', 'teamsInstalled', 'managementInstalled', 'teams'));
+    }
 
-        // Teams (optional)
-        $teams = collect();
-        if ($teamsInstalled) {
-            $teams = DB::table('teams')->select('id', 'name', 'color')->orderBy('name')->get();
-        }
+    /**
+     * Creates a new event and redirects to its detail page.
+     *
+     * @param  StoreEventRequest $request
+     * @return RedirectResponse
+     */
+    public function store(StoreEventRequest $request): RedirectResponse
+    {
+        $event = Event::create(array_merge(
+            $request->validated(),
+            ['created_by' => $request->user()->id]
+        ));
 
-        // Vereinsfunktionen + ihre Mitglieder (wenn Management aktiv)
-        $mgmtFunctions        = collect();
-        $eventMgmtFunctionIds = [];
+        return redirect()->route('events.show', $event);
+    }
 
-        if ($managementInstalled) {
-            $mgmtFunctions = \Modules\Management\Models\ManagementFunction::with('members')
-                ->orderBy('name')
-                ->get();
-
-            if (!empty($eventIds) && Schema::hasTable('event_management_function')) {
-                $rows = DB::table('event_management_function')
-                    ->whereIn('event_id', $eventIds)
-                    ->get();
-                foreach ($rows as $row) {
-                    $eventMgmtFunctionIds[$row->event_id][] = $row->management_function_id;
-                }
-            }
-        }
-
-        // Aufgaben (wenn Management aktiv)
-        // WICHTIG: Tasks-Liste immer laden (für Modal-Checkboxen),
-        //          Pivot-Abfrage nur wenn Events auf der aktuellen Seite vorhanden sind.
-        $tasks        = collect();
-        $eventTaskIds = [];
-
-        if ($managementInstalled) {
-            if (Schema::hasTable('management_tasks')) {
-                $tasks = DB::table('management_tasks')
-                    ->select('id', 'name')
-                    ->orderBy('name')
-                    ->get();
-            }
-            if (!empty($eventIds) && Schema::hasTable('event_task')) {
-                $rows = DB::table('event_task')->whereIn('event_id', $eventIds)->get();
-                foreach ($rows as $row) {
-                    $eventTaskIds[$row->event_id][] = $row->task_id;
-                }
-            }
-        }
-
-        // Team-Pivot nur für aktuelle Seite
-        $eventTeamIds = [];
-        if ($teamsInstalled && Schema::hasTable('event_team') && !empty($eventIds)) {
-            $rows = DB::table('event_team')->whereIn('event_id', $eventIds)->get();
-            foreach ($rows as $row) {
-                $eventTeamIds[$row->event_id][] = $row->team_id;
-            }
-        }
-
-        // ── Data Bridge ────────────────────────────────────────────────────────
-        // Kein fn() / Arrow-Functions in @json()
-
-        $eventsJs = [];
-        foreach ($events as $ev) {
-            $eventsJs[$ev->id] = [
-                'id'                      => $ev->id,
-                'title'                   => $ev->title,
-                'description'             => $ev->description,
-                'starts_at'               => $ev->starts_at?->format('Y-m-d H:i'),
-                'ends_at'                 => $ev->ends_at?->format('Y-m-d H:i'),
-                'location'                => $ev->location,
-                'notes'                   => $ev->notes,
-                'assignments'             => $this->buildAssignmentsJs($ev),
-                'management_function_ids' => $eventMgmtFunctionIds[$ev->id] ?? [],
-                'team_ids'                => $eventTeamIds[$ev->id] ?? [],
-                'task_ids'                => $eventTaskIds[$ev->id] ?? [],
-            ];
-        }
+    /**
+     * Renders the event detail page.
+     *
+     * @param  Event $event
+     * @return View
+     */
+    public function show(Event $event): View
+    {
+        $event->load('creator');
 
         $membersJs = [];
-        foreach ($members as $m) {
-            $membersJs[$m->id] = ['id' => $m->id, 'name' => $m->last_name . ', ' . $m->first_name];
+        foreach (Member::active()->orderBy('last_name')->get() as $m) {
+            $membersJs[$m->id] = ['id' => $m->id, 'name' => $m->full_name];
         }
 
-        $teamsJs = [];
-        foreach ($teams as $t) {
-            $teamsJs[$t->id] = ['id' => $t->id, 'name' => $t->name, 'color' => $t->color ?? null];
-        }
+        $customFields = $this->cfRepository->forObjectType('event');
 
-        $tasksJs = [];
-        foreach ($tasks as $t) {
-            $tasksJs[$t->id] = ['id' => $t->id, 'name' => $t->name];
-        }
-
-        $mgmtFunctionsJs = [];
-        foreach ($mgmtFunctions as $fn) {
-            $memberNames = [];
-            $memberIds   = [];
-            foreach ($fn->members as $m) {
-                $memberNames[] = $m->last_name . ', ' . $m->first_name;
-                $memberIds[]   = $m->id;
-            }
-            $mgmtFunctionsJs[$fn->id] = [
-                'id'           => $fn->id,
-                'name'         => $fn->name,
-                'member_names' => $memberNames,
-                'member_ids'   => $memberIds,
-            ];
-        }
-
-        // Eigene Felder
-        $cf            = $this->cfRepository->loadForObjectType('event');
-        $eventCfDefs   = $cf['defs'];
-        $eventCfValues = $cf['values'];
-
-        return view('events::index', compact(
-            'events', 'members', 'teams', 'tasks', 'mgmtFunctions',
-            'teamsInstalled', 'managementInstalled',
-            'eventTeamIds', 'eventTaskIds', 'eventMgmtFunctionIds',
-            'eventsJs', 'membersJs', 'teamsJs', 'tasksJs', 'mgmtFunctionsJs',
-            'eventCfDefs', 'eventCfValues'
-        ));
+        return view('events::show', compact('event', 'membersJs', 'customFields'));
     }
 
-    public function store(Request $request): RedirectResponse
+    /**
+     * Updates the event and redirects back to the detail page.
+     *
+     * @param  UpdateEventRequest $request
+     * @param  Event              $event
+     * @return RedirectResponse
+     */
+    public function update(UpdateEventRequest $request, Event $event): RedirectResponse
     {
-        $validated               = $this->validateEvent($request);
-        $validated['created_by'] = auth()->id();
+        $event->update($request->validated());
 
-        $event = Event::create($validated);
-
-        // Immer: einmalige Assignments (event-spezifisch)
-        $this->syncAssignments($event, $request);
-
-        // Optional: Vereinsfunktionen + Aufgaben (wenn Management aktiv)
-        if ($this->moduleLoader->isActive('management')) {
-            $this->syncManagementFunctions($event, $request);
-            $this->syncTasks($event, $request);
-        }
-
-        $this->syncTeams($event, $request);
-
-        return redirect()->route('events.index')->with('success', 'Termin angelegt.');
+        return redirect()->route('events.show', $event)->with('success', 'Termin gespeichert.');
     }
 
-    public function update(Request $request, Event $event): RedirectResponse
-    {
-        $validated = $this->validateEvent($request);
-        $event->update($validated);
-
-        // Immer: einmalige Assignments
-        $this->syncAssignments($event, $request);
-
-        // Optional: Vereinsfunktionen + Aufgaben
-        if ($this->moduleLoader->isActive('management')) {
-            $this->syncManagementFunctions($event, $request);
-            $this->syncTasks($event, $request);
-        }
-
-        $this->syncTeams($event, $request);
-
-        return redirect()->route('events.index')->with('success', 'Termin aktualisiert.');
-    }
-
+    /**
+     * Deletes the event and redirects back to the index.
+     *
+     * @param  Event $event
+     * @return RedirectResponse
+     */
     public function destroy(Event $event): RedirectResponse
     {
         $event->delete();
@@ -207,90 +146,123 @@ class EventController extends Controller
         return redirect()->route('events.index')->with('success', 'Termin gelöscht.');
     }
 
-    // ── Private Helpers ───────────────────────────────────────────────────────
-
-    private function validateEvent(Request $request): array
+    /**
+     * Marks an event-task as complete or incomplete via AJAX.
+     *
+     * @param  int $eventId
+     * @param  int $taskId
+     * @return JsonResponse
+     */
+    public function completeTask(int $eventId, int $taskId): JsonResponse
     {
-        return $request->validate([
-            'title'       => ['required', 'string', 'max:150'],
-            'description' => ['nullable', 'string'],
-            'starts_at'   => ['required', 'date'],
-            'ends_at'     => ['nullable', 'date', 'after_or_equal:starts_at'],
-            'location'    => ['nullable', 'string', 'max:150'],
-            'notes'       => ['nullable', 'string'],
+        $pivot = DB::table('event_task')
+            ->where('event_id', $eventId)
+            ->where('task_id', $taskId)
+            ->first();
+
+        if (! $pivot) {
+            return response()->json(['error' => 'Not found'], 404);
+        }
+
+        DB::table('event_task')
+            ->where('event_id', $eventId)
+            ->where('task_id', $taskId)
+            ->update(['completed' => ! $pivot->completed]);
+
+        return response()->json(['completed' => ! $pivot->completed]);
+    }
+
+    /**
+     * Assigns an existing task to this event via AJAX.
+     *
+     * @param  StoreEventTaskRequest $request
+     * @param  Event                 $event
+     * @return JsonResponse
+     */
+    public function addTask(StoreEventTaskRequest $request, Event $event): JsonResponse
+    {
+        $taskId = $request->validated()['task_id'];
+
+        if (DB::table('event_task')->where('event_id', $event->id)->where('task_id', $taskId)->exists()) {
+            return response()->json(['error' => 'already_assigned'], 409);
+        }
+
+        DB::table('event_task')->insert([
+            'event_id'   => $event->id,
+            'task_id'    => $taskId,
+            'completed'  => false,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
+
+        return response()->json(['success' => true]);
     }
 
     /**
-     * Einmalige Sonder-Assignments (immer, unabhängig vom Management-Modul).
-     * Speichert in event_assignments (person + description).
+     * Removes a task from this event via AJAX.
+     *
+     * @param  Event $event
+     * @param  int   $taskId
+     * @return JsonResponse
      */
-    private function syncAssignments(Event $event, Request $request): void
+    public function removeTask(Event $event, int $taskId): JsonResponse
     {
-        $syncData = [];
-        foreach ($request->input('assignments', []) as $assignment) {
-            if (!empty($assignment['member_id'])) {
-                $syncData[(int) $assignment['member_id']] = [
-                    'description' => $assignment['description'] ?? null,
-                ];
-            }
-        }
-        $event->assignments()->sync($syncData);
+        DB::table('event_task')
+            ->where('event_id', $event->id)
+            ->where('task_id', $taskId)
+            ->delete();
+
+        DB::table('event_task_member')
+            ->where('event_id', $event->id)
+            ->where('task_id', $taskId)
+            ->delete();
+
+        return response()->json(['success' => true]);
     }
 
     /**
-     * Vereinsfunktionen am Termin zuweisen (nur wenn Management-Modul aktiv).
-     * Members der Funktionen sind implizit am Termin beteiligt.
-     * Keine neuen Funktionen anlegen — das geschieht im Management-Modul.
+     * Assigns a member to an event-task slot via AJAX.
+     *
+     * @param  Event $event
+     * @param  int   $taskId
+     * @return JsonResponse
      */
-    private function syncManagementFunctions(Event $event, Request $request): void
+    public function assignMember(Event $event, int $taskId): JsonResponse
     {
-        if (!Schema::hasTable('event_management_function')) {
-            return;
-        }
+        $data = request()->validate([
+            'member_id' => ['required', 'integer', 'exists:members,id'],
+            'time_from' => ['nullable', 'date_format:H:i'],
+            'time_to'   => ['nullable', 'date_format:H:i'],
+        ]);
 
-        $functionIds = array_values(array_filter(
-            array_map('intval', $request->input('management_function_ids', []))
-        ));
+        $startsAt = $event->starts_at->toDateString();
 
-        $event->managementFunctions()->sync($functionIds);
+        EventTaskMember::create([
+            'event_id'  => $event->id,
+            'task_id'   => $taskId,
+            'member_id' => $data['member_id'],
+            'time_from' => isset($data['time_from']) ? $startsAt . ' ' . $data['time_from'] . ':00' : null,
+            'time_to'   => isset($data['time_to'])   ? $startsAt . ' ' . $data['time_to']   . ':00' : null,
+        ]);
+
+        return response()->json(['success' => true]);
     }
 
-    private function syncTeams(Event $event, Request $request): void
+    /**
+     * Removes a member from an event-task slot via AJAX.
+     *
+     * @param  Event $event
+     * @param  int   $taskId
+     * @param  int   $memberId
+     * @return JsonResponse
+     */
+    public function removeMember(Event $event, int $taskId, int $memberId): JsonResponse
     {
-        if (!Schema::hasTable('event_team')) {
-            return;
-        }
+        EventTaskMember::where('event_id', $event->id)
+            ->where('task_id', $taskId)
+            ->where('member_id', $memberId)
+            ->delete();
 
-        $teamIds = array_values(array_filter(
-            array_map('intval', $request->input('team_ids', []))
-        ));
-
-        $event->teams()->sync($teamIds);
-    }
-
-    private function syncTasks(Event $event, Request $request): void
-    {
-        if (!Schema::hasTable('event_task')) {
-            return;
-        }
-
-        $taskIds = array_values(array_filter(
-            array_map('intval', $request->input('task_ids', []))
-        ));
-
-        $event->tasks()->sync($taskIds);
-    }
-
-    private function buildAssignmentsJs(Event $event): array
-    {
-        $result = [];
-        foreach ($event->assignments as $assignment) {
-            $result[] = [
-                'member_id'   => $assignment->id,
-                'description' => $assignment->pivot->description ?? '',
-            ];
-        }
-        return $result;
+        return response()->json(['success' => true]);
     }
 }

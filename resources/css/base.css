@@ -32,6 +32,17 @@
   --ck-accent:                 #60a5fa;
   --ck-accent-dark:            #1a6fc4;
 
+  /* Heller Blau-Tint – Selektions-Hintergrund (Multiselect, Role-Option)
+     Kein Alias auf --ck-team-blue-bg (#dbeafe) – dieser Tint ist bewusst
+     heller (#eff6ff) und wird ausschliesslich für Selektion/Active-States
+     im UI verwendet. */
+  --ck-blue-tint:              #eff6ff;
+
+  /* Primärfarbe – Alias für --ck-accent.
+     Wird in tables.css für Pagination-Aktiv/Hover und Avatar-Hintergrund genutzt.
+     Als Alias definiert damit tables.css keinen Fallback auf transparent rendert. */
+  --ck-primary:                var(--ck-accent);
+
   /* ── Card-Header-Hintergrund ─────────────────────────────────────────
      Sanfte Tönung aus der Nav-Bar-Farbe statt neutralem Grau.
      color-mix(): 8% Nav-Bar-Farbe + 92% Weiß = zarter Farbtupfer.
@@ -42,8 +53,6 @@
   --ck-card-header-bg: color-mix(in srgb, var(--ck-nav-bar-bg) 8%, white);
 
   /* ══ Feste semantische Farben (nicht konfigurierbar) ══════════════════ */
-  --ck-confirm:          mediumseagreen;
-  
   --ck-danger:           #dc2626;
   --ck-danger-bg:        #fef2f2;
   --ck-danger-border:    #fca5a5;
@@ -62,6 +71,58 @@
   --ck-purple:           #7c3aed;
   --ck-purple-bg:        #faf5ff;
   --ck-purple-text:      #7e22ce;
+
+  /* ══ Team-Farbpalette ═══════════════════════════════════════════════════
+     M11: Alle Team-Farben als Tokens – keine hardcodierten Hex-Werte mehr
+     in badges.css, tables.css, events.css oder misc.css.
+
+     Jede Farbe hat drei Varianten:
+       --ck-team-{color}       → Vollton (für Dots, Swatches, aktive Highlights)
+       --ck-team-{color}-bg    → Heller Tint (Badge-Hintergrund)
+       --ck-team-{color}-text  → Kräftiger Text (Badge-Schrift, guter Kontrast)
+
+     --ck-team-purple-dot ist separat, weil --ck-purple bereits für
+     das allgemeine Purple-System belegt ist und einen anderen Wert hat.
+  ═══════════════════════════════════════════════════════════════════════ */
+  --ck-team-blue:        #3b82f6;
+  --ck-team-blue-bg:     #dbeafe;
+  --ck-team-blue-text:   #1d4ed8;
+
+  --ck-team-navy:        #1e3a8a;
+  --ck-team-navy-bg:     #dbeafe;
+  --ck-team-navy-text:   #1e3a8a;
+
+  --ck-team-green:       #16a34a;
+  --ck-team-green-bg:    #dcfce7;
+  --ck-team-green-text:  #166534;
+
+  --ck-team-teal:        #0d9488;
+  --ck-team-teal-bg:     #ccfbf1;
+  --ck-team-teal-text:   #0f766e;
+
+  --ck-team-red:         #dc2626;
+  --ck-team-red-bg:      #fee2e2;
+  --ck-team-red-text:    #b91c1c;
+
+  --ck-team-orange:      #ea580c;
+  --ck-team-orange-bg:   #ffedd5;
+  --ck-team-orange-text: #c2410c;
+
+  --ck-team-amber:       #f59e0b;
+  --ck-team-amber-bg:    #fef9c3;
+  --ck-team-amber-text:  #92400e;
+
+  --ck-team-purple-dot:  #9333ea;       /* Vollton-Dot (≠ --ck-purple) */
+  --ck-team-purple-bg:   #f3e8ff;
+  --ck-team-purple-text: #7c3aed;
+
+  --ck-team-pink:        #db2777;
+  --ck-team-pink-bg:     #fce7f3;
+  --ck-team-pink-text:   #be185d;
+
+  --ck-team-slate:       #475569;
+  --ck-team-slate-bg:    #f1f5f9;
+  --ck-team-slate-text:  #475569;
 
   /* Text */
   --ck-text:             #1e293b;
@@ -132,10 +193,13 @@ body {
 .ck-divider        { border: none; border-top: 1px solid var(--ck-border); margin: var(--ck-space-5) 0; }
 .ck-row            { display: flex; align-items: center; gap: var(--ck-space-2); }
 .ck-row--between   { justify-content: space-between; }
+.ck-row--gap       { gap: var(--ck-space-3); }
 .ck-spacer         { flex: 1; }
 .ck-space-y-4      > * + * { margin-top: var(--ck-space-4); }
 .ck-space-y-5      > * + * { margin-top: var(--ck-space-5); }
 .ck-inline-form    { display: inline; }
+.ck-font-weight-bold { font-weight: 600; }
+.ck-font-sm        { font-size: var(--ck-font-sm); }
 
 /* Margin-Top */
 .ck-mt-2 { margin-top: var(--ck-space-2); }

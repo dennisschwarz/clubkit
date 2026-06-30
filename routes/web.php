@@ -1,12 +1,13 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+declare(strict_types=1);
 
 /*
  * routes/web.php
  *
- * Enthält nur noch die Breeze Auth-Routes.
- * Alle anderen Routes (Dashboard, Admin) werden von den Modulen registriert.
+ * Contains only the Breeze authentication routes.
+ * All other routes (Dashboard, Admin) are registered by individual modules
+ * via their ServiceProvider's loadRoutes() method.
  */
 
 require __DIR__ . '/auth.php';

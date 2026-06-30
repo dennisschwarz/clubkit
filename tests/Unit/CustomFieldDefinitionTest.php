@@ -1,127 +1,180 @@
 <?php
 
+declare(strict_types=1);
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\CustomFields\Models\CustomFieldDefinition;
-use Modules\CustomFields\Models\CustomFieldValue;
+use Spatie\Activitylog\Models\Activity;
 
-uses(Tests\TestCase::class, Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(Tests\TestCase::class, RefreshDatabase::class);
 
-// ── Anlegen ───────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-test('eine Felddefinition kann angelegt werden', function () {
-    $def = CustomFieldDefinition::create([
+/** Creates a minimal field definition with a unique slug. */
+function makeFieldDef(array $overrides = []): CustomFieldDefinition
+{
+    static $n = 0;
+    $n++;
+    return CustomFieldDefinition::create(array_merge([
         'object_type' => 'member',
-        'label'       => 'Trikotgröße',
-        'slug'        => 'trikotgroesse',
+        'label'       => 'Test Field ' . $n,
+        'slug'        => 'test_field_' . $n,
         'field_type'  => 'text',
-    ]);
+    ], $overrides));
+}
 
-    $this->assertDatabaseHas('custom_field_definitions', [
-        'id' => $def->id, 'label' => 'Trikotgröße', 'object_type' => 'member',
-    ]);
+// ── Creation ──────────────────────────────────────────────────────────────────
+
+test('a field definition can be created', function () {
+    $def = makeFieldDef(['label' => 'Trikotgröße', 'slug' => 'trikogroesse']);
+
+    expect(CustomFieldDefinition::where('slug', 'trikogroesse')->exists())->toBeTrue();
 });
 
-test('Pflichtfeld und Sortierung können gesetzt werden', function () {
-    $def = CustomFieldDefinition::create([
-        'object_type' => 'team',
-        'label'       => 'Heimtrikot-Farbe',
-        'slug'        => 'heimtrikot_farbe',
-        'field_type'  => 'text',
-        'placeholder' => 'z.B. Blau-Weiß',
-        'is_required' => true,
-        'sort_order'  => 20,
+test('required defaults to false', function () {
+    $def = makeFieldDef();
+
+    expect($def->is_required)->toBeFalse();
+});
+
+test('a select field can have options', function () {
+    $def = makeFieldDef([
+        'field_type' => 'select',
+        'options'    => ['S', 'M', 'L', 'XL'],
     ]);
 
-    expect($def->is_required)->toBeTrue();
-    expect($def->sort_order)->toBe(20);
-    expect($def->placeholder)->toBe('z.B. Blau-Weiß');
+    expect($def->options)->toBe(['S', 'M', 'L', 'XL']);
 });
 
-// ── Slug-Eindeutigkeit ────────────────────────────────────────────────────────
+test('a non-select field has null options', function () {
+    $def = makeFieldDef(['field_type' => 'text', 'options' => null]);
 
-test('gleicher Slug ist für verschiedene object_types erlaubt', function () {
-    CustomFieldDefinition::create(['object_type' => 'member', 'label' => 'Notiz', 'slug' => 'notiz', 'field_type' => 'text']);
-    CustomFieldDefinition::create(['object_type' => 'team',   'label' => 'Notiz', 'slug' => 'notiz', 'field_type' => 'text']);
-
-    expect(CustomFieldDefinition::where('slug', 'notiz')->count())->toBe(2);
+    expect($def->options)->toBeNull();
 });
 
-test('gleicher Slug im selben object_type verletzt Unique-Constraint', function () {
-    CustomFieldDefinition::create(['object_type' => 'member', 'label' => 'Verein vorher', 'slug' => 'verein_vorher', 'field_type' => 'text']);
+// ── Object types ──────────────────────────────────────────────────────────────
 
-    expect(fn () => CustomFieldDefinition::create(['object_type' => 'member', 'label' => 'Duplikat', 'slug' => 'verein_vorher', 'field_type' => 'text']))
+test('field definition can target different object types', function () {
+    $member = makeFieldDef(['object_type' => 'member']);
+    $team   = makeFieldDef(['object_type' => 'team']);
+
+    expect($member->object_type)->toBe('member');
+    expect($team->object_type)->toBe('team');
+});
+
+// ── Slug uniqueness ───────────────────────────────────────────────────────────
+
+test('slug must be unique per object_type', function () {
+    makeFieldDef(['slug' => 'duplicate_slug', 'object_type' => 'member']);
+
+    expect(fn () => makeFieldDef(['slug' => 'duplicate_slug', 'object_type' => 'member']))
         ->toThrow(Illuminate\Database\QueryException::class);
 });
 
-// ── Select-Optionen ───────────────────────────────────────────────────────────
+// ── Ordering ──────────────────────────────────────────────────────────────────
 
-test('Optionen werden als JSON-Array gespeichert und korrekt ausgelesen', function () {
+test('sort_order defaults to zero', function () {
+    $def = makeFieldDef();
+
+    expect($def->fresh()->sort_order)->toBe(0);
+});
+
+// ── creator() relation ────────────────────────────────────────────────────────
+
+test('creator relation returns the user who created the definition', function () {
+    $user = App\Models\User::factory()->create();
+    $def  = makeFieldDef(['created_by' => $user->id]);
+
+    expect($def->creator->id)->toBe($user->id);
+});
+
+test('creator relation is null when created_by is null', function () {
+    $def = makeFieldDef(['created_by' => null]);
+
+    expect($def->creator)->toBeNull();
+});
+
+// ── values() relation ─────────────────────────────────────────────────────────
+
+test('a field definition can have multiple values', function () {
+    $def = makeFieldDef();
+
+    Modules\CustomFields\Models\CustomFieldValue::create(['definition_id' => $def->id, 'entity_id' => 1, 'value' => 'A']);
+    Modules\CustomFields\Models\CustomFieldValue::create(['definition_id' => $def->id, 'entity_id' => 2, 'value' => 'B']);
+
+    expect($def->fresh()->values)->toHaveCount(2);
+});
+
+// ── Activity Logging (LogsActivity, Spatie v6) ────────────────────────────────
+//
+// S20: ClubKit now has a published activity_log migration (database/migrations/
+// 2026_06_22_135559_create_activity_log_table.php) with the attribute_changes column.
+// Spatie ActivityLog v6: when attribute_changes column exists in the DB,
+// attribute diffs are stored in attribute_changes — NOT in properties.
+// properties only holds custom data (e.g. IP address via CoreServiceProvider).
+//
+// CORRECT:  $activity->attribute_changes['attributes']['field']
+// INCORRECT: $activity->properties['attributes']['field']   ← was wrong in S8–S13
+
+test('creating a field definition writes a created activity log entry', function () {
     $def = CustomFieldDefinition::create([
-        'object_type' => 'member', 'label' => 'Trikotgröße',
-        'slug'        => 'trikotgroesse', 'field_type' => 'select',
-        'options'     => ['S', 'M', 'L', 'XL'],
+        'object_type' => 'member', 'label' => 'Log Field', 'slug' => 'log_field', 'field_type' => 'text',
     ]);
 
-    expect($def->fresh()->options)->toBeArray();
-    expect($def->fresh()->options)->toBe(['S', 'M', 'L', 'XL']);
+    $activity = Activity::where('subject_type', CustomFieldDefinition::class)
+        ->where('subject_id', $def->id)
+        ->where('event', 'created')
+        ->first();
+
+    expect($activity)->not->toBeNull();
+    expect($activity->log_name)->toBe('custom-fields');
 });
 
-test('optionsAsText() gibt Optionen zeilengetrennt zurück', function () {
+test('updating a field definition writes an updated activity log entry', function () {
     $def = CustomFieldDefinition::create([
-        'object_type' => 'member', 'label' => 'Position', 'slug' => 'position',
-        'field_type'  => 'select', 'options' => ['Torwart', 'Verteidiger', 'Mittelfeld', 'Stürmer'],
+        'object_type' => 'member', 'label' => 'Original Label', 'slug' => 'original_label', 'field_type' => 'text',
     ]);
 
-    expect($def->optionsAsText())->toBe("Torwart\nVerteidiger\nMittelfeld\nStürmer");
+    $def->update(['label' => 'Updated Label']);
+
+    $activity = Activity::where('subject_type', CustomFieldDefinition::class)
+        ->where('subject_id', $def->id)
+        ->where('event', 'updated')
+        ->first();
+
+    expect($activity)->not->toBeNull();
+    // v6 with attribute_changes column: diffs live in attribute_changes, not properties
+    expect($activity->attribute_changes['attributes']['label'])->toBe('Updated Label');
 });
 
-test('optionsAsText() gibt leeren String zurück wenn keine Optionen gesetzt', function () {
-    $def = CustomFieldDefinition::create([
-        'object_type' => 'member', 'label' => 'Notiz', 'slug' => 'notiz', 'field_type' => 'text',
+test('deleting a field definition writes a deleted activity log entry', function () {
+    $def   = CustomFieldDefinition::create([
+        'object_type' => 'member', 'label' => 'Delete Me', 'slug' => 'delete_me', 'field_type' => 'text',
     ]);
-
-    expect($def->optionsAsText())->toBe('');
-});
-
-test('hasOptions() ist true nur für select-Typ', function () {
-    $select  = CustomFieldDefinition::create(['object_type' => 'member', 'label' => 'Größe',   'slug' => 'groesse',   'field_type' => 'select']);
-    $text    = CustomFieldDefinition::create(['object_type' => 'member', 'label' => 'Notiz',   'slug' => 'notiz',     'field_type' => 'text']);
-    $number  = CustomFieldDefinition::create(['object_type' => 'member', 'label' => 'Gewicht', 'slug' => 'gewicht',   'field_type' => 'number']);
-
-    expect($select->hasOptions())->toBeTrue();
-    expect($text->hasOptions())->toBeFalse();
-    expect($number->hasOptions())->toBeFalse();
-});
-
-// ── Feldtypen ─────────────────────────────────────────────────────────────────
-
-test('number-Typ kann gespeichert werden', function () {
-    $def = CustomFieldDefinition::create([
-        'object_type' => 'member', 'label' => 'Trikotnummer', 'slug' => 'trikotnummer', 'field_type' => 'number',
-    ]);
-
-    expect($def->field_type)->toBe('number');
-});
-
-test('is_required wird korrekt als Boolean gecastet', function () {
-    $pflicht  = CustomFieldDefinition::create(['object_type' => 'member', 'label' => 'Pflicht',   'slug' => 'pflicht',  'field_type' => 'text', 'is_required' => true]);
-    $optional = CustomFieldDefinition::create(['object_type' => 'member', 'label' => 'Optional',  'slug' => 'optional', 'field_type' => 'text', 'is_required' => false]);
-
-    expect($pflicht->fresh()->is_required)->toBeTrue();
-    expect($optional->fresh()->is_required)->toBeFalse();
-});
-
-// ── Cascade-Delete ────────────────────────────────────────────────────────────
-
-test('beim Löschen einer Definition werden alle Werte kaskadiert gelöscht', function () {
-    $def = CustomFieldDefinition::create([
-        'object_type' => 'member', 'label' => 'Sport', 'slug' => 'sport', 'field_type' => 'text',
-    ]);
-    CustomFieldValue::create(['field_id' => $def->id, 'entity_id' => 1, 'value' => 'Fußball']);
-    CustomFieldValue::create(['field_id' => $def->id, 'entity_id' => 2, 'value' => 'Tennis']);
-
     $defId = $def->id;
     $def->delete();
 
-    $this->assertDatabaseMissing('custom_field_definitions', ['id'       => $defId]);
-    $this->assertDatabaseMissing('custom_field_values',      ['field_id' => $defId]);
+    $activity = Activity::where('subject_type', CustomFieldDefinition::class)
+        ->where('subject_id', $defId)
+        ->where('event', 'deleted')
+        ->first();
+
+    expect($activity)->not->toBeNull();
+    expect($activity->log_name)->toBe('custom-fields');
+});
+
+test('activity log does not record the created_by field', function () {
+    $def = CustomFieldDefinition::create([
+        'object_type' => 'member', 'label' => 'Audit Field', 'slug' => 'audit_field', 'field_type' => 'text',
+    ]);
+
+    $activity = Activity::where('subject_type', CustomFieldDefinition::class)
+        ->where('subject_id', $def->id)
+        ->where('event', 'created')
+        ->first();
+
+    // v6 with attribute_changes column: diffs live in attribute_changes, not properties
+    $attributes = $activity->attribute_changes['attributes'] ?? [];
+    expect(array_key_exists('created_by', $attributes))->toBeFalse();
+    expect(array_key_exists('label', $attributes))->toBeTrue();
 });

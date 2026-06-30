@@ -1,6 +1,8 @@
 <?php
 
-// ModuleLoader nutzt base_path() – daher Laravel-Kontext nötig
+declare(strict_types=1);
+
+// ModuleLoader uses base_path() – requires Laravel context.
 uses(Tests\TestCase::class);
 
 use App\Services\ModuleLoader;
@@ -43,7 +45,7 @@ test('vierteiliger Slug wird vollständig konvertiert', function () {
     expect(basename($loader->modulePath('a-b-c-d')))->toBe('ABCD');
 });
 
-// ── resolveDependencies: Grundfälle ──────────────────────────────────────────
+// ── resolveDependencies: Basic cases ─────────────────────────────────────────
 
 test('einzelnes Modul ohne Abhängigkeiten wird direkt zurückgegeben', function () {
     $loader    = new ModuleLoader();
@@ -79,7 +81,6 @@ test('transitiv: drei Ebenen werden korrekt geordnet', function () {
 
     $result = $loader->resolveDependencies(['seasons'], $available);
 
-    // Jede Abhängigkeit muss vor ihrem Abhängigen stehen
     expect(array_search('core', $result))->toBeLessThan(array_search('members', $result));
     expect(array_search('members', $result))->toBeLessThan(array_search('teams', $result));
     expect(array_search('teams', $result))->toBeLessThan(array_search('seasons', $result));
@@ -104,7 +105,7 @@ test('mehrere gewählte Module werden zusammen aufgelöst', function () {
 });
 
 test('gemeinsame Abhängigkeiten werden nicht doppelt hinzugefügt', function () {
-    // Sowohl 'members' als auch 'events' hängen von 'core' ab
+    // Both 'members' and 'events' depend on 'core'.
     $loader    = new ModuleLoader();
     $available = [
         'core'    => ['slug' => 'core',    'requires' => []],
@@ -114,7 +115,6 @@ test('gemeinsame Abhängigkeiten werden nicht doppelt hinzugefügt', function ()
 
     $result = $loader->resolveDependencies(['members', 'events'], $available);
 
-    // 'core' darf nur einmal vorkommen
     expect(array_count_values($result)['core'])->toBe(1);
     expect($result)->toHaveCount(3);
 });
@@ -126,14 +126,14 @@ test('Modul, das bereits in selected ist, wird nicht dupliziert', function () {
         'members' => ['slug' => 'members', 'requires' => ['core']],
     ];
 
-    // 'core' ist explizit gewählt UND Abhängigkeit von 'members'
+    // 'core' is explicitly selected AND a dependency of 'members'.
     $result = $loader->resolveDependencies(['core', 'members'], $available);
 
     expect(array_count_values($result)['core'])->toBe(1);
     expect($result)->toHaveCount(2);
 });
 
-// ── resolveDependencies: Fehlerfälle ─────────────────────────────────────────
+// ── resolveDependencies: Error cases ─────────────────────────────────────────
 
 test('unbekanntes Modul wirft RuntimeException', function () {
     $loader    = new ModuleLoader();
@@ -142,28 +142,28 @@ test('unbekanntes Modul wirft RuntimeException', function () {
     ];
 
     expect(fn () => $loader->resolveDependencies(['unknown-module'], $available))
-        ->toThrow(\RuntimeException::class, "Modul 'unknown-module' ist nicht verfügbar");
+        ->toThrow(\RuntimeException::class, "Module 'unknown-module' is not available");
 });
 
 test('unbekannte Abhängigkeit wirft RuntimeException', function () {
     $loader    = new ModuleLoader();
     $available = [
-        'members' => ['slug' => 'members', 'requires' => ['core']], // 'core' fehlt in available
+        'members' => ['slug' => 'members', 'requires' => ['core']], // 'core' missing from available
     ];
 
     expect(fn () => $loader->resolveDependencies(['members'], $available))
-        ->toThrow(\RuntimeException::class, "Abhängigkeit 'core' für 'members' ist nicht verfügbar");
+        ->toThrow(\RuntimeException::class, "Dependency 'core' required by 'members' is not available");
 });
 
 test('zyklische Abhängigkeit wird erkannt und wirft RuntimeException', function () {
     $loader    = new ModuleLoader();
     $available = [
         'a' => ['slug' => 'a', 'requires' => ['b']],
-        'b' => ['slug' => 'b', 'requires' => ['a']], // Zyklus: a → b → a
+        'b' => ['slug' => 'b', 'requires' => ['a']], // Cycle: a → b → a
     ];
 
     expect(fn () => $loader->resolveDependencies(['a'], $available))
-        ->toThrow(\RuntimeException::class, 'Zyklische Abhängigkeit');
+        ->toThrow(\RuntimeException::class, 'Circular dependency detected');
 });
 
 test('leere Auswahl gibt leeres Array zurück', function () {

@@ -204,7 +204,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
         }
     };
 </script>
-<script src="{{ asset('js/modules/custom-fields-modal.js') }}"></script>
+@vite('resources/js/modules/custom-fields-modal.js')
 @endpush
 
 @endsection

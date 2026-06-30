@@ -8,59 +8,84 @@ use App\Http\Controllers\Controller;
 use App\Repositories\CustomFieldRepository;
 use App\Services\ModuleLoader;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Modules\Management\Http\Requests\StoreFunctionRequest;
+use Modules\Management\Http\Requests\StoreTaskRequest;
+use Modules\Management\Http\Requests\UpdateFunctionRequest;
+use Modules\Management\Http\Requests\UpdateTaskRequest;
 use Modules\Management\Models\ManagementFunction;
 use Modules\Management\Models\ManagementTask;
+use Modules\Management\Models\ManagementTaskCategory;
+use Modules\Members\Models\Member;
 
+/**
+ * Handles the Management module's main index page and all CRUD operations
+ * for management functions and tasks.
+ *
+ * ── Architecture note ─────────────────────────────────────────────────────────
+ *
+ * Management has NO direct PHP dependency on the Teams module.
+ * Teams integration is handled entirely via the hook system:
+ *
+ *   TeamsServiceProvider::boot() → registers hooks into management.function.list,
+ *   management.task.list, management.*.modal.teams, management.page.scripts
+ *
+ * When Teams is not installed, Management shows all entries in a flat list
+ * (no team filter, no team grouping). When Teams is installed, TeamsServiceProvider
+ * injects the appropriate UI without Management knowing about it.
+ *
+ * Team ID synchronisation in management_function_team and management_task_team
+ * is done via DB::table() directly. Management owns these pivot tables
+ * (module.json → tables[]) and is allowed to write to them directly
+ * without importing any Team model.
+ */
 class ManagementController extends Controller
 {
+    /**
+     * @param  ModuleLoader          $moduleLoader
+     * @param  CustomFieldRepository $cfRepository
+     */
     public function __construct(
-        private readonly ModuleLoader $moduleLoader,
+        private readonly ModuleLoader          $moduleLoader,
         private readonly CustomFieldRepository $cfRepository
     ) {}
 
-    public function index(Request $request): View
+    /**
+     * Renders the management overview with functions, tasks, and all JS data bridges.
+     *
+     * Team-related data is not loaded here. The Teams module injects its own
+     * data (filter, grouping, JS bridge) via hook views.
+     *
+     * @return View
+     */
+    public function index(): View
     {
-        $teamsActive   = $this->moduleLoader->isActive('teams');
         $membersActive = $this->moduleLoader->isActive('members');
 
-        $teamFilter = $request->integer('team_id', 0) ?: null;
-
-        // Funktionen laden
-        $functionQuery = ManagementFunction::with(['teams', 'members', 'creator']);
-        if ($teamFilter) {
-            $functionQuery->forTeam($teamFilter);
-        }
-        $functions = $functionQuery->orderBy('name')->get();
-
-        // Aufgaben laden
-        $taskQuery = ManagementTask::with(['teams', 'members', 'creator']);
-        if ($teamFilter) {
-            $taskQuery->forTeam($teamFilter);
-        }
-        $tasks = $taskQuery->orderBy('name')->get();
-
-        // Teams + Mitglieder für Filter + Modal
-        $teams = $teamsActive
-            ? \Modules\Teams\Models\Team::orderBy('name')->get()
+        // Load functions + tasks without Teams — the teams() relation is only called
+        // from Teams hook views, which only run when the Teams module is active.
+        $functions  = ManagementFunction::with(['members', 'creator'])->orderBy('name')->get();
+        $tasks      = ManagementTask::with(['members', 'creator', 'category'])->orderBy('name')->get();
+        $members    = $membersActive
+            ? Member::orderBy('last_name')->orderBy('first_name')->get()
             : collect();
+        $categories = ManagementTaskCategory::orderBy('name')->get();
 
-        $members = $membersActive
-            ? \Modules\Members\Models\Member::orderBy('last_name')->orderBy('first_name')->get()
-            : collect();
+        // ── JS data bridges ───────────────────────────────────────────────────
+        // No fn()/arrow functions in map() – foreach is required for @json() compatibility.
+        // team_ids are NOT set here — Teams injects them via the
+        // management.page.scripts hook (window.CK_Teams.functionTeamIds).
 
-        // JS-Daten aufbereiten (keine Arrow-Functions in @json!)
-        $functionsJs = [];
-        $tasksJs     = [];
-        $teamsJs     = [];
-        $membersJs   = [];
+        $functionsJs  = [];
+        $tasksJs      = [];
+        $membersJs    = [];
+        $categoriesJs = [];
 
         foreach ($functions as $fn) {
             $functionsJs[$fn->id] = [
                 'id'         => $fn->id,
                 'name'       => $fn->name,
-                'team_ids'   => $fn->teams->pluck('id')->values()->toArray(),
                 'member_ids' => $fn->members->pluck('id')->values()->toArray(),
             ];
         }
@@ -70,23 +95,20 @@ class ManagementController extends Controller
                 'id'          => $task->id,
                 'name'        => $task->name,
                 'description' => $task->description ?? '',
-                'team_ids'    => $task->teams->pluck('id')->values()->toArray(),
+                'category_id' => $task->category_id,
+                'priority'    => $task->priority ?? 'normal',
                 'member_ids'  => $task->members->pluck('id')->values()->toArray(),
             ];
         }
 
-        foreach ($teams as $team) {
-            $teamsJs[$team->id] = ['id' => $team->id, 'name' => $team->name];
-        }
-
         foreach ($members as $member) {
-            $membersJs[$member->id] = [
-                'id'   => $member->id,
-                'name' => $member->last_name . ', ' . $member->first_name,
-            ];
+            $membersJs[$member->id] = $member->toJsOption();
         }
 
-        // Eigene Felder – beide Typen auf einmal in zwei DB-Abfragen laden
+        foreach ($categories as $cat) {
+            $categoriesJs[$cat->id] = ['id' => $cat->id, 'name' => $cat->name];
+        }
+
         $cfData = $this->cfRepository->loadForObjectTypes([
             'management_function',
             'management_task',
@@ -98,166 +120,225 @@ class ManagementController extends Controller
         $mgmtTaskCfValues     = $cfData['management_task']['values'];
 
         return view('management::index', compact(
-            'functions', 'tasks', 'teams', 'members',
-            'functionsJs', 'tasksJs', 'teamsJs', 'membersJs',
-            'teamsActive', 'membersActive', 'teamFilter',
+            'functions', 'tasks', 'members', 'categories',
+            'functionsJs', 'tasksJs', 'membersJs', 'categoriesJs',
+            'membersActive',
             'mgmtFunctionCfDefs', 'mgmtFunctionCfValues',
             'mgmtTaskCfDefs',     'mgmtTaskCfValues'
         ));
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // FUNKTIONEN
-    // ══════════════════════════════════════════════════════════════════════
+    // ── Functions ─────────────────────────────────────────────────────────────
 
-    public function storeFunction(Request $request): RedirectResponse
+    /**
+     * Creates a new management function and syncs its team and member assignments.
+     *
+     * Team sync runs via DB::table() on Management's own pivot table.
+     * No import of Modules\Teams\Models\Team required.
+     *
+     * @param  StoreFunctionRequest $request
+     * @return RedirectResponse
+     */
+    public function storeFunction(StoreFunctionRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'         => ['required', 'string', 'max:100'],
-            'team_ids'     => ['nullable', 'array'],
-            'team_ids.*'   => ['integer', 'exists:teams,id'],
-            'member_ids'   => ['nullable', 'array'],
-            'member_ids.*' => ['integer', 'exists:members,id'],
-        ]);
+        $validated = $request->validated();
+        $userId    = $request->user()->id;
 
         $fn = ManagementFunction::create([
             'name'       => $validated['name'],
-            'created_by' => auth()->id(),
+            'created_by' => $userId,
         ]);
 
-        if (!empty($validated['team_ids'])) {
-            $pivot = [];
-            foreach ($validated['team_ids'] as $id) {
-                $pivot[(int) $id] = ['created_by' => auth()->id()];
-            }
-            $fn->teams()->sync($pivot);
-        }
+        $this->syncFunctionTeams($fn->id, $validated['team_ids'] ?? [], $userId);
 
-        if (!empty($validated['member_ids'])) {
+        if (! empty($validated['member_ids'])) {
             $pivot = [];
             foreach ($validated['member_ids'] as $id) {
-                $pivot[(int) $id] = ['created_by' => auth()->id()];
+                $pivot[(int) $id] = ['created_by' => $userId];
             }
             $fn->members()->sync($pivot);
         }
 
-        return redirect()->route('management.index')->with('success', 'Funktion „' . $fn->name . '" angelegt.');
+        return redirect()->route('management.index')
+            ->with('success', 'Funktion „' . $fn->name . '" angelegt.');
     }
 
-    public function updateFunction(Request $request, ManagementFunction $function): RedirectResponse
+    /**
+     * Updates a management function's name and re-syncs its team and member assignments.
+     *
+     * @param  UpdateFunctionRequest $request
+     * @param  ManagementFunction    $function
+     * @return RedirectResponse
+     */
+    public function updateFunction(UpdateFunctionRequest $request, ManagementFunction $function): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'         => ['required', 'string', 'max:100'],
-            'team_ids'     => ['nullable', 'array'],
-            'team_ids.*'   => ['integer', 'exists:teams,id'],
-            'member_ids'   => ['nullable', 'array'],
-            'member_ids.*' => ['integer', 'exists:members,id'],
-        ]);
+        $validated = $request->validated();
+        $userId    = $request->user()->id;
 
         $function->update(['name' => $validated['name']]);
 
-        $teamPivot = [];
-        foreach ($validated['team_ids'] ?? [] as $id) {
-            $teamPivot[(int) $id] = ['created_by' => auth()->id()];
-        }
-        $function->teams()->sync($teamPivot);
+        $this->syncFunctionTeams($function->id, $validated['team_ids'] ?? [], $userId);
 
         $memberPivot = [];
         foreach ($validated['member_ids'] ?? [] as $id) {
-            $memberPivot[(int) $id] = ['created_by' => auth()->id()];
+            $memberPivot[(int) $id] = ['created_by' => $userId];
         }
         $function->members()->sync($memberPivot);
 
-        return redirect()->route('management.index')->with('success', 'Funktion „' . $function->name . '" gespeichert.');
+        return redirect()->route('management.index')
+            ->with('success', 'Funktion „' . $function->name . '" gespeichert.');
     }
 
+    /**
+     * Deletes a management function (and cascades to all pivot assignments).
+     *
+     * @param  ManagementFunction $function
+     * @return RedirectResponse
+     */
     public function destroyFunction(ManagementFunction $function): RedirectResponse
     {
         $name = $function->name;
         $function->delete();
 
-        return redirect()->route('management.index')->with('success', 'Funktion „' . $name . '" gelöscht.');
+        return redirect()->route('management.index')
+            ->with('success', 'Funktion „' . $name . '" gelöscht.');
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // AUFGABEN
-    // ══════════════════════════════════════════════════════════════════════
+    // ── Tasks ─────────────────────────────────────────────────────────────────
 
-    public function storeTask(Request $request): RedirectResponse
+    /**
+     * Creates a new management task with optional category, priority, team, and member assignments.
+     *
+     * @param  StoreTaskRequest $request
+     * @return RedirectResponse
+     */
+    public function storeTask(StoreTaskRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'         => ['required', 'string', 'max:100'],
-            'description'  => ['nullable', 'string', 'max:500'],
-            'team_ids'     => ['nullable', 'array'],
-            'team_ids.*'   => ['integer', 'exists:teams,id'],
-            'member_ids'   => ['nullable', 'array'],
-            'member_ids.*' => ['integer', 'exists:members,id'],
-        ]);
+        $validated = $request->validated();
+        $userId    = $request->user()->id;
 
         $task = ManagementTask::create([
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'created_by'  => auth()->id(),
+            'category_id' => $validated['category_id'] ?? null,
+            'priority'    => $validated['priority'] ?? 'normal',
+            'created_by'  => $userId,
         ]);
 
-        if (!empty($validated['team_ids'])) {
-            $pivot = [];
-            foreach ($validated['team_ids'] as $id) {
-                $pivot[(int) $id] = ['created_by' => auth()->id()];
-            }
-            $task->teams()->sync($pivot);
-        }
+        $this->syncTaskTeams($task->id, $validated['team_ids'] ?? [], $userId);
 
-        if (!empty($validated['member_ids'])) {
+        if (! empty($validated['member_ids'])) {
             $pivot = [];
             foreach ($validated['member_ids'] as $id) {
-                $pivot[(int) $id] = ['created_by' => auth()->id()];
+                $pivot[(int) $id] = ['created_by' => $userId];
             }
             $task->members()->sync($pivot);
         }
 
-        return redirect()->route('management.index', ['tab' => 'aufgaben'])
+        return redirect()->route('management.index')
             ->with('success', 'Aufgabe „' . $task->name . '" angelegt.');
     }
 
-    public function updateTask(Request $request, ManagementTask $task): RedirectResponse
+    /**
+     * Updates a task's properties and re-syncs its team and member assignments.
+     *
+     * @param  UpdateTaskRequest $request
+     * @param  ManagementTask    $task
+     * @return RedirectResponse
+     */
+    public function updateTask(UpdateTaskRequest $request, ManagementTask $task): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'         => ['required', 'string', 'max:100'],
-            'description'  => ['nullable', 'string', 'max:500'],
-            'team_ids'     => ['nullable', 'array'],
-            'team_ids.*'   => ['integer', 'exists:teams,id'],
-            'member_ids'   => ['nullable', 'array'],
-            'member_ids.*' => ['integer', 'exists:members,id'],
-        ]);
+        $validated = $request->validated();
+        $userId    = $request->user()->id;
 
         $task->update([
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'category_id' => $validated['category_id'] ?? null,
+            'priority'    => $validated['priority'] ?? $task->priority,
         ]);
 
-        $teamPivot = [];
-        foreach ($validated['team_ids'] ?? [] as $id) {
-            $teamPivot[(int) $id] = ['created_by' => auth()->id()];
-        }
-        $task->teams()->sync($teamPivot);
+        $this->syncTaskTeams($task->id, $validated['team_ids'] ?? [], $userId);
 
         $memberPivot = [];
         foreach ($validated['member_ids'] ?? [] as $id) {
-            $memberPivot[(int) $id] = ['created_by' => auth()->id()];
+            $memberPivot[(int) $id] = ['created_by' => $userId];
         }
         $task->members()->sync($memberPivot);
 
-        return redirect()->route('management.index', ['tab' => 'aufgaben'])
+        return redirect()->route('management.index')
             ->with('success', 'Aufgabe „' . $task->name . '" gespeichert.');
     }
 
+    /**
+     * Deletes a management task (and cascades to all pivot assignments).
+     *
+     * @param  ManagementTask $task
+     * @return RedirectResponse
+     */
     public function destroyTask(ManagementTask $task): RedirectResponse
     {
         $name = $task->name;
         $task->delete();
 
-        return redirect()->route('management.index', ['tab' => 'aufgaben'])
+        return redirect()->route('management.index')
             ->with('success', 'Aufgabe „' . $name . '" gelöscht.');
+    }
+
+    // ── Private Helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Synchronises the team assignments of a function via DB::table().
+     *
+     * Management owns the management_function_team table (module.json → tables[]).
+     * No import of Modules\Teams\Models\Team is needed — team_id is a plain integer.
+     *
+     * @param  int        $functionId
+     * @param  array<int> $teamIds
+     * @param  int        $userId      The authenticated user's ID (for created_by)
+     * @return void
+     */
+    private function syncFunctionTeams(int $functionId, array $teamIds, int $userId): void
+    {
+        $teamIds = array_values(array_unique(array_map('intval', $teamIds)));
+
+        DB::table('management_function_team')->where('role_id', $functionId)->delete();
+
+        foreach ($teamIds as $teamId) {
+            DB::table('management_function_team')->insert([
+                'role_id'    => $functionId,
+                'team_id'    => $teamId,
+                'created_by' => $userId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    /**
+     * Synchronises the team assignments of a task via DB::table().
+     *
+     * Management owns the management_task_team table (module.json → tables[]).
+     *
+     * @param  int        $taskId
+     * @param  array<int> $teamIds
+     * @param  int        $userId      The authenticated user's ID (for created_by)
+     * @return void
+     */
+    private function syncTaskTeams(int $taskId, array $teamIds, int $userId): void
+    {
+        $teamIds = array_values(array_unique(array_map('intval', $teamIds)));
+
+        DB::table('management_task_team')->where('task_id', $taskId)->delete();
+
+        foreach ($teamIds as $teamId) {
+            DB::table('management_task_team')->insert([
+                'task_id'    => $taskId,
+                'team_id'    => $teamId,
+                'created_by' => $userId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 }

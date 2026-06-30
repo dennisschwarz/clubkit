@@ -66,7 +66,7 @@
                         </form>
                         @else
                         {{-- Platzhalter damit Spaltenbreite gleich bleibt --}}
-                        <div style="width:34px"></div>
+                        <div class="ck-action-spacer"></div>
                         @endif
                     </div>
                 </td>
@@ -155,7 +155,7 @@
         systemRoles: ['super-admin', 'admin', 'user']
     };
 </script>
-<script src="{{ asset('js/modules/roles-modal.js') }}"></script>
+@vite('resources/js/modules/roles-modal.js')
 @endpush
 
 @endsection

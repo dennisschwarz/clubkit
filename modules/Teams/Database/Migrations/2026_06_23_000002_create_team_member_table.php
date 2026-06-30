@@ -1,11 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Creates the team_member pivot table.
+ *
+ * A member may belong to a team exactly once (unique constraint on team_id + member_id).
+ * Both FKs cascade on delete so orphan rows are never left behind.
+ */
 return new class extends Migration
 {
+    /** @return void */
     public function up(): void
     {
         if (Schema::hasTable('team_member')) return;
@@ -21,11 +30,12 @@ return new class extends Migration
             $table->unsignedSmallInteger('squad_number')->nullable();
             $table->timestamps();
 
-            // Ein Mitglied kann einem Team nur einmal angehören
+            // A member may only belong to a team once
             $table->unique(['team_id', 'member_id']);
         });
     }
 
+    /** @return void */
     public function down(): void
     {
         Schema::dropIfExists('team_member');

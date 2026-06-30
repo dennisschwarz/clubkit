@@ -5,22 +5,24 @@ declare(strict_types=1);
 namespace Modules\Import\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Import\MemberData;
 use Modules\Import\Models\MemberImportLog;
 use Modules\Members\Models\Member;
 
 /**
- * Verarbeitet den finalen Import: vergleicht Datensätze mit der DB,
- * schreibt Members + externe IDs in einer einzigen Transaktion.
+ * Handles the final import: compares rows against the database
+ * and writes members plus external IDs inside a single transaction.
  *
- * Strategie: Alles-oder-nichts.
- * Schlägt ein Datensatz fehl → kompletter Rollback, kein Halbzustand.
+ * Strategy: all-or-nothing.
+ * If one record fails, the entire transaction is rolled back – no partial state.
  */
 class MemberImportService
 {
-    // ── Datensatz gegen DB vergleichen ────────────────────────────────────────
+    // ── Compare row against database ──────────────────────────────────────────
 
     /**
+     * @param  MemberData $data
      * @return array{status: string, existing_id: int|null, diff: array}
      */
     public function compare(MemberData $data): array
@@ -67,16 +69,16 @@ class MemberImportService
         return ['status' => 'changed', 'existing_id' => $existing->id, 'diff' => $diff];
     }
 
-    // ── Finaler Import (Transaktion) ───────────────────────────────────────────
+    // ── Final import (transaction) ────────────────────────────────────────────
 
     /**
      * @param  array<int, array>  $processedRows
-     * @param  array<int>         $selectedIndexes
+     * @param  int[]              $selectedIndexes
      * @return array{
      *   created:     int,
      *   updated:     int,
      *   skipped:     int,
-     *   created_ids: array<int, int>  ← rowIndex => memberId (für Team-Zuweisung)
+     *   created_ids: array<int, int>
      * }
      *
      * @throws \Throwable
@@ -119,7 +121,7 @@ class MemberImportService
                     $this->upsertExternalId($member->id, $source, $mapped['pass_number'] ?? null);
                     $this->writeCustomFields($member->id, $row['custom_fields'] ?? []);
 
-                    // rowIndex → memberId für spätere per-Zeile Team-Zuweisung
+                    // Map rowIndex → memberId for subsequent per-row team assignment
                     $stats['created_ids'][$index] = $member->id;
                     $stats['created']++;
 
@@ -155,8 +157,16 @@ class MemberImportService
         return $stats;
     }
 
-    // ── Private Helpers ───────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
 
+    /**
+     * Normalises two values to strings and returns true when they are equal.
+     * Carbon date objects are formatted to YYYY-MM-DD before comparison.
+     *
+     * @param  mixed $newVal
+     * @param  mixed $oldVal
+     * @return bool
+     */
     private function valuesAreEqual(mixed $newVal, mixed $oldVal): bool
     {
         if ($oldVal instanceof \DateTimeInterface) $oldVal = $oldVal->format('Y-m-d');
@@ -168,6 +178,14 @@ class MemberImportService
         return $newStr === $oldStr;
     }
 
+    /**
+     * Upserts the external ID record for a member and source combination.
+     *
+     * @param  int         $memberId
+     * @param  string      $source
+     * @param  string|null $externalId
+     * @return void
+     */
     private function upsertExternalId(int $memberId, string $source, ?string $externalId): void
     {
         if (! $externalId) return;
@@ -187,15 +205,21 @@ class MemberImportService
     }
 
     /**
-     * Schreibt Custom-Field-Werte für ein Mitglied.
+     * Writes custom field values for a member.
+     * Uses definition_id (renamed from field_id in the M8 migration).
+     * No-ops gracefully when the CustomFields module is not installed.
      *
-     * WICHTIG: Die Tabelle custom_field_values hat die Spalte 'field_id' (nicht 'definition_id').
-     * Der FK heißt field_id → custom_field_definitions.id.
+     * Schema::hasTable() checks the actual DB – class_exists() can give false-positives
+     * after module uninstall when the autoloader cache has not been cleared.
+     *
+     * @param  int                  $memberId
+     * @param  array<string, mixed> $customFields
+     * @return void
      */
     private function writeCustomFields(int $memberId, array $customFields): void
     {
         if (empty($customFields)) return;
-        if (! class_exists(\Modules\CustomFields\Models\CustomFieldDefinition::class)) return;
+        if (! Schema::hasTable('custom_field_definitions')) return;
 
         foreach ($customFields as $slug => $value) {
             $definition = \Modules\CustomFields\Models\CustomFieldDefinition::where('slug', $slug)
@@ -204,10 +228,9 @@ class MemberImportService
 
             if (! $definition) continue;
 
-            // Spaltenname ist 'field_id', nicht 'definition_id'!
             \Modules\CustomFields\Models\CustomFieldValue::updateOrCreate(
-                ['field_id' => $definition->id, 'entity_id' => $memberId],
-                ['value'    => $value],
+                ['definition_id' => $definition->id, 'entity_id' => $memberId],
+                ['value'         => $value],
             );
         }
     }

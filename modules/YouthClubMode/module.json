@@ -2,7 +2,7 @@
     "name": "YouthClubMode",
     "slug": "youth-club-mode",
     "version": "1.1.0",
-    "description": "Jugendmodus: Familiäre Verbindungen (Vater, Mutter, Geschwister, Kind) für Mitglieder verwalten.",
+    "description": "Youth Club Mode: manage family relationships (father, mother, sibling, child) between club members.",
     "requires": ["core", "members"],
     "tables": ["member_relations"],
     "provides": {

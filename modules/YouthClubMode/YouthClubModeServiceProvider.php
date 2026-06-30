@@ -11,24 +11,26 @@ use Modules\YouthClubMode\Models\MemberRelation;
 use Modules\YouthClubMode\Services\FamilyService;
 
 /**
- * YouthClubMode – erweitert das Members-Modul um Familienverwaltung.
+ * Bootstraps the YouthClubMode module.
  *
- * Dieses Modul hängt sich vollständig über das Hook-System in Members ein.
- * Das Members-Modul weiß nichts von YouthClubMode.
+ * This module extends the Members module via the hook extension-point system.
+ * The Members module has no knowledge of YouthClubMode.
  *
- * Was dieses Modul tut:
- *  1. Hook-Views für members::index registrieren (Tab, Sektion, Tabellenspalte, Scripts)
- *  2. View Composer: members::index mit Familie-Daten anreichern (via FamilyService)
- *  3. Eigene Routen laden (POST/DELETE /members/{id}/relations)
+ * What this provider does:
+ *  1. Registers hook views into members::index (modal tab, modal section, table column, scripts)
+ *  2. Registers a view composer on members::index to inject pre-computed family data
+ *  3. Loads routes for the relation CRUD endpoints
  */
 class YouthClubModeServiceProvider extends ServiceProvider
 {
+    /** @return void */
     public function register(): void
     {
-        // FamilyService als Singleton – stateless, kann wiederverwendet werden
+        // FamilyService is stateless – safe to share as a singleton
         $this->app->singleton(FamilyService::class);
     }
 
+    /** @return void */
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
@@ -39,47 +41,57 @@ class YouthClubModeServiceProvider extends ServiceProvider
         $this->registerRoutes();
     }
 
-    // ── Hook-Views registrieren ───────────────────────────────────────────
+    // ── Hooks ─────────────────────────────────────────────────────────────────
 
+    /**
+     * Registers hook views that are injected into members::index at defined extension points.
+     * Priority 20 ensures this module loads after any Core hooks (priority 10).
+     *
+     * @return void
+     */
     private function registerHooks(): void
     {
         $hooks = $this->app->make('ck.hooks');
 
-        // Tab-Button im Member-Modal
+        // Tab button in the member modal
         $hooks->register('member.modal.tabs', 'youth-club-mode::member-modal-tab', 20);
 
-        // Tab-Inhalt (Familie-Formular)
+        // Tab content (family form) in the member modal
         $hooks->register('member.modal.sections', 'youth-club-mode::member-modal-section', 20);
 
-        // Spalten-Header in der Mitglieder-Tabelle
+        // Column header in the members table
         $hooks->register('member.table.header', 'youth-club-mode::member-table-header', 20);
 
-        // Spalten-Zellen pro Zeile ($member und $memberFamilies sind automatisch im Scope)
+        // Column cell per row ($member and $memberFamilies are automatically in scope)
         $hooks->register('member.table.row', 'youth-club-mode::member-table-row', 20);
 
-        // JS-Datei laden (nach members-modal.js)
+        // JS file loaded after members-modal.js
         $hooks->register('member.page.scripts', 'youth-club-mode::member-page-scripts', 20);
     }
 
-    // ── View Composer: members::index anreichern ──────────────────────────
+    // ── View Composer ─────────────────────────────────────────────────────────
 
     /**
-     * Bevor members::index gerendert wird, werden eingefügt:
-     *  - $allMembersJs   → alle Mitglieder (für Dropdown-Filterung in JS)
-     *  - $relationsJs    → alle Verbindungen (für JS-Filterung)
-     *  - $memberFamilies → vorberechnete Familiendaten der paginierten Mitglieder (für Blade-Anzeige)
-     *  - $membersJs      → mit family{}-Objekt pro Mitglied angereichert (für Modal-Befüllung)
+     * Injects family-related data into members::index before rendering.
+     *
+     * Injected variables:
+     *   $allMembersJs    → all members (for JS dropdown filtering)
+     *   $relationsJs     → all relations (for JS eligibility checks)
+     *   $memberFamilies  → pre-computed family data per paginated member (for Blade display)
+     *   $membersJs       → enriched with a family{} object per member (for modal population)
+     *
+     * @return void
      */
     private function registerViewComposer(): void
     {
-        view()->composer('members::index', function ($view) {
+        view()->composer('members::index', function ($view): void {
             /** @var FamilyService $familyService */
             $familyService = $this->app->make(FamilyService::class);
 
             $data      = $view->getData();
             $membersJs = $data['membersJs'] ?? [];
 
-            // Alle Mitglieder (unpaginiert) für Dropdown-Filterung im JS
+            // Load all members (unpaginated) for JS dropdown filtering
             $allMembers   = Member::orderBy('last_name')->get();
             $allMembersJs = [];
             foreach ($allMembers as $m) {
@@ -91,7 +103,7 @@ class YouthClubModeServiceProvider extends ServiceProvider
                 ];
             }
 
-            // Alle Verbindungen für JS-Filterung ("hat schon einen Vater?")
+            // Load all relations for JS duplicate detection ("already has a father?")
             $allRelations = MemberRelation::all();
             $relationsJs  = [];
             foreach ($allRelations as $r) {
@@ -103,7 +115,7 @@ class YouthClubModeServiceProvider extends ServiceProvider
                 ];
             }
 
-            // Familiendaten für die paginierten Mitglieder vorberechnen
+            // Pre-compute family data for each paginated member
             $memberFamilies = [];
             foreach (array_keys($membersJs) as $memberId) {
                 $memberFamilies[$memberId] = $familyService->buildFamilyData(
@@ -113,7 +125,7 @@ class YouthClubModeServiceProvider extends ServiceProvider
                 );
             }
 
-            // $membersJs mit family{}-Objekt anreichern (für Modal-Befüllung via JS)
+            // Enrich $membersJs with a family{} object (consumed by youth-club-mode.js modal population)
             foreach ($membersJs as $id => &$entry) {
                 $entry['family'] = $memberFamilies[$id] ?? $familyService->emptyFamily();
             }
@@ -128,12 +140,12 @@ class YouthClubModeServiceProvider extends ServiceProvider
         });
     }
 
-    // ── Routen ────────────────────────────────────────────────────────────
+    // ── Routes ────────────────────────────────────────────────────────────────
 
     /**
-     * Routen direkt in boot() registrieren – konsistent mit allen anderen Modulen.
-     * (Kein booted()-Wrapper mehr nötig, da ModuleLoader::boot() bereits nach dem
-     * App-Boot-Zyklus läuft und alle Abhängigkeiten verfügbar sind.)
+     * Loads routes directly in boot() – consistent with all other modules.
+     *
+     * @return void
      */
     private function registerRoutes(): void
     {

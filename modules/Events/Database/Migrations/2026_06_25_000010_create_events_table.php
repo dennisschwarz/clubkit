@@ -1,9 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Creates the events table.
+ *
+ * created_by is nullable so that deleting a user does not cascade-delete events.
+ * An index on starts_at supports chronological ordering queries.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -19,7 +27,7 @@ return new class extends Migration
             $table->dateTime('starts_at');
             $table->dateTime('ends_at')->nullable();
             $table->string('location', 150)->nullable();
-            $table->text('notes')->nullable();      // interne Notizen
+            $table->text('notes')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
 
