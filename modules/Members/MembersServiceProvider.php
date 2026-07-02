@@ -8,11 +8,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Bootstraps the Members module.
- *
- * Registers routes, views, and database migrations.
- * This module has no hooks or settings sections of its own;
- * extension points are consumed by YouthClubMode, CustomFields, and Import.
+ * Registers the Members module: routes, views, and Blade component path.
  */
 class MembersServiceProvider extends ServiceProvider
 {
@@ -24,7 +20,6 @@ class MembersServiceProvider extends ServiceProvider
     {
         $this->loadRoutes();
         $this->loadViews();
-        $this->loadMigrations();
     }
 
     /** @return void */
@@ -37,11 +32,5 @@ class MembersServiceProvider extends ServiceProvider
     private function loadViews(): void
     {
         $this->loadViewsFrom(__DIR__ . '/Resources/Views', 'members');
-    }
-
-    /** @return void */
-    private function loadMigrations(): void
-    {
-        $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
     }
 }

@@ -28,6 +28,7 @@ return new class extends Migration
                   ->constrained('members')
                   ->onDelete('cascade');
             $table->unsignedSmallInteger('squad_number')->nullable();
+            $table->timestamp('joined_at')->nullable()->comment('Date the member joined this team roster.');
             $table->timestamps();
 
             // A member may only belong to a team once

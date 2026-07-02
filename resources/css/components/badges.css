@@ -1,7 +1,7 @@
 .ck-badge {
   display: inline-flex;
   align-items: center;
-  font-size: var(--ck-font-sm);           /* war xs (11px), jetzt sm (12px) */
+  font-size: var(--ck-font-sm);           /* was xs (11px), now sm (12px) */
   font-weight: 700;
   padding: 2px var(--ck-space-2);
   border-radius: var(--ck-radius-sm);
@@ -15,10 +15,10 @@
 .ck-badge--amber  { background: var(--ck-warning-bg); color: var(--ck-warning-text); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Team-Farb-Badges  (.ck-badge--team-{color})
-   M11: Alle Farbwerte über Design-Tokens aus base.css.
-   Verwendet die gleiche Palette wie die Swatch-Dots im Team-Modal.
-   Helle Tint-Hintergründe + kräftige Textfarbe für gute Lesbarkeit.
+   Team colour badges  (.ck-badge--team-{color})
+   M11: All colour values via design tokens from base.css.
+   Uses the same palette as the swatch dots in the Team modal.
+   Light tint backgrounds + bold text colour for good legibility.
 ══════════════════════════════════════════════════════════════════════ */
 .ck-badge--team-default { background: var(--ck-bg-subtle); color: var(--ck-text-secondary); border: 1px solid var(--ck-border); }
 .ck-badge--team-blue    { background: var(--ck-team-blue-bg);    color: var(--ck-team-blue-text); }
@@ -33,10 +33,10 @@
 .ck-badge--team-slate   { background: var(--ck-team-slate-bg);   color: var(--ck-team-slate-text); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Team-Farb-Dot  (.ck-team-dot--{color})
-   Kleiner Farbkreis für Checkboxlisten, Selects und ähnliche Stellen,
-   wo der vollständige Badge zu groß wäre.
-   M11: Alle Farbwerte über Design-Tokens aus base.css.
+   Team colour dot  (.ck-team-dot--{color})
+   Small colour circle for checkbox lists, selects and similar places
+   where a full badge would be too large.
+   M11: All colour values via design tokens from base.css.
 ══════════════════════════════════════════════════════════════════════ */
 .ck-team-dot {
   display: inline-block;

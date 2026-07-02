@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\Members\Http\Controllers;
 
+use App\Filters\EligibleFilter;
+use App\Filters\NameSearchFilter;
 use App\Repositories\CustomFieldRepository;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,79 +16,63 @@ use Modules\Members\Http\Requests\StoreMemberRequest;
 use Modules\Members\Http\Requests\UpdateMemberRequest;
 use Modules\Members\Http\Requests\UpdatePhotoRequest;
 use Modules\Members\Models\Member;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 /**
- * Handles member CRUD operations.
+ * Handles member CRUD operations with filterable, paginated list.
  *
- * This controller has no knowledge of other modules.
- * Extensions (e.g. family management by YouthClubMode, custom fields)
- * are injected through view composers and the hook extension-point system.
+ * Allowed filters (via ?filter[x]=...):
+ *   filter[q]        string  — searches first_name and last_name
+ *   filter[status]   string  — exact match: active | inactive
+ *   filter[eligible] integer — 1 = eligible to play | 0 = not eligible
  *
- * Validation is fully delegated to StoreMemberRequest, UpdateMemberRequest,
- * and UpdatePhotoRequest.
+ * Allowed sort fields (via ?sort=... | ?sort=-...):
+ *   last_name, first_name, date_of_birth, pass_number, eligible_to_play_date, status
+ *
+ * allowedFilters() and allowedSorts() accept variadic args — NO array wrapper.
  */
 class MemberController extends Controller
 {
-    /**
-     * @param  CustomFieldRepository $cfRepository
-     */
     public function __construct(
         private readonly CustomFieldRepository $cfRepository
     ) {}
 
     /**
-     * Renders the paginated, filterable member list with the JS data bridge.
-     *
-     * Supported query parameters:
-     *   q         string  Full-text search on first_name / last_name
-     *   status    string  Filter by status: active | inactive
-     *   eligible  string  Filter by playing eligibility: 1 = eligible, 0 = not eligible
+     * Display the paginated, filterable member list with JS data bridge.
      *
      * @param  Request $request
      * @return View
      */
     public function index(Request $request): View
     {
-        $query = Member::query();
+        $members = QueryBuilder::for(Member::class)
+            ->allowedFilters(
+                AllowedFilter::custom('q',        new NameSearchFilter()),
+                AllowedFilter::exact('status'),
+                AllowedFilter::custom('eligible', new EligibleFilter()),
+            )
+            ->allowedSorts(
+                'last_name',
+                'first_name',
+                'date_of_birth',
+                'pass_number',
+                'eligible_to_play_date',
+                'status',
+            )
+            ->defaultSort('last_name')
+            ->paginate(25)
+            ->withQueryString();
 
-        // Full-text search across first and last name
-        if ($request->filled('q')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('first_name', 'like', '%' . $request->input('q') . '%')
-                  ->orWhere('last_name',  'like', '%' . $request->input('q') . '%');
-            });
-        }
-
-        // Status filter
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
-        }
-
-        // Playing eligibility filter (derived from eligible_to_play_date column)
-        //   '1' → date is set AND is today or in the past (eligible)
-        //   '0' → date is missing OR is still in the future (not eligible)
-        if ($request->filled('eligible')) {
-            if ($request->input('eligible') === '1') {
-                $query->whereNotNull('eligible_to_play_date')
-                      ->whereDate('eligible_to_play_date', '<=', now());
-            } else {
-                $query->where(function ($q) {
-                    $q->whereNull('eligible_to_play_date')
-                      ->orWhereDate('eligible_to_play_date', '>', now());
-                });
-            }
-        }
-
-        $members = $query->orderBy('last_name')->paginate(25)->withQueryString();
-
-        // Build JS data bridge for members-modal.js.
-        // Note: no fn()/arrow functions in @json() – must use manual foreach loops.
+        // JS data bridge for members-modal.js.
+        // Never use fn()/arrow functions inside @json() — use foreach only.
         $membersJs = [];
         foreach ($members as $m) {
             $membersJs[$m->id] = [
                 'id'                    => $m->id,
                 'first_name'            => $m->first_name,
                 'last_name'             => $m->last_name,
+                'pass_number'           => $m->pass_number,
                 'gender'                => $m->gender,
                 'date_of_birth'         => $m->date_of_birth?->format('Y-m-d'),
                 'status'                => $m->status,
@@ -98,7 +84,6 @@ class MemberController extends Controller
             ];
         }
 
-        // Custom fields (graceful: returns empty arrays when CustomFields module is not installed)
         $cf             = $this->cfRepository->loadForObjectType('member');
         $memberCfDefs   = $cf['defs'];
         $memberCfValues = $cf['values'];
@@ -109,7 +94,7 @@ class MemberController extends Controller
     }
 
     /**
-     * Creates a new member from validated form data.
+     * Store a newly created member.
      *
      * @param  StoreMemberRequest $request
      * @return RedirectResponse
@@ -126,7 +111,7 @@ class MemberController extends Controller
     }
 
     /**
-     * Updates an existing member from validated form data.
+     * Update an existing member.
      *
      * @param  UpdateMemberRequest $request
      * @param  Member              $member
@@ -143,10 +128,7 @@ class MemberController extends Controller
     }
 
     /**
-     * Replaces the member's profile photo.
-     *
-     * Deletes the old file from storage before writing the new one.
-     * Validation is fully delegated to UpdatePhotoRequest.
+     * Replace the profile photo for an existing member.
      *
      * @param  UpdatePhotoRequest $request
      * @param  Member             $member
@@ -159,7 +141,6 @@ class MemberController extends Controller
         }
 
         $path = $request->file('profile_image')->store('members', 'public');
-
         $member->update(['profile_image' => $path]);
 
         return redirect()->route('members.index')
@@ -167,7 +148,7 @@ class MemberController extends Controller
     }
 
     /**
-     * Soft-deletes a member and removes their profile photo from storage.
+     * Remove a member and delete their profile photo if present.
      *
      * @param  Member $member
      * @return RedirectResponse
@@ -185,9 +166,9 @@ class MemberController extends Controller
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
-     * Extracts and normalises the scalar member fields from the validated data array.
+     * Map validated request data to the Member fillable fields.
      *
-     * @param  array<string, mixed>  $validated
+     * @param  array<string, mixed> $validated
      * @return array<string, mixed>
      */
     private function prepareData(array $validated): array
@@ -195,6 +176,7 @@ class MemberController extends Controller
         return [
             'first_name'            => $validated['first_name'],
             'last_name'             => $validated['last_name'],
+            'pass_number'           => $validated['pass_number'] ?? null,
             'gender'                => $validated['gender'] ?? null,
             'date_of_birth'         => $validated['date_of_birth'] ?? null,
             'status'                => $validated['status'],
@@ -203,17 +185,17 @@ class MemberController extends Controller
     }
 
     /**
-     * Handles profile image upload: deletes the old file and stores the new one.
-     * Returns the data array unchanged when no file is present in the request.
+     * Store a newly uploaded profile image and delete the previous one.
+     * Returns the data array unchanged if no file was uploaded.
      *
-     * @param  Request               $request
-     * @param  array<string, mixed>  $data
-     * @param  Member|null           $member
+     * @param  Request              $request
+     * @param  array<string, mixed> $data
+     * @param  Member|null          $member  Existing member whose old image should be removed.
      * @return array<string, mixed>
      */
     private function handleImageUpload(Request $request, array $data, ?Member $member = null): array
     {
-        if (!$request->hasFile('profile_image')) {
+        if (! $request->hasFile('profile_image')) {
             return $data;
         }
 

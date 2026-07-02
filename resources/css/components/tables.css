@@ -1,207 +1,175 @@
 .ck-table-wrap {
-  background: var(--ck-white);
+  overflow-x: auto;
+  border-radius: var(--ck-radius);
   border: 1px solid var(--ck-border);
-  border-radius: var(--ck-radius-lg);
-  overflow: hidden;
+  background: var(--ck-white);
 }
-.ck-table { width: 100%; border-collapse: collapse; }
-.ck-table thead { background: var(--ck-bg-subtle); border-bottom: 1px solid var(--ck-border); }
-.ck-table th {
-  text-align: left;
-  padding: 12px var(--ck-space-4);
-  font-size: var(--ck-font-sm);
-  font-weight: 700;
-  color: var(--ck-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-}
-.ck-table td {
-  padding: 14px var(--ck-space-4);
+
+.ck-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: var(--ck-font-base);
   color: var(--ck-text);
-  border-bottom: 1px solid var(--ck-border-light);
-}
-.ck-table tbody tr:last-child td { border-bottom: none; }
-.ck-table tbody tr:hover         { background: var(--ck-bg-subtle); }
-
-/* Pagination unten – innerhalb .ck-table-wrap */
-.ck-table__pagination {
-  padding: 12px var(--ck-space-4);
-  border-top: 1px solid var(--ck-border-light);
 }
 
-/* Pagination oben – außerhalb von .ck-table-wrap, eigenständig stehend */
-.ck-table__pagination--standalone {
-  padding: 8px 0;
-  border-top: none;
-}
-
-/* ── Spaltenbreiten-Utilities ───────────────────────────────────────────
-   Verwende diese Klassen statt style="width:Xpx" in Blade-Templates.
-   Absolutes Verbot: style="" in Blade-Views.
-   ─────────────────────────────────────────────────────────────────────── */
-.ck-table__col--xs    { width: 36px;  }   /* Checkbox, Icon */
-.ck-table__col--sm    { width: 90px;  }   /* Status-Badge, kurze Labels */
-.ck-table__col--md    { width: 220px; }   /* CSV-Spalten-Label, mittlere Felder */
-.ck-table__col--lg    { width: 280px; }   /* Mapping-Dropdown, breite Felder */
-
-/* Avatar */
-.ck-avatar {
-  border-radius: var(--ck-radius-full);
-  background: var(--ck-primary);
-  color: var(--ck-text-white);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.ck-avatar--sm { width: 32px; height: 32px; font-size: var(--ck-font-sm); }
-.ck-avatar--md { width: 36px; height: 36px; font-size: var(--ck-font-sm); }
-.ck-avatar--lg { width: 48px; height: 48px; font-size: var(--ck-font-base); }
-.ck-avatar--photo { object-fit: cover; border: 2px solid var(--ck-border); }
-
-/* ══════════════════════════════════════════════════════════════════════
-   Accordion-Zeilen (Expand / Collapse)
-   ─────────────────────────────────────────────────────────────────────
-   Pattern A: Zeilen-Klick öffnet eine versteckte Akkordeon-Zeile darunter.
-   Verwendet für: Teams-Index (Mitglieder inline), ExtendedContactFields.
-
-   HTML-Struktur:
-     <tr class="ck-table__row--expandable" onclick="...">
-       <td><span class="ck-accordion-chevron" id="chevron-X">SVG</span> ...</td>
-     </tr>
-     <tr class="ck-expand-row is-hidden" id="expand-X">
-       <td colspan="N">
-         <div class="ck-accordion-panel"> ... </div>
-       </td>
-     </tr>
-
-   JS: classList.toggle('is-hidden') + classList.toggle('ck-accordion-chevron--open')
-══════════════════════════════════════════════════════════════════════ */
-
-/* Zeile ist anklickbar */
-.ck-table__row--expandable {
-  cursor: pointer;
-  user-select: none;
-}
-.ck-table__row--expandable:hover { background: var(--ck-bg-subtle); }
-
-/* Kein hover auf der geöffneten Expand-Zeile */
-.ck-expand-row:hover { background: transparent !important; }
-
-/* Chevron-Icon in anklickbarer Zeile */
-.ck-accordion-chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  margin-right: 6px;
-  color: var(--ck-text-muted);
-  transition: transform 0.2s, color 0.15s;
-  flex-shrink: 0;
-  vertical-align: middle;
-}
-.ck-accordion-chevron svg { display: block; }
-.ck-accordion-chevron--open {
-  transform: rotate(180deg);
-  color: var(--ck-accent-dark);
-}
-
-/* Expand-Zeile selbst */
-.ck-expand-row {
+.ck-table thead tr {
   background: var(--ck-bg-subtle);
-}
-.ck-expand-row td {
-  padding: 0;
   border-bottom: 2px solid var(--ck-border);
 }
 
-/* Inhalt der Expand-Zeile */
-.ck-accordion-panel {
-  padding: var(--ck-space-4) var(--ck-space-5);
-  border-top: 1px solid var(--ck-border-light);
+.ck-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: var(--ck-font-sm);
+  font-weight: 700;
+  color: var(--ck-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
-/* ── Mitgliederliste im Accordion (Teams-Index) ────────────────────── */
-.ck-accordion-member-list {
+.ck-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--ck-border-light);
+  vertical-align: middle;
+}
+
+.ck-table tbody tr:last-child td { border-bottom: none; }
+
+.ck-table tbody tr:hover         { background: var(--ck-bg-subtle); }
+
+/* Column widths */
+.ck-table__col--xs  { width: 40px; }
+.ck-table__col--sm  { width: 90px; }
+.ck-table__col--md  { width: 160px; }
+.ck-table__col--lg  { width: 220px; }
+.ck-table__col--xl  { width: 300px; }
+.ck-table__bold     { font-weight: 600; }
+.ck-table__muted    { color: var(--ck-text-muted); font-size: var(--ck-font-sm); }
+
+.ck-table__actions  { width: 1%; white-space: nowrap; }
+.ck-table__action-cell {
   display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin-bottom: var(--ck-space-3);
+  gap: var(--ck-space-2);
+  justify-content: flex-end;
 }
 
-.ck-accordion-member {
+/* ── Sort link ────────────────────────────────────────────────────── */
+.ck-sort-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  color: inherit;
+  font-weight: 700;
+  font-size: var(--ck-font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ck-sort-link:hover {
+  color: var(--ck-accent-dark);
+}
+.ck-sort-link__icon {
+  font-size: 10px;
+  color: var(--ck-text-muted);
+}
+.ck-sort-link--active .ck-sort-link__icon {
+  color: var(--ck-accent-dark);
+}
+
+/* ── Sort bar (Teams page) ────────────────────────────────────────── */
+.ck-sort-bar {
   display: flex;
   align-items: center;
   gap: var(--ck-space-3);
-  padding: 8px 10px;
-  border-radius: var(--ck-radius);
-  transition: background 0.1s;
 }
-.ck-accordion-member:hover { background: var(--ck-border-light); }
 
-.ck-accordion-member__name {
-  flex: 1;
-  font-size: var(--ck-font-base);
-  font-weight: 600;
-  color: var(--ck-text);
-}
-.ck-accordion-member__number {
-  font-size: var(--ck-font-sm);
-  font-weight: 700;
-  color: var(--ck-text-muted);
-  background: var(--ck-border);
-  border-radius: 4px;
-  padding: 1px 7px;
-  min-width: 32px;
+/* ── Empty state ──────────────────────────────────────────────────── */
+.ck-empty-state {
   text-align: center;
+  color: var(--ck-text-muted);
+  padding: var(--ck-space-6) var(--ck-space-4);
+  font-size: var(--ck-font-base);
 }
 
-/* ── Mitglied-Hinzufügen-Zeile im Accordion ────────────────────────── */
+/* ── Row expandable ───────────────────────────────────────────────── */
+.ck-table__row--expandable { cursor: pointer; }
+.ck-table__row--expandable:hover { background: var(--ck-bg-subtle); }
+
+/* No hover highlight on the expanded detail row */
+.ck-expand-row:hover { background: transparent !important; }
+
+/* ── Add member inline form (Teams roster) ────────────────────────── */
 .ck-add-member-inline {
   display: flex;
   align-items: center;
   gap: var(--ck-space-2);
-  padding-top: var(--ck-space-3);
-  border-top: 1px solid var(--ck-border-light);
-  margin-top: var(--ck-space-2);
   flex-wrap: wrap;
 }
-.ck-add-member-inline select {
+.ck-add-member-inline .ck-field__input { flex: 1; min-width: 180px; }
+.ck-add-member-inline__number          { width: 100px; flex-shrink: 0; }
+
+/* Multi-select for batch member add */
+.ck-add-member-inline__multi {
   flex: 1;
-  min-width: 160px;
+  min-width: 220px;
+  min-height: 80px;
 }
-.ck-add-member-inline__number {
-  width: 64px;
+
+/* ── Accordion member row ─────────────────────────────────────────── */
+.ck-accordion-member {
+  display: flex;
+  align-items: center;
+  gap: var(--ck-space-3);
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--ck-border-light);
+}
+.ck-accordion-member:last-child { border-bottom: none; }
+.ck-accordion-member:hover { background: var(--ck-border-light); }
+.ck-accordion-member__number {
+  font-size: var(--ck-font-sm);
+  font-weight: 700;
+  color: var(--ck-text-muted);
+  min-width: 28px;
+}
+
+/* ── Accordion chevron ────────────────────────────────────────────── */
+.ck-accordion-chevron {
+  transition: transform 0.2s ease;
+  color: var(--ck-text-muted);
+  font-size: 13px;
   flex-shrink: 0;
 }
+.ck-accordion-chevron--open { transform: rotate(180deg); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Sektion-Header: einklappbar
-   ─────────────────────────────────────────────────────────────────────
-   Für Management-Seiten: Gruppen (Allgemein, Team A, …) können
-   per Klick auf den Header auf-/zugeklappt werden.
+   Section header (Teams page: collapsible team bar)
+   NOTE: .ck-section-header base styles are in misc.css.
+   Only collapsible behaviour and hover rules are here.
 
-   HTML-Struktur:
-     <div class="ck-section-header ck-section-header--collapsible"
-          onclick="ckSectionToggle('body-X', 'chevron-X')">
-       ...
-       <span class="ck-accordion-chevron" id="chevron-X">SVG</span>
-     </div>
-     <div id="body-X">  ← klappt sich ein/aus  </div>
+   Hover rule split:
+     - Non-coloured headers  → light grey hover (--ck-border-light)
+     - Coloured headers      → brightness(1.15) so the team colour
+       brightens instead of being overridden with grey.
 ══════════════════════════════════════════════════════════════════════ */
 .ck-section-header--collapsible {
   cursor: pointer;
   user-select: none;
-  transition: background 0.15s;
+  transition: background 0.15s, filter 0.15s;
 }
-.ck-section-header--collapsible:hover {
+
+/* Standard (uncoloured) headers: grey hover */
+.ck-section-header--collapsible:not(.ck-section-header--colored):hover {
   background: var(--ck-border-light);
 }
 
+/* Coloured team headers: brighten team colour, do not override */
+.ck-section-header--collapsible.ck-section-header--colored:hover {
+  filter: brightness(1.15);
+}
+
 /* ══════════════════════════════════════════════════════════════════════
-   Expand-Row (ExtendedContactFields & andere Module)
+   Expand row (ExtendedContactFields and other modules)
 ══════════════════════════════════════════════════════════════════════ */
 .ck-contact-fields-grid {
   display: grid;
@@ -218,72 +186,104 @@
   font-weight: 700;
   color: var(--ck-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.4px;
 }
 .ck-contact-field-item__value {
   font-size: var(--ck-font-base);
   color: var(--ck-text);
-  word-break: break-word;
 }
-.ck-contact-field-item__value a { color: var(--ck-accent); text-decoration: none; }
 .ck-contact-field-item__value a:hover { text-decoration: underline; }
 
-/* ══════════════════════════════════════════════════════════════════════
-   Pagination – ck-pagination
-   ─────────────────────────────────────────────────────────────────────
-   Registriert als Standard-View via Paginator::defaultView()
-   in AppServiceProvider. Ersetzt Laravels Tailwind-Default-View,
-   da dieses Projekt kein Tailwind nutzt.
-══════════════════════════════════════════════════════════════════════ */
+/* ── Pagination ───────────────────────────────────────────────────── */
 .ck-pagination {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--ck-space-1);
+  margin-top: var(--ck-space-4);
   flex-wrap: wrap;
 }
-
 .ck-pagination__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--ck-border);
+  min-width: 34px;
+  height: 34px;
+  padding: 0 var(--ck-space-2);
   border-radius: var(--ck-radius);
-  font-size: var(--ck-font-sm);
-  font-weight: 500;
-  color: var(--ck-text);
+  border: 1px solid var(--ck-border);
   background: var(--ck-white);
+  color: var(--ck-text);
+  font-size: var(--ck-font-sm);
+  font-family: var(--ck-font);
+  cursor: pointer;
   text-decoration: none;
-  line-height: 1;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.1s, border-color 0.1s;
 }
-
 .ck-pagination__btn:hover:not(.ck-pagination__btn--disabled):not(.ck-pagination__btn--active) {
   background: var(--ck-bg-subtle);
-  border-color: var(--ck-primary);
-  color: var(--ck-primary);
+  border-color: var(--ck-border);
 }
-
 .ck-pagination__btn--active {
   background: var(--ck-primary);
-  color: var(--ck-text-white);
   border-color: var(--ck-primary);
+  color: var(--ck-white);
   font-weight: 700;
   cursor: default;
 }
-
 .ck-pagination__btn--disabled {
-  color: var(--ck-text-muted);
-  cursor: default;
   opacity: 0.4;
-  pointer-events: none;
+  cursor: not-allowed;
 }
-
-.ck-pagination__dots {
-  padding: 0 6px;
+.ck-pagination__ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 34px;
   color: var(--ck-text-muted);
   font-size: var(--ck-font-sm);
-  line-height: 32px;
+}
+
+/* ── Import preview table ─────────────────────────────────────────── */
+.ck-import-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--ck-space-2);
+  flex-wrap: wrap;
+  font-size: var(--ck-font-sm);
+}
+.ck-import-summary__total    { font-weight: 700; color: var(--ck-text); }
+.ck-import-summary__sep      { color: var(--ck-text-muted); }
+.ck-import-summary__new      { color: var(--ck-success); font-weight: 600; }
+.ck-import-summary__changed  { color: var(--ck-warning); font-weight: 600; }
+.ck-import-summary__unchanged{ color: var(--ck-text-muted); }
+
+.ck-import-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ck-space-3);
+  flex-wrap: wrap;
+}
+
+.ck-import-diff {
+  list-style: none;
+  font-size: var(--ck-font-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ck-import-diff__field { font-weight: 700; color: var(--ck-text-secondary); }
+.ck-import-diff__old   { color: var(--ck-danger-text); text-decoration: line-through; }
+.ck-import-diff__new   { color: var(--ck-success-text); font-weight: 600; }
+
+/* ── Table pagination row ─────────────────────────────────────────── */
+.ck-table__pagination {
+  padding: var(--ck-space-3) var(--ck-space-4);
+  border-top: 1px solid var(--ck-border-light);
+}
+.ck-table__pagination--standalone {
+  border-top: none;
+  padding-left: 0;
+  padding-right: 0;
 }

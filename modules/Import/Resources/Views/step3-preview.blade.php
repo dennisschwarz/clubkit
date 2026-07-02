@@ -9,7 +9,7 @@
     </div>
     <form method="POST" action="{{ route('import.cancel', $session->id) }}">
         @csrf
-        <x-ck-button variant="secondary" type="submit">Abbrechen</x-ck-button>
+        <x-ck-button variant="secondary" type="submit">{{ __('Cancel') }}</x-ck-button>
     </form>
 </div>
 
@@ -19,7 +19,7 @@
     </div>
 @endif
 
-{{-- Zusammenfassung --}}
+{{-- Summary --}}
 <div class="ck-import-summary ck-mb-4">
     <span class="ck-import-summary__total">{{ $counts['total'] }} Datensätze</span>
     <span class="ck-import-summary__sep">·</span>
@@ -33,9 +33,9 @@
 <form method="POST" action="{{ route('import.execute', $session->id) }}" id="importForm">
     @csrf
 
-    {{-- ── Globale Team-Zuweisung ─────────────────────────────────────────────
-         Kein name-Attribut → wird nicht submitted.
-         Steuert per JS alle .ck-team-assign-Dropdowns auf Zeilenebene.
+    {{-- ── Global team assignment ─────────────────────────────────────────────
+         No name attribute → not submitted.
+         Controls all .ck-team-assign dropdowns per row via JS.
     ──────────────────────────────────────────────────────────────────────── --}}
     @if(!empty($teams))
     <x-ck-card class="ck-mb-4">
@@ -43,12 +43,12 @@
             <div class="ck-spacer">
                 <p class="ck-font-weight-bold ck-mb-1">Team-Zuweisung (optional)</p>
                 <p class="ck-text-muted ck-font-sm">
-                    Wähle ein Team, um alle neu angelegten Mitglieder auf einmal zuzuweisen.
+                    Wähle ein Team, um alle ausgewählten Mitglieder auf einmal zuzuweisen.
                     Die Zuweisung kann pro Spieler in der Tabelle angepasst oder entfernt werden.
                 </p>
             </div>
             <div>
-                {{-- Kein name-Attribut: wird nicht gesubmittet, steuert nur die per-Zeile-Dropdowns --}}
+                {{-- No name attribute: not submitted, controls the per-row dropdowns via JS --}}
                 <select id="assignTeamGlobal" class="ck-field__input">
                     <option value="">— Kein Team (alle) —</option>
                     @foreach($teams as $team)
@@ -60,7 +60,7 @@
     </x-ck-card>
     @endif
 
-    {{-- Filter-Tabs + Aktionsleiste --}}
+    {{-- Filter tabs + action bar --}}
     <div class="ck-import-toolbar ck-mb-3">
         <div class="ck-local-tabs" id="importFilterTabs">
             <button type="button" class="ck-local-tab ck-local-tab--active"
@@ -74,11 +74,11 @@
         </div>
         <div class="ck-row ck-row--gap">
             <x-ck-button type="button" variant="secondary" size="sm"
-                         onclick="importSelectAll()">Alle auswählen</x-ck-button>
+                         onclick="importSelectAll()">{{ __('Select all') }}</x-ck-button>
             <x-ck-button type="button" variant="secondary" size="sm"
-                         onclick="importSelectNone()">Auswahl aufheben</x-ck-button>
+                         onclick="importSelectNone()">{{ __('Deselect all') }}</x-ck-button>
             <x-ck-button type="button" variant="secondary" size="sm"
-                         onclick="importSelectNewAndChanged()">Neu + Geänderte</x-ck-button>
+                         onclick="importSelectNewAndChanged()">{{ __('New + Changed') }}</x-ck-button>
         </div>
     </div>
 
@@ -107,7 +107,6 @@
                         $status = $row['status'];
                         $diff   = $row['diff'] ?? [];
                         $isNew  = $status === 'new';
-                        $isUnch = $status === 'unchanged';
                     @endphp
                     <tr class="ck-import-row" data-status="{{ $status }}">
                         <td>
@@ -115,8 +114,7 @@
                                    name="selected[]"
                                    value="{{ $index }}"
                                    class="ck-import-check"
-                                   {{ $isNew || $status === 'changed' ? 'checked' : '' }}
-                                   {{ $isUnch ? 'disabled' : '' }}>
+                                   {{ $isNew || $status === 'changed' ? 'checked' : '' }}>
                         </td>
                         <td>
                             @if ($isNew)
@@ -132,8 +130,7 @@
                         <td>{{ $m['pass_number'] ?? '–' }}</td>
                         @if(!empty($teams))
                         <td>
-                            @if($isNew)
-                            {{-- Per-Zeile Team-Dropdown: name="assign_team_id[{index}]" wird gesubmittet --}}
+                            {{-- Per-row team dropdown for all rows: name="assign_team_id[{index}]" --}}
                             <select name="assign_team_id[{{ $index }}]"
                                     class="ck-field__input ck-field__input--sm ck-team-assign">
                                 <option value="">— Kein Team —</option>
@@ -141,9 +138,6 @@
                                 <option value="{{ $team->id }}">{{ $team->name }}</option>
                                 @endforeach
                             </select>
-                            @else
-                                <span class="ck-text-muted">–</span>
-                            @endif
                         </td>
                         @endif
                         <td>
@@ -171,7 +165,7 @@
 
     <div class="ck-form-actions ck-mt-4">
         <x-ck-button variant="primary" type="submit" id="importSubmitBtn">
-            Auswahl importieren
+            {{ __('Import selection') }}
         </x-ck-button>
         <span class="ck-text-muted" id="importSelectedCount"></span>
     </div>
@@ -185,8 +179,8 @@
     importUpdateCount();
 
     @if(!empty($teams))
-    // Globales Team-Dropdown → synchronisiert alle per-Zeile-Dropdowns.
-    // Kein el.style.* – nur Wert-Zuweisung.
+    // Global team dropdown → synchronises all per-row dropdowns.
+    // No el.style.* – value assignment only.
     (function () {
         const globalSelect = document.getElementById('assignTeamGlobal');
         if (!globalSelect) return;

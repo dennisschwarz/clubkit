@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Members\Models\Member;
 use Modules\Teams\Database\Factories\TeamFactory;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -22,7 +24,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * a current playing eligibility (eligible_to_play_date set and not in the future).
  *
  * Activity logging tracks structural changes to the team record itself.
- * Pivot changes (adding/removing members) are logged manually in TeamController
+ * Pivot membership changes are logged manually in TeamController
  * because the team_member pivot is not a first-class Eloquent model.
  */
 class Team extends Model
@@ -53,6 +55,29 @@ class Team extends Model
     protected static function newFactory(): TeamFactory
     {
         return TeamFactory::new();
+    }
+
+    /**
+     * Clean up cross-module pivot rows when a team is deleted.
+     *
+     * management_function_team and management_task_team carry no DB-level FK to teams
+     * (Management is an optional dependency of Teams). Cascade is therefore handled here
+     * at the Eloquent layer, mirroring what the controller does during HTTP requests.
+     *
+     * Schema guards ensure this is a no-op when the Management module is not installed.
+     */
+    protected static function booted(): void
+    {
+        parent::booted();
+
+        static::deleting(function (self $team): void {
+            if (Schema::hasTable('management_function_team')) {
+                DB::table('management_function_team')->where('team_id', $team->id)->delete();
+            }
+            if (Schema::hasTable('management_task_team')) {
+                DB::table('management_task_team')->where('team_id', $team->id)->delete();
+            }
+        });
     }
 
     // ── Activity Log ──────────────────────────────────────────────────────────
@@ -98,14 +123,14 @@ class Team extends Model
     /**
      * Returns all members of this team via the team_member pivot.
      *
-     * The pivot carries squad_number and timestamps.
+     * The pivot carries squad_number, joined_at, and timestamps.
      *
      * @return BelongsToMany
      */
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(Member::class, 'team_member')
-                    ->withPivot('squad_number')
+                    ->withPivot('squad_number', 'joined_at')
                     ->withTimestamps();
     }
 

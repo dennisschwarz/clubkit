@@ -3,7 +3,7 @@
 
 @section('content')
 
-{{-- Chevron SVG – wird in Hook-Views über den View-Scope weitergegeben --}}
+{{-- Chevron SVG – passed into hook views via the view scope --}}
 @php
 $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
   <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -17,7 +17,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
     </div>
 </div>
 
-{{-- ── Lokale Sub-Tabs ──────────────────────────────────────────────── --}}
+{{-- ── Local sub-tabs ─────────────────────────────────────────────────── --}}
 <div class="ck-local-tabs ck-mb-5">
     <button class="ck-local-tab ck-local-tab--purple {{ request('tab') !== 'aufgaben' ? 'ck-local-tab--active' : '' }}"
             onclick="ckLocalTab('mgmtTab-funktionen', this)">
@@ -30,7 +30,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════════
-     TAB: Funktionen
+     TAB: Functions
 ══════════════════════════════════════════════════════════════════════ --}}
 <div id="mgmtTab-funktionen"
      class="ck-local-section {{ request('tab') !== 'aufgaben' ? 'ck-local-section--active' : '' }}">
@@ -38,9 +38,9 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
     <div class="ck-row ck-row--between ck-mb-4">
         <div class="ck-row">
             {{--
-                Teams injiziert hier einen Team-Filter, wenn das Modul aktiv ist.
+                Teams injects a team filter here when the module is active.
                 Extension point: management.function.header.filter
-                Registriert von: TeamsServiceProvider
+                Registered by: TeamsServiceProvider
             --}}
             @ckHook('management.function.header.filter')
         </div>
@@ -60,22 +60,26 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
         </x-ck-card>
     @else
         {{--
-            Wenn Teams aktiv ist, übernimmt teams::management-function-list die komplette
-            Darstellung (mit Team-Filter und Team-Gruppierung).
-            Ohne Teams: einfache flache Liste aller Funktionen.
+            When the Teams module is active, teams::management-function-list takes over
+            the entire rendering (with team filter and team grouping).
+            Without Teams: simple flat list of all functions.
             Extension point: management.function.list (replaceable section)
         --}}
         @if(app('ck.hooks')->has('management.function.list'))
             @ckHook('management.function.list')
         @else
-            @include('management::_functions-table', ['groupFunctions' => $functions])
+            {{-- $fnSortRaw is required for the sort header in the partial --}}
+            @include('management::_functions-table', [
+                'groupFunctions' => $functions,
+                'fnSortRaw'      => $fnSortRaw,
+            ])
         @endif
     @endif
 
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════════
-     TAB: Aufgaben
+     TAB: Tasks
 ══════════════════════════════════════════════════════════════════════ --}}
 <div id="mgmtTab-aufgaben"
      class="ck-local-section {{ request('tab') === 'aufgaben' ? 'ck-local-section--active' : '' }}">
@@ -84,7 +88,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
         <div class="ck-row">
             {{--
                 Extension point: management.task.header.filter
-                Registriert von: TeamsServiceProvider
+                Registered by: TeamsServiceProvider
             --}}
             @ckHook('management.task.header.filter')
         </div>
@@ -105,20 +109,24 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
     @else
         {{--
             Extension point: management.task.list (replaceable section)
-            Registriert von: TeamsServiceProvider
+            Registered by: TeamsServiceProvider
         --}}
         @if(app('ck.hooks')->has('management.task.list'))
             @ckHook('management.task.list')
         @else
-            @include('management::_tasks-table', ['groupTasks' => $tasks])
+            {{-- $taskSortRaw is required for the sort header in the partial --}}
+            @include('management::_tasks-table', [
+                'groupTasks'  => $tasks,
+                'taskSortRaw' => $taskSortRaw,
+            ])
         @endif
     @endif
 
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════════
-     MODAL: Funktion anlegen / bearbeiten
-     Raw HTML statt <x-ck-modal> + <x-slot:tabs> – PHP 8.4 Blade-Slot-Bug umgehen.
+     MODAL: Create / edit function
+     Raw HTML instead of <x-ck-modal> + <x-slot:tabs> – works around the PHP 8.4 Blade slot bug.
 ══════════════════════════════════════════════════════════════════════ --}}
 <div id="mgmtFunctionModal"
      class="ck-modal-overlay"
@@ -149,10 +157,10 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                                 placeholder="z.B. Trainer, Co-Trainer, Betreuer, Kassenwart" />
 
                     {{--
-                        Teams injiziert hier die Team-Checkbox-Liste.
+                        Teams injects the team checkbox list here.
                         Extension point: management.function.modal.teams
-                        Registriert von: TeamsServiceProvider
-                        Enthält: <div id="mgmtFunctionTeamList"> mit Checkboxen
+                        Registered by: TeamsServiceProvider
+                        Contains: <div id="mgmtFunctionTeamList"> with checkboxes
                     --}}
                     @ckHook('management.function.modal.teams')
 
@@ -183,7 +191,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════════
-     MODAL: Aufgabe anlegen / bearbeiten
+     MODAL: Create / edit task
 ══════════════════════════════════════════════════════════════════════ --}}
 <div id="mgmtTaskModal"
      class="ck-modal-overlay"
@@ -217,8 +225,8 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 
                     {{--
                         Extension point: management.task.modal.teams
-                        Registriert von: TeamsServiceProvider
-                        Enthält: <div id="mgmtTaskTeamList"> mit Checkboxen
+                        Registered by: TeamsServiceProvider
+                        Contains: <div id="mgmtTaskTeamList"> with checkboxes
                     --}}
                     @ckHook('management.task.modal.teams')
 
@@ -273,9 +281,9 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 </script>
 @vite('resources/js/modules/management-modal.js')
 {{--
-    Teams injiziert hier:
-    - window.CK_Teams.functionTeamIds / taskTeamIds (für Modal-Vorbefüllung)
-    - Event-Listener auf ck:management.function.modal.open / ck:management.task.modal.open
+    Teams injects here:
+    - window.CK_Teams.functionTeamIds / taskTeamIds (for modal pre-population)
+    - Event listeners for ck:management.function.modal.open / ck:management.task.modal.open
     Extension point: management.page.scripts
 --}}
 @ckHook('management.page.scripts')

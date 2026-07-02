@@ -11,24 +11,25 @@
     </div>
 </div>
 
-{{-- Filter ──────────────────────────────────────────────────────────────── --}}
+{{-- Filters ──────────────────────────────────────────────────────────────── --}}
 <x-ck-card>
     <form method="GET" action="{{ route('admin.activity-log.index') }}" class="ck-filter-form">
         <div class="ck-filter-row">
 
+            {{-- URL format: ?filter[causer_id]=1 --}}
             <x-ck-field
                 type="select"
-                name="causer_id"
+                name="filter[causer_id]"
                 label="Benutzer"
-                :value="request('causer_id')"
+                :value="request('filter.causer_id')"
                 :options="['' => 'Alle Benutzer'] + $users->pluck('name', 'id')->toArray()"
             />
 
             <x-ck-field
                 type="select"
-                name="event"
+                name="filter[event]"
                 label="Aktion"
-                :value="request('event')"
+                :value="request('filter.event')"
                 :options="[
                     ''        => 'Alle Aktionen',
                     'created' => 'Erstellt',
@@ -39,29 +40,29 @@
 
             <x-ck-field
                 type="select"
-                name="log_name"
+                name="filter[log_name]"
                 label="Modul"
-                :value="request('log_name')"
+                :value="request('filter.log_name')"
                 :options="['' => 'Alle Module'] + $logNames->combine($logNames)->toArray()"
             />
 
             <x-ck-field
                 type="date"
-                name="date_from"
+                name="filter[date_from]"
                 label="Von"
-                :value="request('date_from')"
+                :value="request('filter.date_from')"
             />
 
             <x-ck-field
                 type="date"
-                name="date_to"
+                name="filter[date_to]"
                 label="Bis"
-                :value="request('date_to')"
+                :value="request('filter.date_to')"
             />
 
             <div class="ck-filter-actions">
-                <x-ck-button type="submit" variant="primary">Filtern</x-ck-button>
-                <x-ck-button variant="secondary" tag="a" href="{{ route('admin.activity-log.index') }}">Zurücksetzen</x-ck-button>
+                <x-ck-button type="submit" variant="primary">{{ __('Filter') }}</x-ck-button>
+                <x-ck-button variant="secondary" tag="a" href="{{ route('admin.activity-log.index') }}">{{ __('Reset') }}</x-ck-button>
             </div>
 
         </div>
@@ -78,11 +79,11 @@
     <table class="ck-table">
         <thead>
             <tr>
-                <th>Zeit</th>
+                <x-ck-sort-header column="created_at" label="Zeit" />
                 <th>Benutzer</th>
-                <th>Aktion</th>
+                <x-ck-sort-header column="event"      label="Aktion" />
                 <th>Objekt</th>
-                <th>Modul</th>
+                <x-ck-sort-header column="log_name"   label="Modul" />
                 <th>IP</th>
                 <th>Details</th>
             </tr>
@@ -91,12 +92,12 @@
             @foreach($activities as $activity)
             <tr>
 
-                {{-- Time --}}
+                {{-- Timestamp --}}
                 <td class="ck-table__nowrap">
                     {{ $activity->created_at->format('d.m.Y H:i') }}
                 </td>
 
-                {{-- Causer (user who triggered the action) --}}
+                {{-- Causer --}}
                 <td>
                     @if($activity->causer)
                         {{ $activity->causer->name }}
@@ -105,14 +106,14 @@
                     @endif
                 </td>
 
-                {{-- Event badge --}}
+                {{-- Action badge --}}
                 <td>
                     @php
                         $eventLabel = match($activity->event) {
-                            'created'  => ['label' => 'Erstellt',  'color' => 'green'],
-                            'updated'  => ['label' => 'Geändert',  'color' => 'blue'],
-                            'deleted'  => ['label' => 'Gelöscht',  'color' => 'red'],
-                            'restored' => ['label' => 'Wiederhergestellt', 'color' => 'amber'],
+                            'created'  => ['label' => __('Created'),  'color' => 'green'],
+                            'updated'  => ['label' => __('Updated'),  'color' => 'blue'],
+                            'deleted'  => ['label' => __('Deleted'),  'color' => 'red'],
+                            'restored' => ['label' => __('Restored'), 'color' => 'amber'],
                             default    => ['label' => $activity->event ?? '–', 'color' => 'gray'],
                         };
                     @endphp
@@ -134,17 +135,17 @@
                     @endif
                 </td>
 
-                {{-- Log name (module) --}}
+                {{-- Module --}}
                 <td>
                     <span class="ck-muted">{{ $activity->log_name ?? 'default' }}</span>
                 </td>
 
-                {{-- IP address (stored inside properties JSON) --}}
+                {{-- IP address (from properties JSON) --}}
                 <td class="ck-table__nowrap">
                     <span class="ck-muted">{{ $activity->properties->get('ip', '–') }}</span>
                 </td>
 
-                {{-- Changed attributes (collapsed summary) --}}
+                {{-- Changed fields (collapsed) --}}
                 <td>
                     @php
                         $attrs = $activity->properties->get('attributes', []);

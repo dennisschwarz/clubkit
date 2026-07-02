@@ -167,6 +167,64 @@
         select.value = value != null ? String(value) : '';
     }
 
+    // ── Team-Checkboxen (ersetzt nativen select[multiple]) ────────────────────
+
+    /**
+     * Befüllt das .ck-multiselect-list#treasuryAccountTeamList mit Checkbox-Items.
+     * Wird bei jedem Öffnen des Konto-Modals neu gerendert.
+     *
+     * @param {Object}   teams       - { id: { id, name } }
+     * @param {Array}    selectedIds - IDs der vorausgewählten Teams
+     */
+    function populateTeamCheckboxes(teams, selectedIds) {
+        const selected  = (selectedIds || []).map(String);
+        const container = document.getElementById('treasuryAccountTeamList');
+        if (! container) { return; }
+
+        container.innerHTML = '';
+        const list = Object.values(teams);
+
+        if (list.length === 0) {
+            const p = document.createElement('p');
+            p.className   = 'ck-muted';
+            p.textContent = 'Keine Teams vorhanden.';
+            container.appendChild(p);
+            return;
+        }
+
+        list.forEach(function (team) {
+            const label = document.createElement('label');
+            label.className = 'ck-multiselect-item';
+
+            const cb      = document.createElement('input');
+            cb.type       = 'checkbox';
+            cb.name       = 'team_ids[]';
+            cb.value      = String(team.id);
+            cb.className  = 'ck-multiselect-item__checkbox';
+            cb.checked    = selected.indexOf(String(team.id)) !== -1;
+
+            const span         = document.createElement('span');
+            span.className     = 'ck-multiselect-item__label';
+            span.textContent   = team.name || '';
+
+            label.appendChild(cb);
+            label.appendChild(span);
+            container.appendChild(label);
+        });
+    }
+
+    // ── Sichtbarkeits-Toggle (global, via onchange-Attribut im Blade) ─────────
+
+    /**
+     * Zeigt/versteckt den Team-Bereich im Konto-Modal.
+     * Wird per onchange="treasuryAccountVisibilityChange(this.value)" aufgerufen.
+     *
+     * @param {string} value - 'public' oder 'team_restricted'
+     */
+    window.treasuryAccountVisibilityChange = function (value) {
+        toggleTeamSection(value);
+    };
+
     // ── Category options filtered by transaction type ─────────────────────────
 
     /**
@@ -286,18 +344,12 @@
         const parentSel = form.querySelector('[name="parent_id"]');
         if (parentSel) { populateSelect(parentSel, data.parentAccounts || {}); }
 
-        const teamSel = form.querySelector('[name="team_ids[]"]');
-        if (teamSel) {
-            teamSel.setAttribute('multiple', 'multiple');
-            populateSelect(teamSel, data.teams || {});
-        }
+        // Team-Checkboxen befüllen – ersetzt den nativen <select multiple>
+        populateTeamCheckboxes(data.teams || {}, []);
 
+        // visField nur für setSelectValue im Edit-Modus nötig
         const visField = form.querySelector('[name="visibility"]');
-        if (visField) {
-            visField.addEventListener('change', function () {
-                toggleTeamSection(this.value);
-            });
-        }
+        // toggleTeamSection wird via onchange-Attribut im Blade aufgerufen
 
         if (mode === 'create') {
             form.action           = data.routes.accountStore;
@@ -314,6 +366,9 @@
             form.querySelector('[name="description"]').value = account.description || '';
             if (parentSel) { setSelectValue(parentSel, account.parent_id); }
             if (visField)  { setSelectValue(visField, account.visibility); }
+
+            // Team-Vorauswahl im Edit-Modus (falls Controller account.team_ids liefert)
+            populateTeamCheckboxes(data.teams || {}, account.team_ids || []);
             toggleTeamSection(account.visibility);
         }
 
@@ -327,6 +382,10 @@
      */
     function openContributionModal() {
         const data = window.CK_Treasury || {};
+
+        // Aufgaben-Select befüllen (data.tasks falls vom Controller geliefert)
+        const taskSel = document.querySelector('#treasuryContributionModal [name="task_id"]');
+        if (taskSel) { populateSelect(taskSel, data.tasks || {}); }
 
         const accountSel = document.querySelector('#treasuryContributionModal [name="account_id"]');
         if (accountSel) { populateSelect(accountSel, data.accounts || {}); }

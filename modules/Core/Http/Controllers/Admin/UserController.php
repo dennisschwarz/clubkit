@@ -14,28 +14,43 @@ use Modules\Core\Http\Requests\StoreUserRequest;
 use Modules\Core\Http\Requests\UpdateUserRequest;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * Manages system users (admins, coaches, etc.).
  *
- * A modal with two tabs is used:
- *   Tab 1 – Login info: name, email, password
- *   Tab 2 – Rights:     role selection or custom permission set
+ * Allowed sort fields (via ?sort=... | ?sort=-...):
+ *   name (default ASC), email, created_at
+ *
+ * allowedSorts() accepts variadic args — NO array wrapper.
+ *
+ * Rights management supports two modes via the rights_only flag:
+ *   role = 'custom'  → sync direct permissions, clear roles
+ *   role = <name>    → sync role, clear direct permissions
+ *   role = ''        → clear both roles and direct permissions
  */
 class UserController extends Controller
 {
     // ── index ─────────────────────────────────────────────────────────────────
 
     /**
+     * Display the paginated user list with roles, permissions and JS data bridges.
+     *
      * @return View
      */
     public function index(): View
     {
-        $users       = User::with('roles', 'permissions')->orderBy('name')->paginate(25);
+        $users = QueryBuilder::for(User::class)
+            ->with('roles', 'permissions')
+            ->allowedSorts('name', 'email', 'created_at')
+            ->defaultSort('name')
+            ->paginate(25)
+            ->withQueryString();
+
         $roles       = Role::with('permissions')->orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
 
-        // Group permissions by module prefix (text before the first dot) for the UI
+        // Group permissions by module prefix for the role editor UI.
         $permsByModule = [];
         foreach ($permissions as $p) {
             $module = explode('.', $p->name)[0];
@@ -43,8 +58,7 @@ class UserController extends Controller
         }
         ksort($permsByModule);
 
-        // Build JS data bridge for users-modal.js
-        // Note: no fn()/map() in @json() – must use manual foreach loops
+        // JS data bridge for users-modal.js — foreach only, no arrow functions.
         $usersJs = [];
         foreach ($users as $u) {
             $rolesArr       = [];
@@ -64,7 +78,6 @@ class UserController extends Controller
             ];
         }
 
-        // Build roles with their permissions for the role dropdown
         $rolesJs = [];
         foreach ($roles as $r) {
             $permNames = [];
@@ -87,7 +100,7 @@ class UserController extends Controller
     // ── store ─────────────────────────────────────────────────────────────────
 
     /**
-     * Creates a new user account with a hashed password.
+     * Store a newly created user.
      *
      * @param  StoreUserRequest $request
      * @return RedirectResponse
@@ -108,6 +121,8 @@ class UserController extends Controller
     // ── show ──────────────────────────────────────────────────────────────────
 
     /**
+     * Display the user detail / rights management page.
+     *
      * @param  User $user
      * @return View
      */
@@ -123,13 +138,8 @@ class UserController extends Controller
     // ── update ────────────────────────────────────────────────────────────────
 
     /**
-     * Updates a user's login info (Tab 1) or rights (Tab 2).
-     *
-     * Tab 1 (login info): name, email, optional new password.
-     * Tab 2 (rights):     rights_only=1 flag, role dropdown, permissions checkboxes.
-     *
-     * The 'custom' role option clears all roles and applies individual permissions.
-     * An empty role string clears both roles and individual permissions.
+     * Update user profile data or sync rights (role + direct permissions).
+     * Determined by the presence of the rights_only boolean flag in the request.
      *
      * @param  UpdateUserRequest $request
      * @param  User              $user
@@ -137,9 +147,7 @@ class UserController extends Controller
      */
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        // ── Tab 2: rights update ───────────────────────────────────────────────
         if ($request->boolean('rights_only')) {
-
             $role = $request->input('role');
 
             if ($role === 'custom') {
@@ -159,7 +167,6 @@ class UserController extends Controller
                 ->with('success', 'Rechte von „' . $user->name . '" aktualisiert.');
         }
 
-        // ── Tab 1: login info update ───────────────────────────────────────────
         $data = [
             'name'  => $request->input('name'),
             'email' => $request->input('email'),
@@ -179,7 +186,7 @@ class UserController extends Controller
     // ── destroy ───────────────────────────────────────────────────────────────
 
     /**
-     * Deletes a user account. A user cannot delete their own account.
+     * Delete a user. Prevents self-deletion.
      *
      * @param  User $user
      * @return RedirectResponse

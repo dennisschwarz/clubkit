@@ -1,6 +1,6 @@
 /* ============================================================
-   Auth-Seiten Layout (CK-Variablen aus base.css)
-   Hinweis: .ck-link ist global in misc.css definiert.
+   Auth pages layout (CK design tokens from base.css)
+   Note: .ck-link is defined globally in misc.css.
    ============================================================ */
 
 /* Body */
@@ -20,7 +20,7 @@
     padding: var(--ck-space-6);
 }
 
-/* Logo / App-Name */
+/* Logo / App name */
 .ck-auth-logo {
     text-align: center;
     margin-bottom: var(--ck-space-6);
@@ -33,7 +33,7 @@
     letter-spacing: -0.02em;
 }
 
-/* Karte */
+/* Card */
 .ck-auth-card {
     background: var(--ck-white);
     border: 1px solid var(--ck-border);
@@ -42,7 +42,7 @@
     box-shadow: var(--ck-shadow-sm);
 }
 
-/* Status-Meldung (z. B. "Password reset link sent") */
+/* Status message (e.g. "Password reset link sent") */
 .ck-auth-status {
     background-color: var(--ck-success-bg);
     color: var(--ck-success-text);
@@ -53,7 +53,7 @@
     margin-bottom: var(--ck-space-4);
 }
 
-/* Formular-Label */
+/* Form label */
 .ck-form-label {
     display: block;
     font-size: var(--ck-font-base);
@@ -62,7 +62,7 @@
     margin-bottom: var(--ck-space-1);
 }
 
-/* Text-Input */
+/* Text input */
 .ck-form-input {
     display: block;
     width: 100%;
@@ -80,7 +80,7 @@
 
 .ck-form-input:focus {
     border-color: var(--ck-accent-dark);
-    box-shadow: 0 0 0 3px rgba(26, 111, 196, 0.08);
+    box-shadow: var(--ck-focus-ring);
 }
 
 .ck-form-input:disabled {
@@ -89,7 +89,7 @@
     opacity: 0.6;
 }
 
-/* Fehler-Meldung */
+/* Error message */
 .ck-form-error {
     font-size: var(--ck-font-sm);
     color: var(--ck-danger);
@@ -97,11 +97,74 @@
     margin-bottom: 0;
 }
 
-/* Abstände zwischen Formularfeldern in Auth-Karten */
+/* Spacing between form fields in auth cards */
 .ck-auth-card > form > div {
     margin-top: var(--ck-space-4);
 }
 
 .ck-auth-card > form > div:first-child {
     margin-top: 0;
+}
+
+/* ============================================================
+   Welcome page (core::welcome)
+   ============================================================ */
+
+/* Zentrierter Wrapper – etwas breiter als der Login-Wrapper */
+.ck-welcome-wrapper {
+    width: 100%;
+    max-width: 460px;
+    padding: var(--ck-space-6);
+    text-align: center;
+}
+
+/* Vereinslogo */
+.ck-welcome-brand {
+    margin-bottom: var(--ck-space-5);
+}
+
+.ck-welcome-brand__logo {
+    max-height: 100px;
+    max-width: 240px;
+    object-fit: contain;
+}
+
+/* Vereinsname */
+.ck-welcome-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--ck-brand-bar-bg);
+    letter-spacing: -0.02em;
+    margin: 0 0 var(--ck-space-2);
+    line-height: 1.2;
+}
+
+/* Untertitel */
+.ck-welcome-subtitle {
+    font-size: var(--ck-font-base);
+    color: var(--ck-text-muted);
+    margin: 0 0 var(--ck-space-6);
+}
+
+/* Hinweis-Flash (z. B. "Registrierung deaktiviert") */
+.ck-welcome-status {
+    background-color: var(--ck-warning-bg);
+    color: var(--ck-warning-text);
+    border: 1px solid var(--ck-warning-border);
+    border-radius: var(--ck-radius);
+    padding: var(--ck-space-2) var(--ck-space-4);
+    font-size: var(--ck-font-sm);
+    margin-bottom: var(--ck-space-4);
+}
+
+/* Aktionskarte mit Login-/Register-Buttons */
+.ck-welcome-card {
+    background: var(--ck-white);
+    border: 1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
+    padding: 2rem;
+    box-shadow: var(--ck-shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--ck-space-3);
 }

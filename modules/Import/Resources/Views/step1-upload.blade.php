@@ -12,7 +12,7 @@
     </x-ck-button>
 </div>
 
-{{-- Fehlermeldungen --}}
+{{-- Validation errors --}}
 @if ($errors->any())
     <div class="ck-alert ck-alert--danger ck-mb-4">
         @foreach ($errors->all() as $error)
@@ -32,7 +32,7 @@
           class="ck-form-grid ck-form-grid--1">
         @csrf
 
-        {{-- Unterstützte Formate --}}
+        {{-- Supported formats --}}
         <div class="ck-import-formats">
             <p class="ck-label">Unterstützte Quellen</p>
             <div class="ck-row ck-row--gap">
@@ -41,7 +41,7 @@
             </div>
         </div>
 
-        {{-- Datei-Upload --}}
+        {{-- File upload --}}
         <x-ck-field
             type="file"
             name="csv_file"
@@ -58,7 +58,7 @@
 
         <div class="ck-form-actions">
             <x-ck-button variant="primary" type="submit">
-                Datei hochladen und analysieren →
+                {{ __('Upload and analyse →') }}
             </x-ck-button>
         </div>
     </form>

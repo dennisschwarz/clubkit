@@ -15,7 +15,7 @@
         <div class="ck-alert ck-alert--success ck-mb-4">{{ session('success') }}</div>
     @endif
 
-    {{-- ── Neue Kategorie anlegen ──────────────────────────────────────── --}}
+    {{-- ── Add new category ──────────────────────────────────────── --}}
     <form method="POST" action="{{ route('treasury.categories.store') }}" class="ck-settings-form ck-mb-6">
         @csrf
         <div class="ck-row ck-row--gap">
@@ -25,13 +25,13 @@
             <x-ck-field label="Farbe" name="color" type="select"
                 :options="['' => 'Keine', 'green' => 'Grün', 'red' => 'Rot', 'blue' => 'Blau', 'orange' => 'Orange', 'gray' => 'Grau', 'purple' => 'Violett']" />
             <div class="ck-field-action">
-                <x-ck-button type="submit" variant="primary">Anlegen</x-ck-button>
+                <x-ck-button type="submit" variant="primary">{{ __('Create') }}</x-ck-button>
             </div>
         </div>
         @error('name')<p class="ck-field-error">{{ $message }}</p>@enderror
     </form>
 
-    {{-- ── Einnahme-Kategorien ──────────────────────────────────────────── --}}
+    {{-- ── Income categories ──────────────────────────────────────────── --}}
     @php
         $incomeCategories  = \Modules\Treasury\Models\TreasuryCategory::where('transaction_type', 'income')->orderBy('name')->get();
         $expenseCategories = \Modules\Treasury\Models\TreasuryCategory::where('transaction_type', 'expense')->orderBy('name')->get();
@@ -63,13 +63,13 @@
                     <td class="ck-table__col--actions">
                         <x-ck-button variant="secondary" size="sm"
                             onclick="treasuryCategoryEdit({{ $cat->id }}, {{ json_encode($cat->name) }}, 'income', {{ json_encode($cat->color) }})">
-                            Bearbeiten
+                            {{ __('Edit') }}
                         </x-ck-button>
                         <form method="POST" action="{{ route('treasury.categories.destroy', $cat->id) }}">
                             @csrf @method('DELETE')
                             <x-ck-button type="submit" variant="danger" size="sm"
                                 :confirm="'Kategorie »' . $cat->name . '« löschen?'">
-                                Löschen
+                                {{ __('Delete') }}
                             </x-ck-button>
                         </form>
                     </td>
@@ -79,7 +79,7 @@
         </table>
     @endif
 
-    {{-- ── Ausgabe-Kategorien ───────────────────────────────────────────── --}}
+    {{-- ── Expense categories ───────────────────────────────────────────── --}}
     <h3 class="ck-settings-section__subtitle">↓ Ausgabe-Kategorien</h3>
     @if($expenseCategories->isEmpty())
         <p class="ck-muted">Noch keine Ausgabe-Kategorien angelegt.</p>
@@ -106,13 +106,13 @@
                     <td class="ck-table__col--actions">
                         <x-ck-button variant="secondary" size="sm"
                             onclick="treasuryCategoryEdit({{ $cat->id }}, {{ json_encode($cat->name) }}, 'expense', {{ json_encode($cat->color) }})">
-                            Bearbeiten
+                            {{ __('Edit') }}
                         </x-ck-button>
                         <form method="POST" action="{{ route('treasury.categories.destroy', $cat->id) }}">
                             @csrf @method('DELETE')
                             <x-ck-button type="submit" variant="danger" size="sm"
                                 :confirm="'Kategorie »' . $cat->name . '« löschen?'">
-                                Löschen
+                                {{ __('Delete') }}
                             </x-ck-button>
                         </form>
                     </td>
@@ -136,8 +136,8 @@
         </div>
         <div class="ck-modal-footer">
             <x-ck-button type="button" variant="secondary"
-                onclick="ckModalClose(null, 'treasuryCategoryModal')">Abbrechen</x-ck-button>
-            <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
+                onclick="ckModalClose(null, 'treasuryCategoryModal')">{{ __('Cancel') }}</x-ck-button>
+            <x-ck-button type="submit" variant="primary">{{ __('Save') }}</x-ck-button>
         </div>
     </form>
 </x-ck-modal>

@@ -1,36 +1,36 @@
 /**
  * import-preview.js
- * Steuerung der Vorschau-Tabelle in Stufe 3 des Import-Assistenten.
+ * Controls the preview table in step 3 of the import wizard.
  *
- * Regeln:
- *  - Kein el.style.*  → nur classList
- *  - Kein inline-Styling
- *  - IIFE: Alle Helfer-Funktionen privat, window.*-Exporte nur für HTML-onclick/onchange
+ * Rules:
+ *  - No el.style.*  → classList only
+ *  - No inline styling
+ *  - IIFE: all helper functions are private, window.* exports only for HTML onclick/onchange
  */
 (function () {
     'use strict';
 
-    // ── Filter-Tabs ───────────────────────────────────────────────────────────
+    // ── Filter tabs ───────────────────────────────────────────────────────────
 
     /**
-     * Filtert die Vorschau-Tabelle nach Import-Status.
-     * Wird via onclick="importFilter('new', this)" aus der Blade-View aufgerufen.
+     * Filters the preview table by import status.
+     * Called via onclick="importFilter('new', this)" from the Blade view.
      *
      * @param {string}      status  'all' | 'new' | 'changed' | 'unchanged'
-     * @param {HTMLElement} btn     Geklickter Tab-Button (erhält --active Klasse)
+     * @param {HTMLElement} btn     Clicked tab button (receives the --active class)
      */
     function importFilter(status, btn) {
-        // Tab-Buttons: aktiven Marker setzen
-        var tabs = document.querySelectorAll('#importFilterTabs .ck-local-tab');
-        for (var i = 0; i < tabs.length; i++) {
+        // Tab buttons: set the active marker
+        const tabs = document.querySelectorAll('#importFilterTabs .ck-local-tab');
+        for (let i = 0; i < tabs.length; i++) {
             tabs[i].classList.remove('ck-local-tab--active');
         }
         btn.classList.add('ck-local-tab--active');
 
-        // Zeilen ein-/ausblenden
-        var rows = document.querySelectorAll('#importTable tbody tr.ck-import-row');
-        for (var j = 0; j < rows.length; j++) {
-            var rowStatus = rows[j].dataset.status;
+        // Show / hide rows
+        const rows = document.querySelectorAll('#importTable tbody tr.ck-import-row');
+        for (let j = 0; j < rows.length; j++) {
+            const rowStatus = rows[j].dataset.status;
             if (status === 'all' || rowStatus === status) {
                 rows[j].classList.remove('is-hidden');
             } else {
@@ -41,44 +41,46 @@
         importUpdateCount();
     }
 
-    // ── Checkbox-Helpers ──────────────────────────────────────────────────────
+    // ── Checkbox helpers ──────────────────────────────────────────────────────
 
     /**
-     * Master-Checkbox: alle aktivieren oder deaktivieren.
-     * Wird via onchange="importToggleAll(this)" aufgerufen.
+     * Master checkbox: enable or disable all.
+     * Called via onchange="importToggleAll(this)".
+     *
+     * @param {HTMLInputElement} masterCheckbox
      */
     function importToggleAll(masterCheckbox) {
-        var checkboxes = document.querySelectorAll('.ck-import-check:not(:disabled)');
-        for (var i = 0; i < checkboxes.length; i++) {
+        const checkboxes = document.querySelectorAll('.ck-import-check:not(:disabled)');
+        for (let i = 0; i < checkboxes.length; i++) {
             checkboxes[i].checked = masterCheckbox.checked;
         }
         importUpdateCount();
     }
 
-    /** Alle Checkboxen aktivieren. */
+    /** Select all checkboxes. */
     function importSelectAll() {
-        var checkboxes = document.querySelectorAll('.ck-import-check:not(:disabled)');
-        for (var i = 0; i < checkboxes.length; i++) {
+        const checkboxes = document.querySelectorAll('.ck-import-check:not(:disabled)');
+        for (let i = 0; i < checkboxes.length; i++) {
             checkboxes[i].checked = true;
         }
         importUpdateCount();
     }
 
-    /** Alle Checkboxen deaktivieren. */
+    /** Deselect all checkboxes. */
     function importSelectNone() {
-        var checkboxes = document.querySelectorAll('.ck-import-check:not(:disabled)');
-        for (var i = 0; i < checkboxes.length; i++) {
+        const checkboxes = document.querySelectorAll('.ck-import-check:not(:disabled)');
+        for (let i = 0; i < checkboxes.length; i++) {
             checkboxes[i].checked = false;
         }
         importUpdateCount();
     }
 
-    /** Nur neue und geänderte Zeilen auswählen. */
+    /** Select only new and changed rows. */
     function importSelectNewAndChanged() {
-        var rows = document.querySelectorAll('#importTable tbody tr.ck-import-row');
-        for (var i = 0; i < rows.length; i++) {
-            var status   = rows[i].dataset.status;
-            var checkbox = rows[i].querySelector('.ck-import-check');
+        const rows = document.querySelectorAll('#importTable tbody tr.ck-import-row');
+        for (let i = 0; i < rows.length; i++) {
+            const status   = rows[i].dataset.status;
+            const checkbox = rows[i].querySelector('.ck-import-check');
             if (checkbox && !checkbox.disabled) {
                 checkbox.checked = (status === 'new' || status === 'changed');
             }
@@ -86,16 +88,16 @@
         importUpdateCount();
     }
 
-    // ── Zähler aktualisieren ──────────────────────────────────────────────────
+    // ── Update counter ────────────────────────────────────────────────────────
 
     /**
-     * Aktualisiert den Submit-Button-Text und den Auswahl-Zähler.
-     * Wird bei jeder Checkbox-Änderung aufgerufen.
+     * Updates the submit button text and the selection counter.
+     * Called on every checkbox change.
      */
     function importUpdateCount() {
-        var checked = document.querySelectorAll('.ck-import-check:checked').length;
-        var btn     = document.getElementById('importSubmitBtn');
-        var counter = document.getElementById('importSelectedCount');
+        const checked = document.querySelectorAll('.ck-import-check:checked').length;
+        const btn     = document.getElementById('importSubmitBtn');
+        const counter = document.getElementById('importSelectedCount');
 
         if (btn) {
             btn.textContent = checked > 0
@@ -110,17 +112,17 @@
         }
     }
 
-    // ── Event-Listener: Checkbox-Änderungen ──────────────────────────────────
+    // ── Event listeners: checkbox changes ────────────────────────────────────
 
     document.addEventListener('DOMContentLoaded', function () {
-        var checkboxes = document.querySelectorAll('.ck-import-check');
-        for (var i = 0; i < checkboxes.length; i++) {
+        const checkboxes = document.querySelectorAll('.ck-import-check');
+        for (let i = 0; i < checkboxes.length; i++) {
             checkboxes[i].addEventListener('change', importUpdateCount);
         }
         importUpdateCount();
     });
 
-    // ── Exports (nur Funktionen die aus HTML-onclick/onchange aufgerufen werden) ──
+    // ── Exports (only functions called from HTML onclick/onchange) ────────────
     window.importFilter              = importFilter;
     window.importToggleAll           = importToggleAll;
     window.importSelectAll           = importSelectAll;

@@ -32,6 +32,15 @@ use Modules\Treasury\Services\TreasuryVisibilityService;
  *   konten          – account management
  *   beitraege       – contribution tracking
  *
+ * ── Filter URL format (transactions tab) ─────────────────────────────────────────
+ * ?filter[account]=1&filter[category]=2&filter[date_from]=2026-01-01&...
+ * Allowed: account, category, date_from, date_to, q
+ *
+ * ── Sort URL format (transactions tab) ───────────────────────────────────────────
+ * ?sort=transaction_date (ASC) | ?sort=-transaction_date (DESC)
+ * Allowed: transaction_date, amount, description
+ * Default: -transaction_date (newest first)
+ *
  * All data passed to @json() in views is prepared with foreach loops.
  * Arrow functions and Collection::map() are intentionally avoided in @json() contexts.
  */
@@ -42,15 +51,10 @@ class TreasuryController extends Controller
     ) {}
 
     /**
-     * Renders the treasury overview with all four tabs.
+     * Render the Treasury overview with all four tabs.
      *
-     * Supported query parameters:
-     *   tab        string  Active local tab: 'zusammenfassung' (default) | 'buchungen' | 'konten' | 'beitraege'
-     *   account    int     Filter Buchungen tab by account ID
-     *   category   int     Filter Buchungen tab by category ID
-     *   date_from  string  Lower bound for transaction_date (Y-m-d)
-     *   date_to    string  Upper bound for transaction_date (Y-m-d)
-     *   q          string  Full-text search on description
+     * @param  Request $request
+     * @return View
      */
     public function index(Request $request): View
     {
@@ -65,8 +69,7 @@ class TreasuryController extends Controller
         $totalExpense = (float) TreasuryTransaction::whereIn('account_id', $visibleIds)->where('type', 'expense')->sum('amount');
         $totalBalance = $totalIncome - $totalExpense;
 
-        // ── Per-account stats — single aggregated query instead of N*2 ────────
-        // Groups by account_id + type, eliminating the N+1 pattern.
+        // ── Per-account stats — one aggregated query instead of N*2 ──────────
         $aggregates = TreasuryTransaction::selectRaw(
             'account_id, type, COALESCE(SUM(amount), 0) as total'
         )->whereIn('account_id', $visibleIds)
@@ -95,8 +98,7 @@ class TreasuryController extends Controller
             'balance' => round($totalBalance, 2),
         ];
 
-        // ── Recent 10 transactions for the Zusammenfassung tab ────────────────
-        // Member names are intentionally excluded (privacy on the summary view).
+        // ── Last 10 transactions for the summary tab ──────────────────────────
         $recentTransactions = TreasuryTransaction::with(['account', 'category'])
             ->whereIn('account_id', $visibleIds)
             ->orderBy('transaction_date', 'desc')
@@ -119,8 +121,27 @@ class TreasuryController extends Controller
             ];
         }
 
-        // ── Buchungen tab: filtered income and expense queries ─────────────────
-        // Build the base constraint and apply filters once; then split by type.
+        // ── Transactions tab: read filters from ?filter[x]=... ───────────────
+        $filterData = $request->input('filter', []);
+        $filters = [
+            'account'   => $filterData['account']   ?? null,
+            'category'  => $filterData['category']  ?? null,
+            'date_from' => $filterData['date_from'] ?? null,
+            'date_to'   => $filterData['date_to']   ?? null,
+            'q'         => $filterData['q']         ?? null,
+        ];
+
+        // ── Transactions tab: sort ────────────────────────────────────────────
+        $allowedTxSorts = ['transaction_date', 'amount', 'description'];
+        $txSortRaw      = $request->input('sort', '-transaction_date');
+        $txSortCol      = ltrim($txSortRaw, '-');
+        $txSortDir      = str_starts_with($txSortRaw, '-') ? 'desc' : 'asc';
+        if (! in_array($txSortCol, $allowedTxSorts, true)) {
+            $txSortCol = 'transaction_date';
+            $txSortDir = 'desc';
+        }
+
+        // ── Transactions tab: apply filters + sort to both base queries ───────
         $incomeBase  = TreasuryTransaction::with(['account', 'category'])
             ->whereIn('account_id', $visibleIds)
             ->where('type', 'income');
@@ -128,14 +149,6 @@ class TreasuryController extends Controller
         $expenseBase = TreasuryTransaction::with(['account', 'category'])
             ->whereIn('account_id', $visibleIds)
             ->where('type', 'expense');
-
-        $filters = [
-            'account'   => $request->input('account'),
-            'category'  => $request->input('category'),
-            'date_from' => $request->input('date_from'),
-            'date_to'   => $request->input('date_to'),
-            'q'         => $request->input('q'),
-        ];
 
         foreach ([$incomeBase, $expenseBase] as $q) {
             if (! empty($filters['account']) && in_array((int) $filters['account'], $visibleIds, true)) {
@@ -155,26 +168,24 @@ class TreasuryController extends Controller
             }
         }
 
-        // Filtered column sums (for Buchungen tab headers)
+        // Filtered column totals (for the transactions tab header)
         $filteredIncomeSum  = (float) (clone $incomeBase)->sum('amount');
         $filteredExpenseSum = (float) (clone $expenseBase)->sum('amount');
 
-        // Transaction lists (capped at 50 per column — use the filter to narrow down)
-        $incomeTransactions  = (clone $incomeBase)->orderBy('transaction_date', 'desc')->orderBy('id', 'desc')->limit(50)->get();
-        $expenseTransactions = (clone $expenseBase)->orderBy('transaction_date', 'desc')->orderBy('id', 'desc')->limit(50)->get();
+        // Transaction lists (max. 50 per column)
+        $incomeTransactions  = (clone $incomeBase)->orderBy($txSortCol, $txSortDir)->orderBy('id', 'desc')->limit(50)->get();
+        $expenseTransactions = (clone $expenseBase)->orderBy($txSortCol, $txSortDir)->orderBy('id', 'desc')->limit(50)->get();
 
-        // Teams for account visibility picker (optional module)
+        // Teams for the account visibility picker (optional module)
         $teams = class_exists(\Modules\Teams\Models\Team::class)
             ? \Modules\Teams\Models\Team::orderBy('name')->get()
             : collect();
 
-        // ── Beitraege tab: contribution task metas with eager loading ──────────
-        // Loaded here instead of in the view to avoid @php blocks (ANALYSEMETHODIK 4.18).
+        // ── Contributions tab: task metas with eager loading ──────────────────
         $taskMetas = TreasuryTaskMeta::with(['task', 'account', 'payments.member'])
             ->whereIn('account_id', $visibleIds)
             ->get();
 
-        // Pre-compute paid/total counts per task meta to avoid @php in Blade.
         $taskMetaStats = [];
         foreach ($taskMetas as $meta) {
             $paid = 0;
@@ -191,13 +202,11 @@ class TreasuryController extends Controller
 
         // ── JS data bridges — foreach only, no fn() / map() ──────────────────
 
-        // toJsOption() returns: id, name, description, visibility, parent_id
         $accountsJs = [];
         foreach ($visibleAccounts as $a) {
             $accountsJs[$a->id] = $a->toJsOption();
         }
 
-        // toJsOption() returns: id, name, transaction_type, color
         $categoriesJs = [];
         foreach ($categories as $c) {
             $categoriesJs[$c->id] = $c->toJsOption();
@@ -267,7 +276,7 @@ class TreasuryController extends Controller
     // ── Transactions ──────────────────────────────────────────────────────────
 
     /**
-     * Creates a new transaction from validated form data.
+     * Store a new transaction from validated form data.
      */
     public function storeTransaction(StoreTransactionRequest $request): RedirectResponse
     {
@@ -281,7 +290,7 @@ class TreasuryController extends Controller
     }
 
     /**
-     * Updates an existing transaction from validated form data.
+     * Update an existing transaction from validated form data.
      */
     public function updateTransaction(UpdateTransactionRequest $request, TreasuryTransaction $transaction): RedirectResponse
     {
@@ -292,7 +301,7 @@ class TreasuryController extends Controller
     }
 
     /**
-     * Permanently deletes a transaction.
+     * Delete a transaction permanently.
      */
     public function destroyTransaction(TreasuryTransaction $transaction): RedirectResponse
     {
@@ -305,7 +314,7 @@ class TreasuryController extends Controller
     // ── Accounts ──────────────────────────────────────────────────────────────
 
     /**
-     * Creates a new treasury account from validated form data.
+     * Store a new account.
      */
     public function storeAccount(StoreAccountRequest $request): RedirectResponse
     {
@@ -325,7 +334,7 @@ class TreasuryController extends Controller
     }
 
     /**
-     * Updates an existing treasury account from validated form data.
+     * Update an existing account.
      */
     public function updateAccount(UpdateAccountRequest $request, TreasuryAccount $account): RedirectResponse
     {
@@ -346,9 +355,9 @@ class TreasuryController extends Controller
     }
 
     /**
-     * Deletes a treasury account.
+     * Delete an account.
      *
-     * Accounts that have transactions or sub-accounts cannot be deleted.
+     * Accounts with transactions or sub-accounts cannot be deleted.
      */
     public function destroyAccount(TreasuryAccount $account): RedirectResponse
     {
@@ -372,7 +381,7 @@ class TreasuryController extends Controller
     // ── Categories ────────────────────────────────────────────────────────────
 
     /**
-     * Creates a new transaction category from validated form data.
+     * Store a new transaction category.
      */
     public function storeCategory(StoreCategoryRequest $request): RedirectResponse
     {
@@ -385,7 +394,7 @@ class TreasuryController extends Controller
     }
 
     /**
-     * Updates an existing category from validated form data.
+     * Update an existing category.
      */
     public function updateCategory(UpdateCategoryRequest $request, TreasuryCategory $category): RedirectResponse
     {
@@ -395,9 +404,9 @@ class TreasuryController extends Controller
     }
 
     /**
-     * Deletes a category.
+     * Delete a category.
      *
-     * Linked transactions will have their category_id set to null (nullOnDelete FK).
+     * Related transactions receive category_id = null (nullOnDelete FK).
      */
     public function destroyCategory(TreasuryCategory $category): RedirectResponse
     {

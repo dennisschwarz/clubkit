@@ -54,7 +54,7 @@
 
 {{-- ══════════════════════════════════════════════════════════════
      HEADER
-══════════════════════════════════════════════════════════════ --}}
+══════════════════════════════════════════════════════════════════ --}}
 <div class="ck-header">
 
     {{-- Row 1: brand bar --}}
@@ -150,20 +150,73 @@
 
 {{-- Body --}}
 <div class="ck-body {{ $hasSubtabs ? 'ck-body--with-subtabs' : '' }}">
-    @if(session('success'))
-    <div class="ck-flash ck-flash--success" data-flash>✅ {{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-    <div class="ck-flash ck-flash--error" data-flash>⚠️ {{ session('error') }}</div>
-    @endif
-    @if(session('warning'))
-    <div class="ck-flash ck-flash--warning" data-flash>🔔 {{ session('warning') }}</div>
-    @endif
+
+    {{-- ══════════════════════════════════════════════════════════════
+         Noscript flash fallback.
+         Visible only when JavaScript is disabled.
+         JS users receive toasts via window.CK_Notifications + ckNotify().
+         CSS: resources/css/components/layout.css → .ck-flash
+    ══════════════════════════════════════════════════════════════ --}}
+    <noscript>
+        @if(session('success'))
+        <div class="ck-flash ck-flash--success">✅ {{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+        <div class="ck-flash ck-flash--error">⚠️ {{ session('error') }}</div>
+        @endif
+        @if(session('warning'))
+        <div class="ck-flash ck-flash--warning">🔔 {{ session('warning') }}</div>
+        @endif
+    </noscript>
 
     <main class="ck-content">
         @yield('content')
     </main>
 </div>
+
+{{-- ══════════════════════════════════════════════════════════════
+     JS NOTIFICATION BRIDGE
+     Passes server-side flash session data to the JS toast system.
+     Read by app.js → DOMContentLoaded → ckNotify() for each entry.
+     Only rendered when there is at least one flash message.
+══════════════════════════════════════════════════════════════ --}}
+@if(session()->hasAny(['success', 'error', 'warning']))
+<script>
+window.CK_Notifications = [
+    @if(session('success'))
+    { type: 'success', message: {{ Js::from(session('success')) }} },
+    @endif
+    @if(session('error'))
+    { type: 'error', message: {{ Js::from(session('error')) }} },
+    @endif
+    @if(session('warning'))
+    { type: 'warning', message: {{ Js::from(session('warning')) }} },
+    @endif
+];
+</script>
+@endif
+
+{{-- ══════════════════════════════════════════════════════════════
+     JS LANGUAGE BRIDGE
+     Passes localised notification strings to JS modules so that
+     AJAX toasts (member-teams.js, youth-club-mode.js etc.) are
+     translated. Keys mirror lang/{locale}/notifications.php.
+══════════════════════════════════════════════════════════════ --}}
+<script>
+window.CK_Lang = {
+    notifications: {
+        teams_saved:          {{ Js::from(__('notifications.teams_saved')) }},
+        teams_save_error:     {{ Js::from(__('notifications.teams_save_error')) }},
+        teams_member_added:   {{ Js::from(__('notifications.teams_member_added')) }},
+        teams_member_removed: {{ Js::from(__('notifications.teams_member_removed')) }},
+        relation_added:       {{ Js::from(__('notifications.relation_added')) }},
+        relation_add_error:   {{ Js::from(__('notifications.relation_add_error')) }},
+        relation_removed:     {{ Js::from(__('notifications.relation_removed')) }},
+        relation_delete_error:{{ Js::from(__('notifications.relation_delete_error')) }},
+        network_error:        {{ Js::from(__('notifications.network_error')) }},
+    }
+};
+</script>
 
 @stack('scripts')
 
@@ -173,6 +226,68 @@
      so they sit above all page content in the DOM stacking context.
 ══════════════════════════════════════════════════════════════ --}}
 <div id="ck-modal-root"></div>
+
+{{-- ══════════════════════════════════════════════════════════════
+     GLOBAL CONFIRM MODAL
+     Triggered by [data-ck-confirm] buttons (rendered by x-ck-button
+     with :confirm="...") and by window.ckConfirm() from JS modules.
+     Both paths share the same modal so delete confirmations are
+     visually consistent across the entire application.
+     JS: app.js → ckConfirm() / [data-ck-confirm] handler
+     CSS: resources/css/components/modals.css → .ck-modal__footer
+══════════════════════════════════════════════════════════════ --}}
+<div id="ck-confirm-overlay" class="ck-modal-overlay" onclick="ckModalClose(event, 'ck-confirm-overlay')">
+    <div class="ck-modal-content ck-modal-content--sm" onclick="event.stopPropagation()">
+
+        <div class="ck-modal__header">
+            <h2 class="ck-modal__title">🗑 Löschen bestätigen</h2>
+            <button type="button" class="ck-modal__close" onclick="ckModalClose(null, 'ck-confirm-overlay')">&times;</button>
+        </div>
+
+        <div class="ck-modal__body">
+            <p id="ck-confirm-text" class="ck-confirm__text"></p>
+            <div class="ck-alert ck-alert--danger">
+                ⚠️ Diese Aktion kann nicht rückgängig gemacht werden.
+            </div>
+        </div>
+
+        <div class="ck-modal__footer">
+            <button type="button" id="ck-confirm-ok" class="ck-btn ck-btn--danger">
+                Ja, löschen
+            </button>
+            <button type="button" class="ck-btn ck-btn--secondary"
+                onclick="ckModalClose(null, 'ck-confirm-overlay')">
+                Abbrechen
+            </button>
+        </div>
+
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════
+     GLOBAL SHARED DELETE FORM
+     Used by [data-delete-url] buttons across all module list views.
+     The app.js [data-ck-confirm] handler sets this form's action
+     dynamically before calling requestSubmit() after confirmation.
+
+     Why: HTML <form> is a block element. Wrapping each table-row
+     delete button in its own <form> breaks the inline layout of
+     <td class="ck-table__action-cell">. A single shared form
+     outside the table avoids that problem entirely.
+
+     Usage in views:
+       <x-ck-button variant="danger" size="icon"
+           data-delete-url="{{ route('things.destroy', $thing) }}"
+           :confirm="'Wirklich löschen?'">
+           ...
+       </x-ck-button>
+
+     JS:  resources/js/app.js → [data-ck-confirm] + data-delete-url
+══════════════════════════════════════════════════════════════ --}}
+<form id="ck-delete-form" method="POST" action="">
+    @csrf
+    @method('DELETE')
+</form>
 
 {{-- ══════════════════════════════════════════════════════════════
      LOADING OVERLAY

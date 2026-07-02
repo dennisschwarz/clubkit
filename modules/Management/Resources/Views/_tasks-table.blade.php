@@ -1,6 +1,9 @@
 {{--
     Partial: Task list within a group (team or general).
-    Expects: $groupTasks (Collection|array of ManagementTask)
+    Expects:
+      $groupTasks    Collection|array  Aufgaben dieser Gruppe
+      $taskSortRaw   string            Aktueller Sort-Parameter (z.B. 'name' | '-priority')
+                                       Optional – fällt auf 'name' zurück wenn nicht übergeben.
 
     The teams column is only rendered when the 'teams' relation has been
     eager-loaded on the collection (i.e. Teams module is installed and the
@@ -12,10 +15,11 @@
     <table class="ck-table">
         <thead>
             <tr>
-                <th>Aufgabe</th>
+                <x-ck-sort-header column="name"     label="Aufgabe"       param="task_sort" />
                 <th>Beschreibung</th>
                 <th>Teams</th>
                 <th>Personen</th>
+                <x-ck-sort-header column="priority" label="Priorität"     param="task_sort" />
                 <th>Angelegt von</th>
                 <th class="ck-table__actions">Aktionen</th>
             </tr>
@@ -42,6 +46,13 @@
                     @empty
                         <span class="ck-text-muted">–</span>
                     @endforelse
+                </td>
+                <td>
+                    @php
+                        $priorityMap = ['low' => ['Niedrig', 'gray'], 'normal' => ['Normal', 'blue'], 'high' => ['Hoch', 'red']];
+                        $prio = $priorityMap[$task->priority ?? 'normal'] ?? ['Normal', 'blue'];
+                    @endphp
+                    <x-ck-badge :color="$prio[1]">{{ $prio[0] }}</x-ck-badge>
                 </td>
                 <td class="ck-text-muted">{{ $task->creator?->name ?? '–' }}</td>
                 <td class="ck-table__actions">

@@ -49,7 +49,6 @@ class ManagementServiceProvider extends ServiceProvider
     {
         $this->loadRoutes();
         $this->loadViews();
-        $this->loadMigrations();
         $this->registerHooks();
         $this->registerViewComposers();
     }
@@ -64,12 +63,6 @@ class ManagementServiceProvider extends ServiceProvider
     private function loadViews(): void
     {
         $this->loadViewsFrom(__DIR__ . '/Resources/Views', 'management');
-    }
-
-    /** @return void */
-    private function loadMigrations(): void
-    {
-        $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
     }
 
     /**

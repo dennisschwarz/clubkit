@@ -20,9 +20,16 @@ use Modules\Teams\Models\Team;
  *
  * ── Hook architecture ─────────────────────────────────────────────────────────
  *
- * Teams extends Management and Events via the hook system.
- * Both modules have NO knowledge of Teams — all cross-module wiring runs
- * exclusively through hook views registered here:
+ * Teams extends Members, Management and Events via the hook system.
+ * Target modules have NO knowledge of Teams — all cross-module wiring runs
+ * exclusively through hook views registered here.
+ *
+ * → Members:
+ *   member.table.header    → <th> Teams column in the members list
+ *   member.table.row       → <td> Team badges per member row ($member in scope)
+ *   member.modal.tabs      → "Teams" tab button in the member modal
+ *   member.modal.sections  → Teams tab content (checkboxes, AJAX save)
+ *   member.page.scripts    → JS bridge (CK_MemberTeamsBridge) + member-teams.js
  *
  * → Management:
  *   management.function.header.filter  → Team filter in the Functions tab header
@@ -48,7 +55,6 @@ class TeamsServiceProvider extends ServiceProvider
     {
         $this->loadRoutes();
         $this->loadViews();
-        $this->loadMigrations();
         $this->registerHooks();
         $this->registerViewComposers();
     }
@@ -65,18 +71,8 @@ class TeamsServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__ . '/Resources/Views', 'teams');
     }
 
-    /** @return void */
-    private function loadMigrations(): void
-    {
-        $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
-    }
-
     /**
-     * Registers all hook views through which Teams extends Management and Events.
-     *
-     * This method is the only place in the Teams module that knows which
-     * extension points exist. The target modules (Management, Events) are
-     * completely unaware of Teams.
+     * Registers all hook views through which Teams extends other modules.
      *
      * @return void
      */
@@ -84,54 +80,111 @@ class TeamsServiceProvider extends ServiceProvider
     {
         $hooks = $this->app->make('ck.hooks');
 
+        // ── Extend Members ────────────────────────────────────────────────────
+
+        // <th> Teams column in the members list table
+        $hooks->register('member.table.header', 'teams::member-table-header', 15);
+
+        // <td> Team badges per row ($member variable is in Blade scope)
+        $hooks->register('member.table.row', 'teams::member-table-row', 15);
+
+        // "Teams" tab button in the member modal
+        $hooks->register('member.modal.tabs', 'teams::member-modal-tab', 15);
+
+        // Teams tab section content (checkboxes + AJAX save)
+        $hooks->register('member.modal.sections', 'teams::member-modal-section', 15);
+
+        // JS bridge + member-teams.js entry point
+        $hooks->register('member.page.scripts', 'teams::member-page-scripts', 15);
+
         // ── Extend Management ─────────────────────────────────────────────────
 
-        // Team filter in the Functions tab header
         $hooks->register('management.function.header.filter', 'teams::management-function-header-filter', 10);
-
-        // Team-grouped function list (replaces the flat default list)
-        $hooks->register('management.function.list', 'teams::management-function-list', 10);
-
-        // Team checkboxes in the function modal
-        $hooks->register('management.function.modal.teams', 'teams::management-function-modal-teams', 10);
-
-        // Team filter in the Tasks tab header
-        $hooks->register('management.task.header.filter', 'teams::management-task-header-filter', 10);
-
-        // Team-grouped task list (replaces the flat default list)
-        $hooks->register('management.task.list', 'teams::management-task-list', 10);
-
-        // Team checkboxes in the task modal
-        $hooks->register('management.task.modal.teams', 'teams::management-task-modal-teams', 10);
-
-        // JS bridge: window.CK_Teams + event listeners for modal pre-fill
-        $hooks->register('management.page.scripts', 'teams::management-page-scripts', 10);
+        $hooks->register('management.function.list',          'teams::management-function-list', 10);
+        $hooks->register('management.function.modal.teams',   'teams::management-function-modal-teams', 10);
+        $hooks->register('management.task.header.filter',     'teams::management-task-header-filter', 10);
+        $hooks->register('management.task.list',              'teams::management-task-list', 10);
+        $hooks->register('management.task.modal.teams',       'teams::management-task-modal-teams', 10);
+        $hooks->register('management.page.scripts',           'teams::management-page-scripts', 10);
 
         // ── Extend Events ─────────────────────────────────────────────────────
 
-        // <th> Teams column in the event list
         $hooks->register('event.table.teams.header', 'teams::event-teams-index-header', 10);
-
-        // <td> Team badges per row
-        $hooks->register('event.table.teams.row', 'teams::event-teams-index-row', 10);
-
-        // Teams card on the event detail page
-        $hooks->register('events.show.teams-panel', 'teams::event-show-teams-panel', 10);
+        $hooks->register('event.table.teams.row',    'teams::event-teams-index-row', 10);
+        $hooks->register('events.show.teams-panel',  'teams::event-show-teams-panel', 10);
     }
 
     /**
      * Registers View Composers for all Teams hook-views that require DB/Eloquent data.
      *
-     * This eliminates @php blocks with Eloquent/DB queries from hook-view templates (4.18),
-     * moving data preparation into this service provider where it belongs.
-     *
-     * Each composer guards against missing tables via Schema::hasTable() so the
-     * Teams module can be cleanly installed/uninstalled without fatal errors.
-     *
      * @return void
      */
     private function registerViewComposers(): void
     {
+        // ── Members: Team badges per table row ────────────────────────────────
+        // $member is forwarded from the Blade scope by the HookRegistry.
+        View::composer('teams::member-table-row', function (ViewContract $view): void {
+            if (! Schema::hasTable('teams') || ! Schema::hasTable('team_member')) {
+                $view->with('ckMemberTeams', collect());
+                return;
+            }
+
+            $member = $view->getData()['member'] ?? null;
+            if (! $member) {
+                $view->with('ckMemberTeams', collect());
+                return;
+            }
+
+            $teamIds = DB::table('team_member')
+                ->where('member_id', $member->id)
+                ->pluck('team_id')
+                ->toArray();
+
+            $view->with('ckMemberTeams', empty($teamIds)
+                ? collect()
+                : Team::whereIn('id', $teamIds)
+                      ->select('id', 'name', 'color')
+                      ->orderBy('name')
+                      ->get());
+        });
+
+        // ── Members: Modal section – all teams as checkboxes ──────────────────
+        View::composer('teams::member-modal-section', function (ViewContract $view): void {
+            if (! Schema::hasTable('teams')) {
+                $view->with('ckAllTeams', collect());
+                return;
+            }
+            $view->with('ckAllTeams', Team::orderBy('name')->get());
+        });
+
+        // ── Members: Page scripts – JS bridge with memberId → teamIds map ─────
+        // Only queries team_member for the member IDs on the current paginated page.
+        View::composer('teams::member-page-scripts', function (ViewContract $view): void {
+            if (! Schema::hasTable('teams') || ! Schema::hasTable('team_member')) {
+                $view->with('ckMemberTeamMap', []);
+                return;
+            }
+
+            $members   = $view->getData()['members'] ?? collect();
+            $memberIds = $members->pluck('id')->toArray();
+
+            if (empty($memberIds)) {
+                $view->with('ckMemberTeamMap', []);
+                return;
+            }
+
+            $rows = DB::table('team_member')
+                ->whereIn('member_id', $memberIds)
+                ->get(['member_id', 'team_id']);
+
+            $teamMap = [];
+            foreach ($rows as $row) {
+                $teamMap[$row->member_id][] = $row->team_id;
+            }
+
+            $view->with('ckMemberTeamMap', $teamMap);
+        });
+
         // ── Management: Function header team filter ────────────────────────────
         View::composer('teams::management-function-header-filter', function (ViewContract $view): void {
             if (! Schema::hasTable('teams')) {
@@ -162,6 +215,7 @@ class TeamsServiceProvider extends ServiceProvider
             foreach ($ckDisplay->filter(fn ($f) => $f->teams->isNotEmpty()) as $ckFn) {
                 foreach ($ckFn->teams as $ckTeam) {
                     $ckByTeam[$ckTeam->id]['name']        ??= $ckTeam->name;
+                    $ckByTeam[$ckTeam->id]['color']       ??= $ckTeam->color ?? 'blue';
                     $ckByTeam[$ckTeam->id]['functions'][]   = $ckFn;
                 }
             }
@@ -207,6 +261,7 @@ class TeamsServiceProvider extends ServiceProvider
             foreach ($ckDisplay->filter(fn ($t) => $t->teams->isNotEmpty()) as $ckTask) {
                 foreach ($ckTask->teams as $ckTeam) {
                     $ckByTeam[$ckTeam->id]['name']    ??= $ckTeam->name;
+                    $ckByTeam[$ckTeam->id]['color']   ??= $ckTeam->color ?? 'blue';
                     $ckByTeam[$ckTeam->id]['tasks'][]   = $ckTask;
                 }
             }

@@ -5,9 +5,9 @@ use Modules\Treasury\Models\TreasuryAccount;
 use Modules\Treasury\Models\TreasuryCategory;
 use Modules\Treasury\Models\TreasuryTransaction;
 
-// Sicherstellen, dass das Treasury-Modul in installed_modules steht und
-// Permissions verfügbar sind. RefreshDatabase leert installed_modules nach
-// jedem Test — deshalb in beforeEach, nicht einmalig.
+// Seed the Treasury module into installed_modules before each test.
+// RefreshDatabase clears installed_modules after every test, so this must
+// run in beforeEach rather than once globally.
 beforeEach(function () {
     DB::table('installed_modules')->insertOrIgnore([
         'slug'         => 'treasury',

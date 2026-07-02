@@ -262,12 +262,12 @@ details[open] .ck-event-section__summary::before {
 
     /* Ensure all sections are visible */
     details, details > * { display: block !important; }
-    .ck-event-section__summary { border-bottom: 1px solid #ccc; }
+    .ck-event-section__summary { border-bottom: 1px solid var(--ck-border-strong); }
 
     /* Remove shadows and borders for cleaner print */
     .ck-card, .ck-event-section {
         box-shadow: none;
-        border:     1px solid #ccc;
+        border:     1px solid var(--ck-border-strong);
     }
 
     /* Done tasks: keep strikethrough, increase opacity */

@@ -20,7 +20,7 @@ beforeEach(function () {
     app(\App\Services\ModuleLoader::class)->seedPermissions('youth-club-mode');
 });
 
-// ── Auth-Schutz ────────────────────────────────────────────────────────────────
+// ── Authentication guard ───────────────────────────────────────────────────────
 
 test('gast kann keine familiäre Verbindung anlegen', function () {
     $member = Member::factory()->create();
@@ -38,7 +38,7 @@ test('gast kann keine familiäre Verbindung löschen', function () {
     $this->delete('/members/' . $member->id . '/relations/' . $relation->id)->assertRedirect('/login');
 });
 
-// ── Permission-Schutz ──────────────────────────────────────────────────────────
+// ── Permission guard ───────────────────────────────────────────────────────────
 
 test('user ohne youth-club-mode.manage kann keine Verbindung anlegen', function () {
     $member  = Member::factory()->create();
@@ -51,7 +51,7 @@ test('user ohne youth-club-mode.manage kann keine Verbindung anlegen', function 
     ])->assertStatus(403);
 });
 
-// ── store: Basisfälle ──────────────────────────────────────────────────────────
+// ── store: base cases ──────────────────────────────────────────────────────────
 
 test('kann Geschwister-Verbindung anlegen (sibling)', function () {
     $member  = Member::factory()->create();
@@ -73,13 +73,13 @@ test('kann Vater-Kind-Verbindung (father) anlegen', function () {
     $vater = Member::factory()->create();
     $user  = createUserWithPermission('youth-club-mode.manage');
 
-    // kind-Perspektive: "Dieser Vater ist mein Vater"
+    // child perspective: "this father is my father"
     $this->actingAs($user)->postJson('/members/' . $kind->id . '/relations', [
         'relationship'      => 'father',
         'related_member_id' => $vater->id,
     ])->assertStatus(200)->assertJson(['success' => true]);
 
-    // DB: primary=Vater, secondary=Kind
+    // DB: primary=father, secondary=child
     $this->assertDatabaseHas('member_relations', [
         'primary_member_id'   => $vater->id,
         'secondary_member_id' => $kind->id,
@@ -92,13 +92,13 @@ test('kann Vater-Kind-Verbindung (father_of) aus Eltern-Perspektive anlegen', fu
     $kind  = Member::factory()->create();
     $user  = createUserWithPermission('youth-club-mode.manage');
 
-    // Vater-Perspektive: "Ich bin der Vater von diesem Kind"
+    // father perspective: "I am the father of this child"
     $this->actingAs($user)->postJson('/members/' . $vater->id . '/relations', [
         'relationship'      => 'father_of',
         'related_member_id' => $kind->id,
     ])->assertStatus(200)->assertJson(['success' => true]);
 
-    // DB: primary=Vater, secondary=Kind (gleich wie 'father'-Richtung)
+    // DB: primary=father, secondary=child (same layout as 'father' direction)
     $this->assertDatabaseHas('member_relations', [
         'primary_member_id'   => $vater->id,
         'secondary_member_id' => $kind->id,
@@ -106,7 +106,7 @@ test('kann Vater-Kind-Verbindung (father_of) aus Eltern-Perspektive anlegen', fu
     ]);
 });
 
-// ── store: Validierung ─────────────────────────────────────────────────────────
+// ── store: validation ──────────────────────────────────────────────────────────
 
 test('store gibt 422 bei fehlendem relationship zurück', function () {
     $member  = Member::factory()->create();
@@ -145,14 +145,14 @@ test('store verhindert doppelten Vater', function () {
     $vater2 = Member::factory()->create();
     $user   = createUserWithPermission('youth-club-mode.manage');
 
-    // Ersten Vater eintragen
+    // Create first father
     MemberRelation::create([
         'primary_member_id'   => $vater1->id,
         'secondary_member_id' => $kind->id,
         'relationship'        => 'father',
     ]);
 
-    // Zweiten Vater versuchen → muss scheitern
+    // Attempt to add second father → must fail
     $this->actingAs($user)->postJson('/members/' . $kind->id . '/relations', [
         'relationship'      => 'father',
         'related_member_id' => $vater2->id,
@@ -164,7 +164,7 @@ test('store verhindert doppelte Geschwister-Verbindung', function () {
     $b    = Member::factory()->create();
     $user = createUserWithPermission('youth-club-mode.manage');
 
-    // Kanonische Form: niedrigere ID als primary
+    // Canonical form: lower ID as primary
     $primaryId   = min($a->id, $b->id);
     $secondaryId = max($a->id, $b->id);
 
@@ -174,7 +174,7 @@ test('store verhindert doppelte Geschwister-Verbindung', function () {
         'relationship'        => 'sibling',
     ]);
 
-    // Nochmal versuchen → muss scheitern
+    // Try again → must fail
     $this->actingAs($user)->postJson('/members/' . $a->id . '/relations', [
         'relationship'      => 'sibling',
         'related_member_id' => $b->id,
@@ -212,7 +212,7 @@ test('destroy verhindert Zugriff wenn Mitglied nicht Teil der Verbindung ist', f
         'relationship'        => 'sibling',
     ]);
 
-    // Fremdes Mitglied versucht, eine Verbindung zwischen a und b zu löschen
+    // An unrelated member tries to delete the relation between a and b
     $this->actingAs($user)->deleteJson('/members/' . $fremdes->id . '/relations/' . $relation->id)
         ->assertStatus(403)->assertJson(['success' => false]);
 

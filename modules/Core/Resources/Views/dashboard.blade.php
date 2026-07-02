@@ -10,7 +10,7 @@
     </div>
 </div>
 
-{{-- ── Kennzahlen ─────────────────────────────────────────── --}}
+{{-- ── Stats ───────────────────────────────────────────────── --}}
 @if(!empty($stats))
 <div class="ck-stat-grid ck-mb-5">
     @foreach($stats as $stat)
@@ -19,12 +19,12 @@
         <div class="ck-stat-card__value">{{ $stat['value'] }}</div>
     </a>
     @endforeach
-    {{-- Fix 7: Extension Point – andere Module können hier Kacheln hinzufügen --}}
+    {{-- Extension point: other modules can inject stat tiles here --}}
     @ckHook('dashboard.stats')
 </div>
 @endif
 
-{{-- ── Installierte Module ─────────────────────────────────── --}}
+{{-- ── Installed modules ───────────────────────────────────── --}}
 <div class="ck-col-grid ck-col-grid--2">
 
     <x-ck-card>
@@ -35,7 +35,7 @@
         <div class="ck-settings-section">
             @foreach($modules as $mod)
             <div class="ck-settings-row">
-                {{-- Fix 1: stdClass-Objekte brauchen Pfeil-Notation, keine Array-Notation --}}
+                {{-- stdClass objects require arrow notation, not array notation --}}
                 <div class="ck-settings-row__label">{{ $mod->name ?? $mod->slug }}</div>
                 <div class="ck-settings-row__input">
                     <x-ck-badge color="green">v{{ $mod->version ?? '–' }}</x-ck-badge>
@@ -52,13 +52,15 @@
     <x-ck-card>
         <x-slot:header>⚡ Schnellaktionen</x-slot:header>
         <div class="ck-quick-actions">
-            @if(Schema::hasTable('members'))
+            {{-- Route::has() checks whether the ServiceProvider is active (module installed),
+                 not just whether the DB table exists (e.g. after migrate:fresh). --}}
+            @if(Route::has('members.index'))
             <a href="{{ route('members.index') }}" class="ck-quick-action">
                 <span class="ck-quick-action__icon">🧑‍🤝‍🧑</span>
                 <span>Mitglieder</span>
             </a>
             @endif
-            @if(Schema::hasTable('teams'))
+            @if(Route::has('teams.index'))
             <a href="{{ route('teams.index') }}" class="ck-quick-action">
                 <span class="ck-quick-action__icon">⚽</span>
                 <span>Teams</span>
@@ -73,7 +75,7 @@
                 <span>Design</span>
             </a>
         </div>
-        {{-- Extension Point – andere Module können hier Schnellaktionen ergänzen --}}
+        {{-- Extension point: other modules can inject quick-action links here --}}
         @ckHook('dashboard.quick-actions')
     </x-ck-card>
 

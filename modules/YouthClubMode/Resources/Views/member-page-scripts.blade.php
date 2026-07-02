@@ -1,9 +1,9 @@
 {{--
     YouthClubMode – Hook View: member.page.scripts
 
-    Stellt die Data Bridge für youth-club-mode.js bereit.
-    Enthält: CSRF-Token, Routen-Basis, alle Mitglieder, alle Verbindungen.
-    Muss nach members-modal.js geladen werden (ckEmit/ckOn bereits verfügbar).
+    Provides the data bridge for youth-club-mode.js.
+    Contains: CSRF token, route base, all members, all relations.
+    Must be loaded after members-modal.js (ckEmit/ckOn already available).
 --}}
 <script>
     window.CK_YouthClubMode = {
@@ -15,4 +15,4 @@
         relations:  @json($relationsJs  ?? [])
     };
 </script>
-@vite(['resources/js/modules/youth-club-mode.js'])
+@vite('resources/js/modules/youth-club-mode.js')

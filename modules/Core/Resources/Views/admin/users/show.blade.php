@@ -15,7 +15,7 @@
 
 <div class="ck-two-col-grid">
 
-    {{-- ── Login-Daten ─────────────────────────────────────────────────────── --}}
+    {{-- ── Login credentials ─────────────────────────────────────────────────────── --}}
     <x-ck-card>
         <x-slot:header>🔑 Login-Daten</x-slot:header>
         <form method="POST" action="{{ route('admin.users.update', $user) }}">
@@ -34,15 +34,15 @@
                     type="password" />
             </div>
             <div class="ck-form-actions">
-                <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
+                <x-ck-button type="submit" variant="primary">{{ __('Save') }}</x-ck-button>
                 <x-ck-button variant="secondary" href="{{ route('admin.users.index') }}">
-                    Abbrechen
+                    {{ __('Cancel') }}
                 </x-ck-button>
             </div>
         </form>
     </x-ck-card>
 
-    {{-- ── Rollen & Rechte ─────────────────────────────────────────────────── --}}
+    {{-- ── Roles & permissions ─────────────────────────────────────────────────── --}}
     <x-ck-card>
         <x-slot:header>🔒 Rollen &amp; Rechte</x-slot:header>
         <form method="POST" action="{{ route('admin.users.update', $user) }}">
@@ -69,14 +69,14 @@
             </p>
             @endif
             <div class="ck-form-actions">
-                <x-ck-button type="submit" variant="primary">Rechte speichern</x-ck-button>
+                <x-ck-button type="submit" variant="primary">{{ __('Save permissions') }}</x-ck-button>
             </div>
         </form>
     </x-ck-card>
 
 </div>
 
-{{-- ── Nutzer löschen ──────────────────────────────────────────────────────── --}}
+{{-- ── Delete user ──────────────────────────────────────────────────────── --}}
 @if($user->id !== auth()->id())
 <x-ck-card class="ck-mt-5" accent="red">
     <x-slot:header>⚠️ Nutzer löschen</x-slot:header>
@@ -91,7 +91,7 @@
                 type="submit"
                 variant="danger"
                 :confirm="'Nutzer ' . $user->name . ' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'">
-                Nutzer löschen
+                {{ __('Delete user') }}
             </x-ck-button>
         </form>
     </div>

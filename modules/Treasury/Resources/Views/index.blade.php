@@ -17,7 +17,7 @@
     <div class="ck-alert ck-alert--danger ck-mb-4">{{ session('error') }}</div>
 @endif
 
-{{-- ── Lokale Sub-Tabs ──────────────────────────────────────────────────── --}}
+{{-- ── Local sub-tabs ────────────────────────────────────────────────────── --}}
 <div class="ck-local-tabs ck-mb-5">
     <button class="ck-local-tab ck-local-tab--blue {{ request('tab', 'zusammenfassung') === 'zusammenfassung' ? 'ck-local-tab--active' : '' }}"
             onclick="ckLocalTab('treasuryTab-zusammenfassung', this)">
@@ -42,7 +42,7 @@
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════════════
-     TAB: Zusammenfassung
+     TAB: Summary (zusammenfassung)
 ══════════════════════════════════════════════════════════════════════════ --}}
 <div id="treasuryTab-zusammenfassung"
      class="ck-local-section {{ request('tab', 'zusammenfassung') === 'zusammenfassung' ? 'ck-local-section--active' : '' }}">
@@ -129,25 +129,29 @@
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════════════
-     TAB: Buchungen (50 / 50 Split)
+     TAB: Transactions (buchungen) – 50/50 split
 ══════════════════════════════════════════════════════════════════════════ --}}
 <div id="treasuryTab-buchungen"
      class="ck-local-section {{ request('tab') === 'buchungen' ? 'ck-local-section--active' : '' }}">
 
-    {{-- Filter-Leiste + Buchung erfassen --}}
+    {{-- Filter bar + add transaction --}}
+    {{--
+        URL format: ?filter[account]=1&filter[category]=2&filter[date_from]=...
+        The buchungen tab parameter is preserved as a plain ?tab=buchungen query string.
+    --}}
     <div class="ck-buchungen-toolbar ck-mb-4">
         <form method="GET" action="{{ route('treasury.index') }}" class="ck-filter-bar">
             <input type="hidden" name="tab" value="buchungen">
 
-            <x-ck-field name="account" type="select" :value="$filters['account']"
+            <x-ck-field name="filter[account]" type="select" :value="$filters['account']"
                 :options="['' => 'Alle Konten'] + $visibleAccounts->pluck('name', 'id')->toArray()" />
 
-            <x-ck-field name="category" type="select" :value="$filters['category']"
+            <x-ck-field name="filter[category]" type="select" :value="$filters['category']"
                 :options="['' => 'Alle Kategorien'] + $categories->pluck('name', 'id')->toArray()" />
 
-            <x-ck-field name="date_from" type="date" :value="$filters['date_from']" placeholder="Von" />
-            <x-ck-field name="date_to"   type="date" :value="$filters['date_to']"   placeholder="Bis" />
-            <x-ck-field name="q"         type="text" :value="$filters['q']"         placeholder="Suche…" />
+            <x-ck-field name="filter[date_from]" type="date" :value="$filters['date_from']" placeholder="Von" />
+            <x-ck-field name="filter[date_to]"   type="date" :value="$filters['date_to']"   placeholder="Bis" />
+            <x-ck-field name="filter[q]"         type="text" :value="$filters['q']"         placeholder="Suche…" />
 
             <x-ck-button type="submit" variant="secondary" size="sm">Filtern</x-ck-button>
             @if(array_filter($filters))
@@ -167,7 +171,7 @@
     {{-- 50 / 50 Split --}}
     <div class="ck-buchungen-split">
 
-        {{-- Left: Einnahmen --}}
+        {{-- Left: Income (Einnahmen) --}}
         <div class="ck-buchungen-col ck-buchungen-col--income">
             <div class="ck-buchungen-col__header">
                 <span>↑ Einnahmen</span>
@@ -181,10 +185,10 @@
                 <table class="ck-table ck-buchungen-col__table">
                     <thead>
                         <tr>
-                            <th>Datum</th>
+                            <x-ck-sort-header column="transaction_date" label="Datum" />
                             <th>Kategorie</th>
-                            <th>Beschreibung</th>
-                            <th class="ck-table__col--right">Betrag</th>
+                            <x-ck-sort-header column="description" label="Beschreibung" />
+                            <x-ck-sort-header column="amount" label="Betrag" justify="end" />
                             @can('treasury.transactions.manage')
                             <th class="ck-table__col--actions"></th>
                             @endcan
@@ -234,7 +238,7 @@
             @endif
         </div>
 
-        {{-- Right: Ausgaben --}}
+        {{-- Right: Expenses (Ausgaben) --}}
         <div class="ck-buchungen-col ck-buchungen-col--expense">
             <div class="ck-buchungen-col__header">
                 <span>↓ Ausgaben</span>
@@ -248,10 +252,10 @@
                 <table class="ck-table ck-buchungen-col__table">
                     <thead>
                         <tr>
-                            <th>Datum</th>
+                            <x-ck-sort-header column="transaction_date" label="Datum" />
                             <th>Kategorie</th>
-                            <th>Beschreibung</th>
-                            <th class="ck-table__col--right">Betrag</th>
+                            <x-ck-sort-header column="description" label="Beschreibung" />
+                            <x-ck-sort-header column="amount" label="Betrag" justify="end" />
                             @can('treasury.transactions.manage')
                             <th class="ck-table__col--actions"></th>
                             @endcan
@@ -305,7 +309,7 @@
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════════════════
-     TAB: Konten
+     TAB: Accounts (konten)
 ══════════════════════════════════════════════════════════════════════════ --}}
 @can('treasury.accounts.manage')
 <div id="treasuryTab-konten"
@@ -359,7 +363,6 @@
                             @endif
                         </td>
                         <td class="ck-table__col--right">
-                            {{-- Balance pre-computed by controller via aggregated query — no N+1. --}}
                             @php $bal = $accountStats[$account->id]['balance'] ?? 0; @endphp
                             <span class="{{ $bal >= 0 ? 'ck-amount--income' : 'ck-amount--expense' }}">
                                 {{ number_format($bal, 2, ',', '.') }} €
@@ -388,7 +391,7 @@
 @endcan
 
 {{-- ══════════════════════════════════════════════════════════════════════════
-     TAB: Beiträge
+     TAB: Contributions (beitraege)
 ══════════════════════════════════════════════════════════════════════════ --}}
 @can('treasury.contributions.manage')
 <div id="treasuryTab-beitraege"
@@ -518,26 +521,37 @@
      Modals
 ══════════════════════════════════════════════════════════════════════════ --}}
 
-{{-- Modal: Buchung erfassen / bearbeiten --}}
+{{-- Modal: Buchung erfassen / bearbeiten (2-spaltig) --}}
 @can('treasury.transactions.manage')
 <x-ck-modal id="treasuryTransactionModal" title="Buchung" size="md">
     <form id="treasuryTransactionForm" method="POST">
         @csrf
         <div id="treasuryTransactionMethodField"></div>
-        <div class="ck-modal-section ck-modal-section--active">
-            <x-ck-field label="Konto" name="account_id" type="select" :options="['']" :required="true" />
+
+        {{-- Konto: volle Breite – wichtigster Kontextgeber --}}
+        <x-ck-field label="Konto" name="account_id" type="select"
+            :options="['' => '– Konto wählen –']" :required="true" />
+
+        {{-- 2-spaltig: Typ | Betrag, Datum | Kategorie, Referenz | Mitglied --}}
+        <div class="ck-form-grid ck-form-grid--2">
             <x-ck-field label="Typ" name="type" type="select"
                 :options="['income' => '↑ Einnahme', 'expense' => '↓ Ausgabe']" :required="true" />
-            <x-ck-field label="Betrag (€)" name="amount" type="number" placeholder="0.00" :required="true" />
-            <x-ck-field label="Kategorie" name="category_id" type="select" :options="['']" />
-            <x-ck-field label="Beschreibung" name="description" type="text"
-                placeholder="Buchungstext" :required="true" />
+            <x-ck-field label="Betrag (€)" name="amount" type="number"
+                placeholder="0.00" :required="true" />
             <x-ck-field label="Datum" name="transaction_date" type="date" :required="true" />
+            <x-ck-field label="Kategorie" name="category_id" type="select"
+                :options="['' => '– Keine Kategorie –']" />
             <x-ck-field label="Referenz-Nr." name="reference_number" type="text"
                 placeholder="RE-12345 (optional)" />
-            <x-ck-field label="Mitglied zuordnen" name="member_id" type="select" :options="['']" />
+            <x-ck-field label="Mitglied zuordnen" name="member_id" type="select"
+                :options="['' => '– Kein Mitglied –']" />
         </div>
-        <div class="ck-modal-footer">
+
+        {{-- Beschreibung: volle Breite --}}
+        <x-ck-field label="Beschreibung" name="description" type="text"
+            placeholder="Buchungstext" :required="true" />
+
+        <div class="ck-form-actions">
             <x-ck-button type="button" variant="secondary"
                 onclick="ckModalClose(null, 'treasuryTransactionModal')">Abbrechen</x-ck-button>
             <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
@@ -552,28 +566,28 @@
     <form id="treasuryAccountForm" method="POST">
         @csrf
         <div id="treasuryAccountMethodField"></div>
-        <div class="ck-modal-section ck-modal-section--active">
-            <x-ck-field label="Kontoname" name="name" type="text"
-                placeholder="z.B. Jugendkasse" :required="true" />
-            <x-ck-field label="Beschreibung" name="description" type="text" placeholder="Optional" />
-            <x-ck-field label="Übergeordnetes Konto (Unterkonto von)" name="parent_id" type="select"
-                :options="['']" />
-            <x-ck-field label="Sichtbarkeit" name="visibility" type="select"
-                :options="['public' => 'Öffentlich', 'team_restricted' => 'Nur für Teammitglieder']"
-                :required="true" onchange="treasuryAccountVisibilityChange(this.value)" />
-            {{-- Raw <select multiple> — x-ck-field unterstützt kein multiple-Attribut --}}
-            <div id="treasuryAccountTeamSection" class="is-hidden">
-                <label class="ck-field-label" for="treasuryAccountTeamIds">Team(s) zuweisen</label>
-                <select name="team_ids[]"
-                        id="treasuryAccountTeamIds"
-                        multiple
-                        size="5"
-                        class="ck-field-input ck-field-input--multi">
-                </select>
-                <p class="ck-field-hint">Strg / Cmd gedrückt halten für Mehrfachauswahl.</p>
+
+        <x-ck-field label="Kontoname" name="name" type="text"
+            placeholder="z.B. Jugendkasse" :required="true" />
+        <x-ck-field label="Beschreibung" name="description" type="text" placeholder="Optional" />
+        <x-ck-field label="Übergeordnetes Konto (Unterkonto von)" name="parent_id" type="select"
+            :options="['' => '– Kein übergeordnetes Konto –']" />
+        <x-ck-field label="Sichtbarkeit" name="visibility" type="select"
+            :options="['public' => 'Öffentlich', 'team_restricted' => 'Nur für Teammitglieder']"
+            :required="true" onchange="treasuryAccountVisibilityChange(this.value)" />
+
+        {{-- Team-Zuweisung: via .ck-multiselect-list mit Checkboxes, per JS befüllt --}}
+        <div id="treasuryAccountTeamSection" class="is-hidden">
+            <div class="ck-field">
+                <span class="ck-field__label">Team(s) zuweisen</span>
+                <div class="ck-multiselect-list ck-multiselect-list--scrollable"
+                     id="treasuryAccountTeamList">
+                    {{-- via JS befüllt (populateTeamCheckboxes) --}}
+                </div>
             </div>
         </div>
-        <div class="ck-modal-footer">
+
+        <div class="ck-form-actions">
             <x-ck-button type="button" variant="secondary"
                 onclick="ckModalClose(null, 'treasuryAccountModal')">Abbrechen</x-ck-button>
             <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
@@ -582,18 +596,24 @@
 </x-ck-modal>
 @endcan
 
-{{-- Modal: Aufgabe der Kasse zuweisen --}}
+{{-- Modal: Aufgabe einer Kasse zuweisen --}}
 @can('treasury.contributions.manage')
 <x-ck-modal id="treasuryContributionModal" title="Aufgabe der Kasse zuweisen" size="md">
     <form method="POST" action="{{ route('treasury.contributions.store') }}">
         @csrf
-        <div class="ck-modal-section ck-modal-section--active">
-            <x-ck-field label="Aufgabe" name="task_id" type="select" :options="['']" :required="true" />
-            <x-ck-field label="Kasse" name="account_id" type="select" :options="['']" :required="true" />
-            <x-ck-field label="Standard-Betrag (€)" name="default_amount" type="number" placeholder="0.00" />
+
+        <x-ck-field label="Aufgabe" name="task_id" type="select"
+            :options="['' => '– Aufgabe wählen –']" :required="true" />
+        <x-ck-field label="Kasse" name="account_id" type="select"
+            :options="['' => '– Kasse wählen –']" :required="true" />
+
+        <div class="ck-form-grid ck-form-grid--2">
+            <x-ck-field label="Standard-Betrag (€)" name="default_amount" type="number"
+                placeholder="0.00" />
             <x-ck-field label="Fälligkeitsdatum" name="due_date" type="date" />
         </div>
-        <div class="ck-modal-footer">
+
+        <div class="ck-form-actions">
             <x-ck-button type="button" variant="secondary"
                 onclick="ckModalClose(null, 'treasuryContributionModal')">Abbrechen</x-ck-button>
             <x-ck-button type="submit" variant="primary">Zuweisen</x-ck-button>
@@ -605,12 +625,11 @@
 <x-ck-modal id="treasuryPaymentMemberModal" title="Mitglied hinzufügen" size="sm">
     <form id="treasuryPaymentMemberForm" method="POST">
         @csrf
-        <div class="ck-modal-section ck-modal-section--active">
-            <x-ck-field label="Mitglied" name="member_id" type="select" :options="['']" :required="true" />
-            <x-ck-field label="Betrag (€)" name="amount" type="number" placeholder="0.00" :required="true" />
-            <x-ck-field label="Notiz" name="notes" type="text" placeholder="Optional" />
-        </div>
-        <div class="ck-modal-footer">
+        <x-ck-field label="Mitglied" name="member_id" type="select"
+            :options="['' => '– Mitglied wählen –']" :required="true" />
+        <x-ck-field label="Betrag (€)" name="amount" type="number" placeholder="0.00" :required="true" />
+        <x-ck-field label="Notiz" name="notes" type="text" placeholder="Optional" />
+        <div class="ck-form-actions">
             <x-ck-button type="button" variant="secondary"
                 onclick="ckModalClose(null, 'treasuryPaymentMemberModal')">Abbrechen</x-ck-button>
             <x-ck-button type="submit" variant="primary">Hinzufügen</x-ck-button>

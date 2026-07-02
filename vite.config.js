@@ -22,6 +22,7 @@ export default defineConfig({
                 'resources/js/modules/events-modal.js',
                 'resources/js/modules/import-preview.js',
                 'resources/js/modules/management-modal.js',
+                'resources/js/modules/member-teams.js',
                 'resources/js/modules/members-modal.js',
                 'resources/js/modules/roles-modal.js',
                 'resources/js/modules/teams-modal.js',

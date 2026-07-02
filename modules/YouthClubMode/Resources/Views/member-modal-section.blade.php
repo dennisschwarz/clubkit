@@ -1,23 +1,23 @@
 {{--
-    YouthClubMode – Hook View: member.modal.sections
-    Familie-Tab im Member-Modal.
+    YouthClubMode – Hook view: member.modal.sections
+    Family tab inside the member modal.
 
-    Die gesamte Logik (Dropdown-Filterung, Liste, AJAX) liegt in youth-club-mode.js.
-    Diese View liefert nur das HTML-Gerüst.
+    All logic (dropdown filtering, list rendering, AJAX) lives in youth-club-mode.js.
+    This view provides only the HTML skeleton.
 --}}
 <div id="memberTab-family" class="ck-modal__section">
 
-    {{-- Hinweis im Create-Modus (JS zeigt/versteckt) --}}
+    {{-- Create-mode hint (shown/hidden by JS) --}}
     <div id="memberFamilyCreateHint" class="ck-flash ck-flash--warning is-hidden">
         Bitte zuerst das Mitglied speichern (Tab Stammdaten), dann Familienmitglieder zuweisen.
     </div>
 
-    {{-- ── Verbindung hinzufügen ──────────────────────────────────────── --}}
+    {{-- ── Add connection ──────────────────────────────────────── --}}
     <div class="ck-family-add">
         <p class="ck-section-label ck-mb-3">Verbindung hinzufügen</p>
         <div class="ck-row ck-family-add__row">
 
-            {{-- Dropdown 1: Beziehungsart --}}
+            {{-- Dropdown 1: relationship type --}}
             <select id="mFieldRelationship" class="ck-field__input">
                 <option value="">– Beziehung wählen –</option>
                 <option value="father">Vater (des Mitglieds)</option>
@@ -27,21 +27,21 @@
                 <option value="sibling">Geschwister</option>
             </select>
 
-            {{-- Dropdown 2: Mitglied (startet deaktiviert, wird per JS gefüllt) --}}
+            {{-- Dropdown 2: member (starts disabled, populated by JS) --}}
             <select id="mFieldRelatedMember" class="ck-field__input" disabled>
                 <option value="">– erst Beziehung wählen –</option>
             </select>
 
             <x-ck-button type="button" id="mBtnAddRelation" variant="primary" size="sm" disabled>
-                + Hinzufügen
+                {{ __('+ Add') }}
             </x-ck-button>
 
         </div>
-        {{-- Fehler-Bereich für AJAX-Fehler --}}
+        {{-- Error area for AJAX errors --}}
         <div id="mFamilyAddError" class="ck-flash ck-flash--error ck-mt-3 is-hidden"></div>
     </div>
 
-    {{-- ── Aktuelle Verbindungen (wird von JS gerendert) ──────────────── --}}
+    {{-- ── Current connections (rendered by JS) ──────────────── --}}
     <div class="ck-mt-4">
         <p class="ck-section-label ck-mb-3">Aktuelle Verbindungen</p>
         <div id="mFamilyList">

@@ -1,8 +1,8 @@
-/* ── Design: Header 2 Zeilen + Sub-Tabs ────────────────────────────────
-   Alle Farben über CSS-Variablen aus base.css – dynamisch überschreibbar
-   durch layout.blade.php <head> <style>-Block (settings aus DB).
-   Alle inner Container: max-width: var(--ck-max-width) – EINHEITLICH.
-   AUSNAHME: .ck-brand-bar – volle Viewport-Breite (kein max-width).
+/* ── Design: header 2 rows + sub-tabs ───────────────────────────────────
+   All colours via CSS variables from base.css – dynamically overridable
+   by the layout.blade.php <head> <style> block (settings from DB).
+   All inner containers: max-width: var(--ck-max-width) – UNIFORM.
+   EXCEPTION: .ck-brand-bar – full viewport width (no max-width).
 ───────────────────────────────────────────────────────────────────────── */
 :root {
   --ck-brand-bar-height: 52px;
@@ -11,7 +11,7 @@
   --ck-subtab-height:    38px;
 }
 
-/* ── Header-Wrapper ──────────────────────────────────────────────────── */
+/* ── Header wrapper ──────────────────────────────────────────────────── */
 .ck-header {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -20,8 +20,8 @@
   box-shadow: var(--ck-header-shadow);
 }
 
-/* ── Zeile 1: Brand-Bar ──────────────────────────────────────────────── */
-/* KEIN max-width – Brand-Bar spannt volle Viewport-Breite */
+/* ── Row 1: Brand bar ────────────────────────────────────────────────── */
+/* NO max-width – brand bar spans full viewport width */
 .ck-brand-bar {
   display: flex;
   align-items: center;
@@ -30,7 +30,7 @@
   padding: 0 var(--ck-space-5);
 }
 
-/* Logo + Vereinsname */
+/* Logo + club name */
 .ck-header__brand {
   display: flex;
   align-items: center;
@@ -64,7 +64,7 @@
   line-height: 1.2;
 }
 
-/* User + Abmelden */
+/* User + sign-out */
 .ck-header__user {
   display: flex;
   align-items: center;
@@ -89,7 +89,7 @@
 }
 .ck-header__logout:hover { color: var(--ck-brand-bar-hover); }
 
-/* ── Zeile 2: Nav-Bar ────────────────────────────────────────────────── */
+/* ── Row 2: Nav bar ──────────────────────────────────────────────────── */
 .ck-nav-bar {
   background: var(--ck-nav-bar-bg);
   border-top: 1px solid color-mix(in srgb, var(--ck-brand-bar-text) 10%, transparent);
@@ -128,7 +128,7 @@
   font-weight: 600;
 }
 
-/* ── Zeile 3: Sub-Tab-Bar ────────────────────────────────────────────── */
+/* ── Row 3: Sub-tab bar ──────────────────────────────────────────────── */
 .ck-subtabbar-wrap {
   position: fixed;
   top: var(--ck-header-height);
@@ -162,18 +162,18 @@
 .ck-subtab:hover   { color: var(--ck-subtab-hover); }
 .ck-subtab--active { color: var(--ck-subtab-hover); border-bottom-color: var(--ck-subtab-active-bar); }
 
-/* ── Body-Abstand (Header + optionale Sub-Tabs kompensieren) ──────────── */
+/* ── Body offset (compensates for header + optional sub-tabs) ──────────── */
 .ck-body               { padding-top: var(--ck-header-height); min-height: 100vh; }
 .ck-body--with-subtabs { padding-top: calc(var(--ck-header-height) + var(--ck-subtab-height)); }
 
-/* Content-Bereich: gleiche max-width wie alle anderen Container */
+/* Content area: same max-width as all other containers */
 .ck-content {
   max-width: var(--ck-max-width);
   margin: 0 auto;
   padding: var(--ck-space-6) var(--ck-space-5) 60px;
 }
 
-/* ── Flash Messages ──────────────────────────────────────────────────── */
+/* ── Flash messages ──────────────────────────────────────────────────── */
 .ck-flash {
   padding: var(--ck-space-2) var(--ck-space-5);
   font-size: var(--ck-font-sm);
@@ -186,7 +186,7 @@
 .ck-flash--warning { background: var(--ck-warning-bg); border-color: var(--ck-warning-border); color: var(--ck-warning-text); }
 .ck-flash--hiding  { opacity: 0; }
 
-/* ── Page Header ─────────────────────────────────────────────────────── */
+/* ── Page header ─────────────────────────────────────────────────────── */
 .ck-page-header {
   display: flex;
   align-items: flex-start;

@@ -1,10 +1,10 @@
 /* ══════════════════════════════════════════════════════════════════════
    Flatpickr – ClubKit Design Override
-   flatpickr.min.css wird via app.js importiert (nicht via @import in CSS).
-   Alle Farben über CSS-Variablen, kein style="…" im JS.
+   flatpickr.min.css is imported via app.js (not via @import in CSS).
+   All colours via CSS variables, no style="…" in JS.
 ══════════════════════════════════════════════════════════════════════ */
 
-/* ── Box-Sizing Reset: CK setzt global border-box, flatpickr braucht das auch ── */
+/* ── Box-sizing reset: CK sets border-box globally, flatpickr needs it too ── */
 .flatpickr-calendar,
 .flatpickr-calendar *,
 .flatpickr-calendar *::before,
@@ -12,19 +12,19 @@
   box-sizing: border-box;
 }
 
-/* ── Kalender-Wrapper ───────────────────────────────────────────────── */
+/* ── Calendar wrapper ───────────────────────────────────────────────── */
 .flatpickr-calendar {
   font-family: inherit;
   font-size: var(--ck-font-sm);
   border: 1px solid var(--ck-border);
   border-radius: var(--ck-radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
-  z-index: 99999;               /* über Modal (z-index: 9999) */
+  z-index: 99999;               /* above modal (z-index: 9999) */
   padding: 0;
-  width: 307.875px;             /* flatpickr Standard-Breite, nicht überschreiben */
+  width: 307.875px;             /* flatpickr default width, do not override */
 }
 
-/* ── Monats-Header ──────────────────────────────────────────────────── */
+/* ── Month header ───────────────────────────────────────────────────── */
 .flatpickr-months {
   background: var(--ck-primary);
   border-radius: var(--ck-radius) var(--ck-radius) 0 0;
@@ -60,7 +60,7 @@
 .flatpickr-prev-month:hover svg,
 .flatpickr-next-month:hover svg { fill: #fff; }
 
-/* ── Wochentage ─────────────────────────────────────────────────────── */
+/* ── Weekdays ───────────────────────────────────────────────────────── */
 .flatpickr-weekdays {
   background: var(--ck-bg-subtle);
   border-bottom: 1px solid var(--ck-border-light);
@@ -71,11 +71,11 @@
   font-size: var(--ck-font-xs);
 }
 
-/* ── Tages-Grid ─────────────────────────────────────────────────────── */
+/* ── Day grid ───────────────────────────────────────────────────────── */
 .flatpickr-days { border: none; }
 .dayContainer    {
   border: none;
-  /* Breite explizit: 7 × 39px = 273px (flatpickr Standard), kein Collapsing */
+  /* Width explicit: 7 × 39px = 273px (flatpickr default), no collapsing */
   min-width: 307.875px;
   max-width: 307.875px;
 }
@@ -85,7 +85,7 @@
   color: var(--ck-text);
   font-size: var(--ck-font-sm);
   border: 1px solid transparent;
-  /* Höhe/Max-Breite NICHT ändern – flatpickr-Gitter bricht sonst */
+  /* Height/max-width must NOT change – flatpickr grid breaks otherwise */
 }
 .flatpickr-day:hover,
 .flatpickr-day.prevMonthDay:hover,
@@ -120,7 +120,7 @@
   color: var(--ck-border);
 }
 
-/* ── Zeit-Picker ────────────────────────────────────────────────────── */
+/* ── Time picker ────────────────────────────────────────────────────── */
 .flatpickr-time {
   border-top: 1px solid var(--ck-border);
   background: var(--ck-bg-subtle);
@@ -148,15 +148,15 @@
   border-top-color: var(--ck-text-muted);
 }
 
-/* ── AltInput: sieht wie normales ck-field__input aus ───────────────── */
+/* ── AltInput: looks like a normal ck-field__input ───────────────────── */
 input.flatpickr-input[readonly],
 input.flatpickr-mobile {
   cursor: pointer;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   "Übernehmen"-Button (manuell via onReady eingefügt, kein Plugin nötig)
-   Schließt den Picker nach Datum- + Zeit-Auswahl.
+   "Apply" button (inserted manually via onReady, no plugin needed)
+   Closes the picker after date + time selection.
 ══════════════════════════════════════════════════════════════════════ */
 .ck-fp-confirm {
   display: flex;
@@ -165,7 +165,7 @@ input.flatpickr-mobile {
   height: 40px;
   width: 100%;
   cursor: pointer;
-  background: var(--ck-confirm);
+  background: var(--ck-accent-dark);
   color: #fff;
   font-family: inherit;
   font-size: var(--ck-font-sm);
@@ -175,8 +175,13 @@ input.flatpickr-mobile {
   border-radius: 0 0 var(--ck-radius) var(--ck-radius);
   transition: background 0.15s;
   user-select: none;
-  padding: 10px 0;
 }
 .ck-fp-confirm:hover {
   background: var(--ck-primary);
+}
+
+/* When the confirm button is appended (.has-confirm-btn), the time picker
+   is no longer the last child — remove its bottom radius to avoid the gap. */
+.flatpickr-calendar.has-confirm-btn .flatpickr-time {
+  border-radius: 0;
 }

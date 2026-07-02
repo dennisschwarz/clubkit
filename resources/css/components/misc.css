@@ -1,4 +1,4 @@
-/* ── Avatar / Initialen-Kreis ───────────────────── */
+/* ── Avatar / initials circle ────────────────────────── */
 .ck-avatar {
   width: 36px; height: 36px;
   border-radius: var(--ck-radius-full);
@@ -13,7 +13,7 @@
 .ck-avatar--sm   { width: 28px; height: 28px; font-size: 9px; }
 .ck-avatar--lg   { width: 56px; height: 56px; font-size: var(--ck-font-md); }
 
-/* ── Leerer Zustand ─────────────────────────────── */
+/* ── Empty state ─────────────────────────────────────── */
 .ck-empty-state {
   text-align: center;
   padding: var(--ck-space-6) var(--ck-space-5);
@@ -22,7 +22,7 @@
 }
 .ck-empty-state a { color: var(--ck-accent-dark); text-decoration: underline; }
 
-/* ── Thumbnail in Tabellenzeile ─────────────────── */
+/* ── Thumbnail in table row ──────────────────────────── */
 .ck-table-thumb {
   width: 32px; height: 32px;
   border-radius: var(--ck-radius);
@@ -31,7 +31,7 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Einstellungen-Seite
+   Settings page
 ══════════════════════════════════════════════════════════════════════ */
 .ck-settings-section { display: flex; flex-direction: column; }
 .ck-settings-row {
@@ -65,7 +65,7 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Speichern-Rückmeldung
+   Save feedback
 ══════════════════════════════════════════════════════════════════════ */
 .ck-save-status {
   font-size: var(--ck-font-sm);
@@ -81,7 +81,7 @@
 .ck-save-status--reload  { color: var(--ck-warning); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Sektions-Header
+   Section header
 ══════════════════════════════════════════════════════════════════════ */
 .ck-section-header {
   display: flex;
@@ -143,15 +143,16 @@
   flex-shrink: 0;
 }
 
-/* ── Teamfarben – Sektions-Header-Modifier ──────── */
+/* ── Team colours – section header modifiers ─────────── */
 .ck-section-header--colored { border-color: transparent; }
-.ck-section-header--colored .ck-section-header__icon { background: rgba(255,255,255,0.22); }
+/* S34: rgba(255,255,255,0.22) → var(--ck-section-icon-bg-light) */
+.ck-section-header--colored .ck-section-header__icon { background: var(--ck-section-icon-bg-light); }
 .ck-section-header--colored .ck-section-header__title,
 .ck-section-header--colored .ck-section-header__meta,
 .ck-section-header--colored .ck-accordion-chevron { color: var(--ck-text-white); }
 .ck-section-header--colored .ck-section-header__meta--inactive { color: var(--ck-danger-border); }
 
-/* Team-Farben als CSS-Tokens (base.css: --ck-team-*) */
+/* Team color tokens (base.css: --ck-team-*) */
 .ck-section-header--team-blue   { background: var(--ck-team-blue); }
 .ck-section-header--team-navy   { background: var(--ck-team-navy); }
 .ck-section-header--team-green  { background: var(--ck-team-green); }
@@ -167,11 +168,12 @@
 .ck-section-header--team-amber .ck-section-header__title,
 .ck-section-header--team-amber .ck-section-header__meta,
 .ck-section-header--team-amber .ck-accordion-chevron { color: var(--ck-text); }
-.ck-section-header--team-amber .ck-section-header__icon { background: rgba(0,0,0,0.1); }
+/* S34: rgba(0,0,0,0.1) → var(--ck-section-icon-bg-dark) */
+.ck-section-header--team-amber .ck-section-header__icon { background: var(--ck-section-icon-bg-dark); }
 .ck-section-header--team-amber .ck-section-header__meta--inactive { color: var(--ck-danger-text); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Farb-Swatch-Picker (Teams-Modal)
+   Colour swatch picker (Teams modal)
 ══════════════════════════════════════════════════════════════════════ */
 .ck-color-picker {
   display: flex;
@@ -221,7 +223,7 @@
 .ck-color-swatch__dot--slate   { background: var(--ck-team-slate); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Alert-Box
+   Alert box
 ══════════════════════════════════════════════════════════════════════ */
 .ck-alert {
   padding: var(--ck-space-3) var(--ck-space-4);
@@ -235,7 +237,7 @@
 .ck-alert--warning { background: var(--ck-warning-bg); color: var(--ck-warning-text); border-color: var(--ck-warning-border); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   YouthClubMode – Familie-Liste
+   YouthClubMode – family list
 ══════════════════════════════════════════════════════════════════════ */
 .ck-family-add {
   padding-bottom: var(--ck-space-4);
@@ -262,15 +264,15 @@
 .ck-family-item__name  { flex: 1; font-size: var(--ck-font-base); color: var(--ck-text); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Lokale Seiten-Tabs (ck-local-tab)
+   Local page tabs (ck-local-tab)
    ─────────────────────────────────────────────────────────────────────
-   Seiten-interne Sub-Navigation (z.B. Organisation: Funktionen/Aufgaben).
-   Farb-Modifier spiegeln die Sektion-Farben aus events.css wider:
-     --purple → Vereinsfunktionen  (= ck-orga-section--purple: #7c3aed)
-     --blue   → Vereinsaufgaben    (= ck-orga-section--blue:   #60a5fa)
-     --green  → Teams              (= ck-orga-section--green:  #16a34a)
-     --amber  → Einmalige Aufgaben (= ck-orga-section--amber:  #d97706)
-   Konsistenz: gleiche Farbe = gleiche Bedeutung, egal wo im UI.
+   Page-internal sub-navigation (e.g. Organisation: Functions / Tasks).
+   Colour modifiers mirror the section colours from events.css:
+     --purple → club functions   (= ck-orga-section--purple: #7c3aed)
+     --blue   → club tasks       (= ck-orga-section--blue:   #60a5fa)
+     --green  → teams            (= ck-orga-section--green:  #16a34a)
+     --amber  → one-off tasks    (= ck-orga-section--amber:  #d97706)
+   Consistency: same colour = same meaning, regardless of where in the UI.
 ══════════════════════════════════════════════════════════════════════ */
 .ck-local-tabs {
   display: flex;
@@ -326,7 +328,7 @@
 .ck-local-section--active { display: block; }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Modul-Karte (Admin > Module)
+   Module card (Admin > Modules)
 ══════════════════════════════════════════════════════════════════════ */
 .ck-module-card {
   background: var(--ck-white);
@@ -343,6 +345,12 @@
   border-style: dashed;
   border-left-style: dashed;
   border-left-color: var(--ck-border);
+}
+
+/* Module card with unmet dependencies: muted appearance to signal blocked state */
+.ck-module-card--deps-missing {
+  border-left-color: var(--ck-warning);
+  opacity: 0.75;
 }
 
 .ck-module-card__header {
@@ -383,12 +391,40 @@
   margin-top: var(--ck-space-1);
 }
 
+/* Warning shown when required modules are not yet installed/active */
+.ck-module-card__deps-warning {
+  font-size: var(--ck-font-xs);
+  font-weight: 600;
+  color: var(--ck-warning-text);
+  background: var(--ck-warning-bg);
+  border: 1px solid var(--ck-warning-border);
+  border-radius: var(--ck-radius);
+  padding: var(--ck-space-1) var(--ck-space-2);
+  margin-top: var(--ck-space-2);
+  display: inline-block;
+}
+
 .ck-module-card__actions {
   display: flex;
   gap: var(--ck-space-2);
   flex-shrink: 0;
   flex-wrap: wrap;
   align-items: flex-start;
+}
+
+/* Wrapper for blocked activate: hint text above a disabled button */
+.ck-module-card__deps-blocked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--ck-space-1);
+}
+
+/* Hint text explaining why the activate button is disabled */
+.ck-module-card__deps-hint {
+  font-size: var(--ck-font-xs);
+  color: var(--ck-warning-text);
+  white-space: nowrap;
 }
 
 .ck-module-card__empty {
@@ -410,7 +446,7 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   System-Seite (Admin > System)
+   System page (Admin > System)
 ══════════════════════════════════════════════════════════════════════ */
 
 /* Two-column grid for detail cards */
@@ -437,3 +473,91 @@
 /* Action spacer – same width as an icon button,
    prevents layout shift when no button is present */
 .ck-action-spacer { width: 34px; flex-shrink: 0; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Toast notification container
+   ─────────────────────────────────────────────────────────────────────
+   Created programmatically by ckNotify() in app.js.
+   Stacks toasts in the bottom-right corner, newest at bottom.
+   Toasts slide in from the right and fade out on dismiss.
+   z-index sits above modals (--ck-z-modal: 9000).
+══════════════════════════════════════════════════════════════════════ */
+#ck-toast-container {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9100;   /* above modals */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  max-width: 400px;
+  width: calc(100vw - 48px);
+}
+
+.ck-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ck-space-3);
+  background: var(--ck-white);
+  border: 1px solid var(--ck-border);
+  border-left: 4px solid var(--ck-border);
+  border-radius: var(--ck-radius);
+  padding: 14px 16px;
+  font-size: var(--ck-font-base);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  pointer-events: all;
+  cursor: pointer;
+  /* Start hidden + shifted right – animated to visible via .ck-toast--visible */
+  opacity: 0;
+  transform: translateX(32px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.ck-toast--visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.ck-toast--hiding {
+  opacity: 0;
+  transform: translateX(32px);
+  pointer-events: none;
+}
+
+/* Left-border accent colour per type */
+.ck-toast--success { border-left-color: var(--ck-success); }
+.ck-toast--error   { border-left-color: var(--ck-danger); }
+.ck-toast--warning { border-left-color: var(--ck-warning); }
+.ck-toast--info    { border-left-color: var(--ck-accent-dark); }
+
+.ck-toast__icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.ck-toast__msg {
+  flex: 1;
+  line-height: 1.5;
+  color: var(--ck-text);
+  word-break: break-word;
+}
+
+.ck-toast__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--ck-text-muted);
+  padding: 0;
+  flex-shrink: 0;
+  margin-top: -1px;
+  transition: color 0.15s;
+}
+.ck-toast__close:hover { color: var(--ck-text); }
+
+@media (max-width: 480px) {
+  #ck-toast-container { right: 12px; bottom: 12px; }
+}

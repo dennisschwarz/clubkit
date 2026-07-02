@@ -22,6 +22,12 @@ use Illuminate\View\View;
  * Remove:     drops module tables, deletes migration records, removes permissions.
  *
  * The Core module is protected and can never be deactivated or removed.
+ *
+ * Dependency enforcement:
+ *   - install()  checks that all required modules are installed AND active.
+ *   - activate() checks that all required modules are currently active.
+ *   - remove()   checks that no currently active module depends on this one.
+ *   - index()    pre-computes $depsStatus so the view can disable buttons proactively.
  */
 class ModuleController extends Controller
 {
@@ -31,6 +37,12 @@ class ModuleController extends Controller
     public function __construct(private readonly ModuleLoader $moduleLoader) {}
 
     /**
+     * Lists all installed and available modules.
+     *
+     * Pre-computes $depsStatus: a map of slug → list of missing dependency slugs.
+     * An empty list means all dependencies are satisfied.
+     * The view uses this to disable install/activate buttons proactively.
+     *
      * @return View
      */
     public function index(): View
@@ -38,15 +50,39 @@ class ModuleController extends Controller
         $installed = $this->moduleLoader->getInstalled();
         $available = $this->moduleLoader->detectAvailable();
 
-        return view('core::admin.modules.index', compact('installed', 'available'));
+        // Collect slugs of modules that are currently installed and active
+        $activeSlugs = array_keys(array_filter(
+            (array) $installed,
+            static fn (object $m): bool => (bool) $m->is_active,
+        ));
+
+        // Pre-compute missing dependencies per module slug (used by the view).
+        // 'core' is excluded because it is always active and cannot be deactivated.
+        $depsStatus = [];
+
+        foreach ($available as $slug => $config) {
+            $missing = [];
+
+            foreach ($config['requires'] ?? [] as $dep) {
+                if ($dep === 'core') {
+                    continue;
+                }
+                if (! in_array($dep, $activeSlugs, true)) {
+                    $missing[] = $dep;
+                }
+            }
+
+            $depsStatus[$slug] = $missing;
+        }
+
+        return view('core::admin.modules.index', compact('installed', 'available', 'depsStatus'));
     }
 
     /**
      * Installs a module by running its migrations, recording it in installed_modules,
      * and seeding its permissions.
      *
-     * Validates that all required dependencies are already installed and active
-     * before proceeding.
+     * All required dependencies must be installed AND active before proceeding.
      *
      * @param  string $slug
      * @return RedirectResponse
@@ -55,7 +91,7 @@ class ModuleController extends Controller
     {
         $available = $this->moduleLoader->detectAvailable();
 
-        if (!isset($available[$slug])) {
+        if (! isset($available[$slug])) {
             return back()->with('error', "Modul '$slug' nicht gefunden.");
         }
 
@@ -63,13 +99,14 @@ class ModuleController extends Controller
             return back()->with('error', "Modul '$slug' ist bereits installiert.");
         }
 
-        // Verify all declared dependencies are installed and active
+        // All required dependencies must be installed and active first.
+        // 'core' is always active and therefore excluded from this check.
         foreach ($available[$slug]['requires'] ?? [] as $dep) {
             if ($dep === 'core') {
                 continue;
             }
-            if (!DB::table('installed_modules')->where('slug', $dep)->where('is_active', true)->exists()) {
-                return back()->with('error', "Abhängigkeit '$dep' muss zuerst installiert werden.");
+            if (! DB::table('installed_modules')->where('slug', $dep)->where('is_active', true)->exists()) {
+                return back()->with('error', "Abhängigkeit '$dep' muss zuerst installiert und aktiv sein.");
             }
         }
 
@@ -103,11 +140,28 @@ class ModuleController extends Controller
     /**
      * Re-activates a previously deactivated module without running migrations.
      *
+     * All required dependencies must currently be active before re-activation.
+     * This mirrors the install() guard: a module that requires 'members' cannot
+     * be activated while 'members' is deactivated.
+     *
      * @param  string $slug
      * @return RedirectResponse
      */
     public function activate(string $slug): RedirectResponse
     {
+        $available = $this->moduleLoader->detectAvailable();
+
+        // All required dependencies must be active before re-activation.
+        // 'core' is always active and therefore excluded from this check.
+        foreach ($available[$slug]['requires'] ?? [] as $dep) {
+            if ($dep === 'core') {
+                continue;
+            }
+            if (! DB::table('installed_modules')->where('slug', $dep)->where('is_active', true)->exists()) {
+                return back()->with('error', "Abhängigkeit '$dep' muss aktiv sein, bevor '$slug' aktiviert werden kann.");
+            }
+        }
+
         DB::table('installed_modules')
             ->where('slug', $slug)
             ->update(['is_active' => true, 'updated_at' => now()]);
@@ -162,7 +216,7 @@ class ModuleController extends Controller
 
         $installed = DB::table('installed_modules')->where('slug', $slug)->first();
 
-        if (!$installed) {
+        if (! $installed) {
             return back()->with('error', "Modul '$slug' ist nicht installiert.");
         }
 
@@ -181,7 +235,7 @@ class ModuleController extends Controller
             }
         }
 
-        if (!empty($dependents)) {
+        if (! empty($dependents)) {
             return back()->with('error',
                 'Kann nicht entfernt werden. Folgende Module sind abhängig: ' . implode(', ', $dependents)
             );

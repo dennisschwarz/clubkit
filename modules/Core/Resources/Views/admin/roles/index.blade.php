@@ -47,7 +47,7 @@
                 <td class="ck-table__actions">
                     <div class="ck-table__action-cell">
                         <x-ck-button variant="warning" size="icon"
-                            title="Rolle bearbeiten"
+                            title="{{ __('Edit') }}"
                             onclick="rolesModalOpen('edit', {{ $role->id }})">
                             <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path d="M13.586 3.586a2 2 0 112.828 2.828l-8 8a2 2 0 01-.9.52l-3 .75a.5.5 0 01-.607-.606l.75-3a2 2 0 01.52-.9l8-8z"/>
@@ -57,7 +57,7 @@
                         <form method="POST" action="{{ route('admin.roles.destroy', $role) }}" class="ck-inline-form">
                             @csrf @method('DELETE')
                             <x-ck-button variant="danger" size="icon" type="submit"
-                                title="Rolle löschen"
+                                title="{{ __('Delete') }}"
                                 :confirm="'Rolle »' . $role->name . '« wirklich löschen?'">
                                 <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -65,7 +65,7 @@
                             </x-ck-button>
                         </form>
                         @else
-                        {{-- Platzhalter damit Spaltenbreite gleich bleibt --}}
+                        {{-- Spacer to keep column width consistent --}}
                         <div class="ck-action-spacer"></div>
                         @endif
                     </div>
@@ -83,7 +83,7 @@
     </table>
 </div>
 
-{{-- ── Verfügbare Permissions (Referenz) ── --}}
+{{-- ── Available permissions (reference) ── --}}
 <x-ck-card class="ck-mt-6">
     <x-slot:header>Alle verfügbaren Berechtigungen ({{ $permissions->count() }})</x-slot:header>
     <div class="ck-permissions-grid">
@@ -103,7 +103,7 @@
     </div>
 </x-ck-card>
 
-{{-- ── Modal: Rolle anlegen / bearbeiten ── --}}
+{{-- ── Modal: create / edit role ── --}}
 <x-ck-modal id="roleModal" title="Rolle" size="md">
     <div class="ck-modal__section ck-modal__section--active">
         <form id="roleForm" method="POST">
@@ -136,9 +136,9 @@
             </div>
 
             <div class="ck-form-actions">
-                <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
+                <x-ck-button type="submit" variant="primary">{{ __('Save') }}</x-ck-button>
                 <x-ck-button type="button" variant="secondary"
-                    onclick="ckModalClose(null, 'roleModal')">Abbrechen</x-ck-button>
+                    onclick="ckModalClose(null, 'roleModal')">{{ __('Cancel') }}</x-ck-button>
             </div>
         </form>
     </div>

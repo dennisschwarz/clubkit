@@ -11,7 +11,7 @@
     </div>
 </div>
 
-{{-- Installierte Module --}}
+{{-- Installed modules --}}
 <div>
     <div class="ck-section-label ck-mb-3">
         Installiert ({{ count($installed) }})
@@ -25,12 +25,12 @@
                     <span class="ck-module-card__name">{{ $module->name }}</span>
                     <span class="ck-module-card__version">v{{ $module->version }}</span>
                     @if($module->is_active)
-                        <x-ck-badge color="green">Aktiv</x-ck-badge>
+                        <x-ck-badge color="green">{{ __('Active') }}</x-ck-badge>
                     @else
-                        <x-ck-badge color="gray">Inaktiv</x-ck-badge>
+                        <x-ck-badge color="gray">{{ __('Inactive') }}</x-ck-badge>
                     @endif
                     @if($slug === 'core')
-                        <x-ck-badge color="blue">Pflicht</x-ck-badge>
+                        <x-ck-badge color="blue">{{ __('Required') }}</x-ck-badge>
                     @endif
                 </div>
                 <div class="ck-module-card__meta">
@@ -43,19 +43,29 @@
                 @if($module->is_active)
                 <form method="POST" action="{{ route('admin.modules.deactivate', $slug) }}">
                     @csrf
-                    <x-ck-button type="submit" variant="warning" size="sm">Deaktivieren</x-ck-button>
+                    <x-ck-button type="submit" variant="warning" size="sm">{{ __('Deactivate') }}</x-ck-button>
                 </form>
                 @else
-                <form method="POST" action="{{ route('admin.modules.activate', $slug) }}">
-                    @csrf
-                    <x-ck-button type="submit" variant="secondary" size="sm">Aktivieren</x-ck-button>
-                </form>
+                    {{-- Only allow re-activation when all required dependencies are active. --}}
+                    @if(empty($depsStatus[$slug] ?? []))
+                    <form method="POST" action="{{ route('admin.modules.activate', $slug) }}">
+                        @csrf
+                        <x-ck-button type="submit" variant="secondary" size="sm">{{ __('Activate') }}</x-ck-button>
+                    </form>
+                    @else
+                    <div class="ck-module-card__deps-blocked">
+                        <span class="ck-module-card__deps-hint">
+                            Benötigt aktiv: {{ implode(', ', $depsStatus[$slug]) }}
+                        </span>
+                        <x-ck-button type="button" variant="secondary" size="sm" disabled>{{ __('Activate') }}</x-ck-button>
+                    </div>
+                    @endif
                 @endif
 
-                {{-- Öffnet das Bestätigungs-Modal statt browser confirm() --}}
+                {{-- Opens the confirmation modal instead of browser confirm() --}}
                 <x-ck-button type="button" variant="danger" size="sm"
                     onclick="ckModuleRemoveOpen('{{ $slug }}', '{{ $module->name }}', '{{ route('admin.modules.remove', $slug) }}')">
-                    Entfernen
+                    {{ __('Remove') }}
                 </x-ck-button>
             </div>
             @endif
@@ -68,7 +78,7 @@
     @endforelse
 </div>
 
-{{-- Verfügbare (noch nicht installierte) Module --}}
+{{-- Available (not yet installed) modules --}}
 @php
     $notInstalled = array_filter($available, fn($slug) => !isset($installed[$slug]), ARRAY_FILTER_USE_KEY);
 @endphp
@@ -80,7 +90,8 @@
     </div>
 
     @foreach($notInstalled as $slug => $config)
-    <div class="ck-module-card ck-module-card--available">
+    @php $missingDeps = $depsStatus[$slug] ?? []; @endphp
+    <div class="ck-module-card ck-module-card--available {{ !empty($missingDeps) ? 'ck-module-card--deps-missing' : '' }}">
         <div class="ck-module-card__header">
             <div class="ck-module-card__info">
                 <div class="ck-module-card__title-row">
@@ -95,18 +106,31 @@
                     Benötigt: {{ implode(', ', array_filter($config['requires'], fn($r) => $r !== 'core')) }}
                 </div>
                 @endif
+                {{-- Show a clear warning when required modules are not active --}}
+                @if(!empty($missingDeps))
+                <div class="ck-module-card__deps-warning">
+                    ⚠ Nicht installierbar: {{ implode(', ', $missingDeps) }} muss zuerst installiert und aktiv sein.
+                </div>
+                @endif
             </div>
-            <form method="POST" action="{{ route('admin.modules.install', $slug) }}" class="ck-module-card__actions">
-                @csrf
-                <x-ck-button type="submit" variant="primary" size="sm">+ Installieren</x-ck-button>
-            </form>
+            <div class="ck-module-card__actions">
+                @if(empty($missingDeps))
+                <form method="POST" action="{{ route('admin.modules.install', $slug) }}">
+                    @csrf
+                    <x-ck-button type="submit" variant="primary" size="sm">{{ __('+ Install') }}</x-ck-button>
+                </form>
+                @else
+                {{-- Install button is disabled when required modules are missing --}}
+                <x-ck-button type="button" variant="primary" size="sm" disabled>{{ __('+ Install') }}</x-ck-button>
+                @endif
+            </div>
         </div>
     </div>
     @endforeach
 </div>
 @endif
 
-{{-- Keine module.json gefunden --}}
+{{-- No module.json files found --}}
 @if(empty($available))
 <div class="ck-alert ck-alert--warning">
     ⚠️ Keine Module in <code>modules/</code> gefunden. Prüfe ob die Modul-Ordner mit <code>module.json</code> vorhanden sind.
@@ -115,7 +139,9 @@
 
 {{-- ══════════════════════════════════════════════════════════════
      SHARED DELETE FORM
-     Action wird dynamisch durch ckModuleRemoveOpen() gesetzt.
+     Action is set dynamically by ckModuleRemoveOpen().
+     This form lives outside the modal so requestSubmit() triggers
+     the global form-submit guard in app.js (disable buttons + loading overlay).
 ══════════════════════════════════════════════════════════════ --}}
 <form id="ck-module-remove-form" method="POST" action="">
     @csrf
@@ -124,15 +150,20 @@
 
 {{-- ══════════════════════════════════════════════════════════════
      MODULE REMOVE CONFIRM MODAL
+     Uses the same visual design as the global confirm modal in layout.blade.php
+     but requires custom JS (ckModuleRemoveOpen) to set the dynamic DELETE route.
+     CSS: .ck-modal-content .ck-modal-content--sm (not .ck-modal .ck-modal--sm)
 ══════════════════════════════════════════════════════════════ --}}
 <div id="ck-module-remove-modal" class="ck-modal-overlay" onclick="ckModalClose(event, 'ck-module-remove-modal')">
-    <div class="ck-modal ck-modal--sm">
+    <div class="ck-modal-content ck-modal-content--sm" onclick="event.stopPropagation()">
+
         <div class="ck-modal__header">
             <h2 class="ck-modal__title">🗑 Modul entfernen</h2>
+            <button type="button" class="ck-modal__close" onclick="ckModalClose(null, 'ck-module-remove-modal')">&times;</button>
         </div>
 
         <div class="ck-modal__body">
-            <p class="ck-module-remove__question">
+            <p class="ck-confirm__text">
                 Modul <strong id="ck-module-remove-name"></strong> wirklich entfernen?
             </p>
             <div class="ck-alert ck-alert--danger">
@@ -143,13 +174,14 @@
         </div>
 
         <div class="ck-modal__footer">
-            <x-ck-button variant="secondary" onclick="ckModalClose(null, 'ck-module-remove-modal')">
-                Abbrechen
+            <x-ck-button variant="danger" type="button" onclick="ckModuleRemoveConfirm()">
+                {{ __('Remove permanently') }}
             </x-ck-button>
-            <x-ck-button variant="danger" onclick="ckModuleRemoveConfirm()">
-                Endgültig entfernen
+            <x-ck-button variant="secondary" type="button" onclick="ckModalClose(null, 'ck-module-remove-modal')">
+                {{ __('Cancel') }}
             </x-ck-button>
         </div>
+
     </div>
 </div>
 
@@ -167,18 +199,21 @@
      * @param {string} action - DELETE route to set on the form
      */
     window.ckModuleRemoveOpen = function (slug, name, action) {
-        document.getElementById('ck-module-remove-name').textContent = name;
-        document.getElementById('ck-module-remove-form').action = action;
+        const nameEl = document.getElementById('ck-module-remove-name');
+        const form   = document.getElementById('ck-module-remove-form');
+        if (nameEl) nameEl.textContent = name;
+        if (form)   form.action        = action;
         ckModalOpen('ck-module-remove-modal');
     };
 
     /**
-     * Submits the shared delete form and closes the modal.
-     * The loading overlay is shown automatically by app.js' form-submit listener.
+     * Submits the shared module remove form.
+     * Called by the "Endgültig entfernen" button inside the modal.
      */
     window.ckModuleRemoveConfirm = function () {
         ckModalClose(null, 'ck-module-remove-modal');
-        document.getElementById('ck-module-remove-form').submit();
+        const form = document.getElementById('ck-module-remove-form');
+        if (form) form.requestSubmit();
     };
 
 }());

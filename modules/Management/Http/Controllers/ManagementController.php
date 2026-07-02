@@ -26,19 +26,21 @@ use Modules\Members\Models\Member;
  * ── Architecture note ─────────────────────────────────────────────────────────
  *
  * Management has NO direct PHP dependency on the Teams module.
- * Teams integration is handled entirely via the hook system:
+ * Teams integration runs entirely through the hook system:
  *
- *   TeamsServiceProvider::boot() → registers hooks into management.function.list,
+ *   TeamsServiceProvider::boot() → registers hooks in management.function.list,
  *   management.task.list, management.*.modal.teams, management.page.scripts
  *
- * When Teams is not installed, Management shows all entries in a flat list
- * (no team filter, no team grouping). When Teams is installed, TeamsServiceProvider
- * injects the appropriate UI without Management knowing about it.
+ * ── Sort URL format ───────────────────────────────────────────────────────────
+ * Two separate lists on one page → separate parameters:
+ *   ?fn_sort=name       (functions ASC)
+ *   ?fn_sort=-name      (functions DESC)
+ *   ?task_sort=name     (tasks ASC by name)
+ *   ?task_sort=-name    (tasks DESC by name)
+ *   ?task_sort=priority (tasks ASC by priority)
  *
- * Team ID synchronisation in management_function_team and management_task_team
- * is done via DB::table() directly. Management owns these pivot tables
- * (module.json → tables[]) and is allowed to write to them directly
- * without importing any Team model.
+ * Allowed values are whitelisted server-side (no QueryBuilder on this page
+ * because two parallel collections without pagination are managed).
  */
 class ManagementController extends Controller
 {
@@ -52,10 +54,7 @@ class ManagementController extends Controller
     ) {}
 
     /**
-     * Renders the management overview with functions, tasks, and all JS data bridges.
-     *
-     * Team-related data is not loaded here. The Teams module injects its own
-     * data (filter, grouping, JS bridge) via hook views.
+     * Renders the Management overview with functions, tasks and JS data bridges.
      *
      * @return View
      */
@@ -63,20 +62,43 @@ class ManagementController extends Controller
     {
         $membersActive = $this->moduleLoader->isActive('members');
 
-        // Load functions + tasks without Teams — the teams() relation is only called
-        // from Teams hook views, which only run when the Teams module is active.
-        $functions  = ManagementFunction::with(['members', 'creator'])->orderBy('name')->get();
-        $tasks      = ManagementTask::with(['members', 'creator', 'category'])->orderBy('name')->get();
-        $members    = $membersActive
+        // ── Sort: functions ────────────────────────────────────────────────────
+        // Separate sort parameters because two lists share the same page.
+        $fnSortRaw      = request('fn_sort', 'name');
+        $fnSortCol      = ltrim($fnSortRaw, '-');
+        $fnSortDir      = str_starts_with($fnSortRaw, '-') ? 'desc' : 'asc';
+        $allowedFnSorts = ['name'];
+        if (! in_array($fnSortCol, $allowedFnSorts, true)) {
+            $fnSortCol = 'name';
+            $fnSortDir = 'asc';
+        }
+
+        // ── Sort: tasks ────────────────────────────────────────────────────────
+        $taskSortRaw      = request('task_sort', 'name');
+        $taskSortCol      = ltrim($taskSortRaw, '-');
+        $taskSortDir      = str_starts_with($taskSortRaw, '-') ? 'desc' : 'asc';
+        $allowedTaskSorts = ['name', 'priority'];
+        if (! in_array($taskSortCol, $allowedTaskSorts, true)) {
+            $taskSortCol = 'name';
+            $taskSortDir = 'asc';
+        }
+
+        $functions = ManagementFunction::with(['members', 'creator'])
+            ->orderBy($fnSortCol, $fnSortDir)
+            ->get();
+
+        $tasks = ManagementTask::with(['members', 'creator', 'category'])
+            ->orderBy($taskSortCol, $taskSortDir)
+            ->get();
+
+        $members = $membersActive
             ? Member::orderBy('last_name')->orderBy('first_name')->get()
             : collect();
+
         $categories = ManagementTaskCategory::orderBy('name')->get();
 
-        // ── JS data bridges ───────────────────────────────────────────────────
-        // No fn()/arrow functions in map() – foreach is required for @json() compatibility.
-        // team_ids are NOT set here — Teams injects them via the
-        // management.page.scripts hook (window.CK_Teams.functionTeamIds).
-
+        // ── JS data bridges ────────────────────────────────────────────────────
+        // No fn()/arrow functions in map() — use foreach for @json() compatibility.
         $functionsJs  = [];
         $tasksJs      = [];
         $membersJs    = [];
@@ -124,17 +146,15 @@ class ManagementController extends Controller
             'functionsJs', 'tasksJs', 'membersJs', 'categoriesJs',
             'membersActive',
             'mgmtFunctionCfDefs', 'mgmtFunctionCfValues',
-            'mgmtTaskCfDefs',     'mgmtTaskCfValues'
+            'mgmtTaskCfDefs',     'mgmtTaskCfValues',
+            'fnSortRaw', 'taskSortRaw'
         ));
     }
 
     // ── Functions ─────────────────────────────────────────────────────────────
 
     /**
-     * Creates a new management function and syncs its team and member assignments.
-     *
-     * Team sync runs via DB::table() on Management's own pivot table.
-     * No import of Modules\Teams\Models\Team required.
+     * Store a newly created management function and sync team and member assignments.
      *
      * @param  StoreFunctionRequest $request
      * @return RedirectResponse
@@ -164,7 +184,7 @@ class ManagementController extends Controller
     }
 
     /**
-     * Updates a management function's name and re-syncs its team and member assignments.
+     * Update an existing management function and sync team and member assignments.
      *
      * @param  UpdateFunctionRequest $request
      * @param  ManagementFunction    $function
@@ -190,7 +210,7 @@ class ManagementController extends Controller
     }
 
     /**
-     * Deletes a management function (and cascades to all pivot assignments).
+     * Delete a management function (cascades to all pivot assignments).
      *
      * @param  ManagementFunction $function
      * @return RedirectResponse
@@ -207,7 +227,7 @@ class ManagementController extends Controller
     // ── Tasks ─────────────────────────────────────────────────────────────────
 
     /**
-     * Creates a new management task with optional category, priority, team, and member assignments.
+     * Store a newly created management task and sync team and member assignments.
      *
      * @param  StoreTaskRequest $request
      * @return RedirectResponse
@@ -221,7 +241,7 @@ class ManagementController extends Controller
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
             'category_id' => $validated['category_id'] ?? null,
-            'priority'    => $validated['priority'] ?? 'normal',
+            'priority'    => $validated['priority']    ?? 'normal',
             'created_by'  => $userId,
         ]);
 
@@ -240,10 +260,10 @@ class ManagementController extends Controller
     }
 
     /**
-     * Updates a task's properties and re-syncs its team and member assignments.
+     * Update an existing management task and sync team and member assignments.
      *
-     * @param  UpdateTaskRequest $request
-     * @param  ManagementTask    $task
+     * @param  UpdateTaskRequest  $request
+     * @param  ManagementTask     $task
      * @return RedirectResponse
      */
     public function updateTask(UpdateTaskRequest $request, ManagementTask $task): RedirectResponse
@@ -255,7 +275,7 @@ class ManagementController extends Controller
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
             'category_id' => $validated['category_id'] ?? null,
-            'priority'    => $validated['priority'] ?? $task->priority,
+            'priority'    => $validated['priority']    ?? 'normal',
         ]);
 
         $this->syncTaskTeams($task->id, $validated['team_ids'] ?? [], $userId);
@@ -271,7 +291,7 @@ class ManagementController extends Controller
     }
 
     /**
-     * Deletes a management task (and cascades to all pivot assignments).
+     * Delete a management task.
      *
      * @param  ManagementTask $task
      * @return RedirectResponse
@@ -285,29 +305,27 @@ class ManagementController extends Controller
             ->with('success', 'Aufgabe „' . $name . '" gelöscht.');
     }
 
-    // ── Private Helpers ───────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
-     * Synchronises the team assignments of a function via DB::table().
+     * Sync team assignments for a function in management_function_team.
      *
-     * Management owns the management_function_team table (module.json → tables[]).
-     * No import of Modules\Teams\Models\Team is needed — team_id is a plain integer.
+     * Uses DB::table() instead of the Eloquent Team model — no import of Modules\Teams.
      *
-     * @param  int        $functionId
-     * @param  array<int> $teamIds
-     * @param  int        $userId      The authenticated user's ID (for created_by)
-     * @return void
+     * @param  int   $functionId
+     * @param  array $teamIds
+     * @param  int   $userId
      */
     private function syncFunctionTeams(int $functionId, array $teamIds, int $userId): void
     {
-        $teamIds = array_values(array_unique(array_map('intval', $teamIds)));
-
+        // Pivot-Spalte heißt role_id (Legacy-Name aus Migration 000011).
+        // Nicht function_id – das ist der Fehler, den dieser Fix behebt.
         DB::table('management_function_team')->where('role_id', $functionId)->delete();
 
         foreach ($teamIds as $teamId) {
             DB::table('management_function_team')->insert([
                 'role_id'    => $functionId,
-                'team_id'    => $teamId,
+                'team_id'    => (int) $teamId,
                 'created_by' => $userId,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -316,25 +334,20 @@ class ManagementController extends Controller
     }
 
     /**
-     * Synchronises the team assignments of a task via DB::table().
+     * Sync team assignments for a task in management_task_team.
      *
-     * Management owns the management_task_team table (module.json → tables[]).
-     *
-     * @param  int        $taskId
-     * @param  array<int> $teamIds
-     * @param  int        $userId      The authenticated user's ID (for created_by)
-     * @return void
+     * @param  int   $taskId
+     * @param  array $teamIds
+     * @param  int   $userId
      */
     private function syncTaskTeams(int $taskId, array $teamIds, int $userId): void
     {
-        $teamIds = array_values(array_unique(array_map('intval', $teamIds)));
-
         DB::table('management_task_team')->where('task_id', $taskId)->delete();
 
         foreach ($teamIds as $teamId) {
             DB::table('management_task_team')->insert([
                 'task_id'    => $taskId,
-                'team_id'    => $teamId,
+                'team_id'    => (int) $teamId,
                 'created_by' => $userId,
                 'created_at' => now(),
                 'updated_at' => now(),

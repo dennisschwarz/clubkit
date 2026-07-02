@@ -1,8 +1,8 @@
 /* ══════════════════════════════════════════════════════════════════════
-   CustomFields-Modul – spezifische Styles
+   CustomFields module – specific styles
 ══════════════════════════════════════════════════════════════════════ */
 
-/* ── Übersichts-Zeilen in der Modul-Einstellungen-Karte ─────────────── */
+/* ── Overview rows in the module-settings card ──────────────────────── */
 .ck-cf-settings-summary {
   display: flex;
   flex-direction: column;
@@ -36,7 +36,7 @@
 }
 .ck-cf-settings-row__link:hover { text-decoration: underline; }
 
-/* ── Entitäts-Label im Werte-Modal ─────────────────────────────────── */
+/* ── Entity label in the values modal ───────────────────────────────── */
 .ck-modal-entity-label {
   font-size: var(--ck-font-base);
   font-weight: 700;

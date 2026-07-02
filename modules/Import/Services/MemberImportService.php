@@ -75,10 +75,11 @@ class MemberImportService
      * @param  array<int, array>  $processedRows
      * @param  int[]              $selectedIndexes
      * @return array{
-     *   created:     int,
-     *   updated:     int,
-     *   skipped:     int,
-     *   created_ids: array<int, int>
+     *   created:      int,
+     *   updated:      int,
+     *   skipped:      int,
+     *   created_ids:  array<int, int>,
+     *   selected_ids: array<int, int>
      * }
      *
      * @throws \Throwable
@@ -90,7 +91,7 @@ class MemberImportService
         string $filename,
         int $importedBy,
     ): array {
-        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'created_ids' => []];
+        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'created_ids' => [], 'selected_ids' => []];
 
         DB::transaction(function () use (
             $processedRows, $selectedIndexes, $source, $filename, $importedBy, &$stats
@@ -104,7 +105,11 @@ class MemberImportService
                 $mapped = $row['mapped'];
                 $status = $row['status'];
 
-                if ($status === 'unchanged') continue;
+                if ($status === 'unchanged') {
+                    // No data to update, but record the member ID for team assignment
+                    $stats['selected_ids'][$index] = $row['existing_id'];
+                    continue;
+                }
 
                 if ($status === 'new') {
                     $member = Member::create([
@@ -121,8 +126,9 @@ class MemberImportService
                     $this->upsertExternalId($member->id, $source, $mapped['pass_number'] ?? null);
                     $this->writeCustomFields($member->id, $row['custom_fields'] ?? []);
 
-                    // Map rowIndex → memberId for subsequent per-row team assignment
-                    $stats['created_ids'][$index] = $member->id;
+                    // Map rowIndex → memberId for per-row team assignment
+                    $stats['created_ids'][$index]  = $member->id;
+                    $stats['selected_ids'][$index] = $member->id;
                     $stats['created']++;
 
                 } elseif ($status === 'changed') {
@@ -140,6 +146,7 @@ class MemberImportService
                     $this->upsertExternalId($member->id, $source, $mapped['pass_number'] ?? null);
                     $this->writeCustomFields($member->id, $row['custom_fields'] ?? []);
 
+                    $stats['selected_ids'][$index] = $member->id;
                     $stats['updated']++;
                 }
             }

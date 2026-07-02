@@ -25,14 +25,14 @@
 .ck-field__input:focus {
   outline: none;
   border-color: var(--ck-accent-dark);
-  box-shadow: 0 0 0 3px rgba(26,111,196,0.1);
+  box-shadow: var(--ck-focus-ring);
 }
 .ck-field__input--wide { flex: 1; }
 .ck-field__input--sm   { padding: 6px 10px; font-size: var(--ck-font-sm); }
 .ck-field--error .ck-field__input { border-color: var(--ck-danger); }
 .ck-field__error { font-size: var(--ck-font-sm); color: var(--ck-danger); margin-top: 2px; }
 
-/* ── Select: Dropdown-Pfeil ───────────────────────────────────────────
+/* ── Select: dropdown arrow ───────────────────────────────────────────
    appearance:none removes the native arrow – replaced by SVG chevron
    as background-image for consistent cross-browser rendering.
 ───────────────────────────────────────────────────────────────────── */
@@ -79,7 +79,7 @@ select.ck-field__input {
 
 .ck-form-actions { display: flex; gap: var(--ck-space-2); margin-top: var(--ck-space-6); }
 
-/* ── ECF Feld-Hinzufügen-Grid ─────────────────────────────────────── */
+/* ── CF field-add grid ────────────────────────────────────────────── */
 .ck-add-field-grid {
   display: grid;
   grid-template-columns: 2fr 1.2fr 1.5fr auto auto;
@@ -91,7 +91,7 @@ select.ck-field__input {
 @media (max-width: 900px) { .ck-add-field-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .ck-add-field-grid { grid-template-columns: 1fr; } }
 
-/* ── Datei-Vorschau ───────────────────────────────────────────────── */
+/* ── File preview ─────────────────────────────────────────────────── */
 .ck-field__file-preview {
   width: 72px; height: 72px;
   border-radius: var(--ck-radius-full);
@@ -106,7 +106,7 @@ select.ck-field__input {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Multiselect-Liste (Checkbox-basiert, kein externes JS)
+   Multiselect list (checkbox-based, no external JS)
 ══════════════════════════════════════════════════════════════════════ */
 .ck-multiselect-list {
   display: flex;
@@ -151,7 +151,7 @@ select.ck-field__input {
 .ck-multiselect-search { margin-bottom: var(--ck-space-2); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Lokale Sub-Tabs
+   Local sub-tabs
 ══════════════════════════════════════════════════════════════════════ */
 .ck-local-tabs {
   display: flex;
@@ -177,7 +177,7 @@ select.ck-field__input {
 .ck-local-section         { display: none; }
 .ck-local-section--active { display: block; }
 
-/* Member-Chip */
+/* Member chip */
 .ck-member-chip {
   display: inline-block;
   font-size: var(--ck-font-xs);
@@ -191,10 +191,190 @@ select.ck-field__input {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Wettbewerbs-Block (Teams-Modal)
+   Competition block (Teams modal)
 ══════════════════════════════════════════════════════════════════════ */
 .ck-competition-block {
   border: 1.5px solid var(--ck-border);
   border-radius: var(--ck-radius);
   overflow: hidden;
+}
+.ck-competition-block__header {
+  display: flex;
+  align-items: center;
+  gap: var(--ck-space-2);
+  padding: 10px 14px;
+  background: var(--ck-bg-subtle);
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--ck-font-base);
+  font-weight: 600;
+  color: var(--ck-text);
+  transition: background 0.12s;
+}
+.ck-competition-block__header:hover {
+  background: var(--ck-border-light);
+}
+.ck-competition-block__header input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--ck-accent-dark);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ck-competition-block__chevron {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ck-text-muted);
+  transition: transform 0.18s ease;
+  display: inline-block;
+}
+.ck-competition-block__chevron--open {
+  transform: rotate(180deg);
+}
+.ck-competition-block__body {
+  padding: var(--ck-space-4);
+  background: var(--ck-white);
+  border-top: 1px solid var(--ck-border);
+}
+.ck-competition-block__body.is-hidden {
+  display: none;
+}
+.ck-competition-block__divider {
+  border: none;
+  border-top: 1px solid var(--ck-border-light);
+  margin: var(--ck-space-4) 0;
+}
+.ck-competition-block__sub-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ck-space-3);
+  cursor: pointer;
+  padding: 10px 12px;
+  background: var(--ck-bg-subtle);
+  border: 1px solid var(--ck-border);
+  border-radius: var(--ck-radius);
+}
+.ck-competition-block__sub-check input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--ck-accent-dark);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.ck-competition-block__sub-label {
+  display: block;
+  font-size: var(--ck-font-base);
+  font-weight: 600;
+  color: var(--ck-text);
+}
+.ck-competition-block__sub-hint {
+  display: block;
+  font-size: var(--ck-font-sm);
+  color: var(--ck-text-muted);
+  margin-top: 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Member filter bar
+   Layout: 50% name field | 50% right side (3 equal columns)
+   .ck-filter-bar (treasury.css) is unchanged – flex-based, used by Treasury.
+══════════════════════════════════════════════════════════════════════ */
+.ck-members-filter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ck-space-3);
+  align-items: end;
+}
+
+/* Right half: 3 equal columns for status, eligibility, and search button */
+.ck-members-filter__right {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--ck-space-2);
+  align-items: end;
+}
+
+@media (max-width: 900px) {
+  .ck-members-filter { grid-template-columns: 1fr; }
+  .ck-members-filter__right { grid-template-columns: 1fr 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .ck-members-filter__right { grid-template-columns: 1fr; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Dual Listbox (Teams Roster modal)
+   Two native <select multiple> lists with arrow-button controls between them.
+   JS: ckRosterMove() in teams-modal.js
+══════════════════════════════════════════════════════════════════════ */
+.ck-dual-listbox {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: var(--ck-space-3);
+  align-items: start;
+}
+
+.ck-dual-listbox__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ck-space-1);
+}
+
+.ck-dual-listbox__label {
+  font-size: var(--ck-font-sm);
+  font-weight: 700;
+  color: var(--ck-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Native <select multiple> – NOT .ck-field__input to avoid the SVG chevron override */
+.ck-dual-listbox__list {
+  height: 280px;
+  width: 100%;
+  border: 1px solid var(--ck-border);
+  border-radius: var(--ck-radius);
+  background: var(--ck-white);
+  padding: var(--ck-space-1);
+  font-size: var(--ck-font-base);
+  font-family: var(--ck-font);
+  color: var(--ck-text);
+  appearance: auto;       /* keep native multi-select appearance */
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.ck-dual-listbox__list:focus {
+  outline: none;
+  border-color: var(--ck-accent-dark);
+  box-shadow: var(--ck-focus-ring);
+}
+.ck-dual-listbox__list option {
+  padding: 6px 8px;
+  border-radius: var(--ck-radius-sm);
+  cursor: pointer;
+}
+.ck-dual-listbox__list option:checked {
+  background: var(--ck-blue-tint);
+  color: var(--ck-accent-dark);
+}
+
+.ck-dual-listbox__controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ck-space-2);
+  padding-top: 24px;   /* align with list top (label height) */
+}
+
+@media (max-width: 600px) {
+  .ck-dual-listbox {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  .ck-dual-listbox__controls {
+    flex-direction: row;
+    padding-top: 0;
+    justify-content: center;
+  }
+  .ck-dual-listbox__list { height: 160px; }
 }

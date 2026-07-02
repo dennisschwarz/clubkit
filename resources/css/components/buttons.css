@@ -12,7 +12,7 @@
   text-decoration: none;
   white-space: nowrap;
   transition: background 0.15s, opacity 0.15s;
-  padding: 10px 20px;
+  padding: 13px 20px;
   line-height: 1;
   position: relative;
 }
@@ -66,6 +66,12 @@
 /* Button stretches to full height of a grid cell (e.g. 42px like inputs) */
 .ck-btn--stretch {
   height: 42px;
+  width: 100%;
+}
+
+/* Vollbreiter Block-Button – z. B. auf der Willkommensseite */
+.ck-btn--block {
+  display: flex;
   width: 100%;
 }
 

@@ -18,7 +18,7 @@
     @endif
 </div>
 
-{{-- Stat-Kacheln --}}
+{{-- Stat tiles --}}
 <div class="ck-stat-grid ck-mb-6">
 
     <div class="ck-stat-card">
@@ -123,9 +123,9 @@
                     <td class="ck-text-muted">{{ $module->version }}</td>
                     <td>
                         @if($module->is_active)
-                            <x-ck-badge color="green">Aktiv</x-ck-badge>
+                            <x-ck-badge color="green">{{ __('Active') }}</x-ck-badge>
                         @else
-                            <x-ck-badge color="gray">Inaktiv</x-ck-badge>
+                            <x-ck-badge color="gray">{{ __('Inactive') }}</x-ck-badge>
                         @endif
                     </td>
                 </tr>

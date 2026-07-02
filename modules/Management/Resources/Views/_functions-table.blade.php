@@ -1,6 +1,9 @@
 {{--
     Partial: Function list within a group (team or general).
-    Expects: $groupFunctions (Collection|array of ManagementFunction)
+    Expects:
+      $groupFunctions  Collection|array  Funktionen dieser Gruppe
+      $fnSortRaw       string            Aktueller Sort-Parameter (z.B. 'name' | '-name')
+                                         Optional – fällt auf 'name' zurück wenn nicht übergeben.
 
     The teams column is only rendered when the 'teams' relation has been
     eager-loaded on the collection (i.e. Teams module is installed and the
@@ -12,7 +15,7 @@
     <table class="ck-table">
         <thead>
             <tr>
-                <th>Funktionsname</th>
+                <x-ck-sort-header column="name" label="Funktionsname" param="fn_sort" />
                 <th>Teams</th>
                 <th>Personen</th>
                 <th>Angelegt von</th>

@@ -6,7 +6,7 @@
   overflow: hidden;
 }
 
-/* Card-Header: kein eigener Hintergrund – bleibt weiß wie der Card-Body */
+/* Card header: no background of its own — stays white like the card body */
 .ck-card__header {
   display: flex;
   align-items: center;
@@ -28,7 +28,7 @@
 }
 .ck-card--dashed { border-style: dashed; }
 
-/* Stat-Kacheln */
+/* Stat tiles */
 .ck-stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

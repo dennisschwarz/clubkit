@@ -1,21 +1,20 @@
 {{--
-    Shared Partial: Eigene Felder – Formular-Block im Modal-Tab
+    Partial: CF-Felder-Formular für Modal-Tabs (Mitglied, Team, Event usw.)
 
-    Erwartet folgende PHP-Variablen (werden vom jeweiligen Wrapper-View gesetzt):
-      $cfObjectType  (string) – 'member' | 'team' | 'event'
-      $cfModalId     (string) – z.B. 'memberModal'
-      $cfTabId       (string) – z.B. 'memberTab-cf'
-      $cfFormId      (string) – z.B. 'memberCfForm'
-      $cfHintId      (string) – z.B. 'memberCfCreateHint'
-      $cfFieldPrefix (string) – z.B. 'mCf_'
-      $cfDefs        (array)  – Feld-Definitionen für diesen Objekt-Typ
+    Variablen:
+        $cfDefs       array  — Feld-Definitionen (aus Controller voraufbereitet)
+        $cfTabId      string — ID des Tab-Div (z.B. 'memberCfTab')
+        $cfFormId     string — ID des Formulars (z.B. 'memberCfForm')
+        $cfModalId    string — ID des übergeordneten Modals (z.B. 'memberModal')
+        $cfHintId     string — ID des Hinweis-Div (z.B. 'memberCfHint')
+        $cfFieldPrefix string — Präfix für Input-IDs (z.B. 'memberCf_')
 --}}
 
 @if(!empty($cfDefs))
 
 {{-- Script einmalig in den Scripts-Stack injizieren (auch ohne @ckHook('*.page.scripts')) --}}
 @pushOnce('scripts')
-<script src="{{ asset('js/modules/custom-fields-modal.js') }}"></script>
+@vite(['resources/js/modules/custom-fields-modal.js'])
 @endPushOnce
 
 <div id="{{ $cfTabId }}" class="ck-modal__section">

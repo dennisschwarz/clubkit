@@ -17,65 +17,46 @@ use Modules\Events\Http\Requests\UpdateEventRequest;
 use Modules\Events\Models\Event;
 use Modules\Events\Models\EventTaskMember;
 use Modules\Members\Models\Member;
+use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * Handles event CRUD and the Event Detail Page.
  *
- * ── Architecture note ─────────────────────────────────────────────────────────
+ * Architecture notes:
+ *   - Teams are optional: $teamsInstalled guard via Schema::hasTable('teams').
+ *   - Management is optional: $managementInstalled guard via Schema::hasTable('management_tasks').
+ *   - No direct Eloquent imports from optional modules; DB::table() used for cross-module queries.
  *
- * Events has no direct PHP model dependencies on Management or Teams.
- * No `use Modules\Management\...` or `use Modules\Teams\...` in this file.
+ * Allowed sort fields (via ?sort=... | ?sort=-...):
+ *   starts_at (default DESC), ends_at, title, location
  *
- * Cross-module wiring runs through the hook system:
- *   ManagementServiceProvider → tasks panel, JS data, assignment column
- *   TeamsServiceProvider      → teams column, teams panel
- *
- * AJAX endpoints (completeTask, addTask, removeTask) use DB::table() directly
- * on the Events-owned tables event_task and event_task_member.
- * The {task} route parameter is an integer — no ManagementTask route-model binding.
- *
- * ── View data for optional modules ───────────────────────────────────────────
- *
- * All three booleans and the $teams collection use Schema::hasTable() / DB::table()
- * so no Eloquent cross-module imports are needed.
- *
- * $teamsInstalled      — bool: whether the teams table exists.
- * $managementInstalled — bool: whether the management_tasks table exists.
- * $teams               — collection of team records (DB::table) when installed;
- *                        empty collection otherwise.
- *
- * ── The two-screen pattern ────────────────────────────────────────────────────
- *
- *   index() / store()   → list with quick-create modal (basic fields only)
- *   show() / update()   → full detail page, managed via AJAX by events-detail.js
+ * allowedSorts() accepts variadic args — NO array wrapper.
  */
 class EventController extends Controller
 {
-    /**
-     * @param  CustomFieldRepository $cfRepository
-     */
     public function __construct(
         private readonly CustomFieldRepository $cfRepository
     ) {}
 
     /**
-     * Renders the paginated event list.
-     *
-     * Passes three optional-module flags so the view can conditionally render
-     * the Management and Teams columns without any direct Eloquent dependency.
+     * Display the paginated event list.
+     * Passes optional-module flags and team list for view hooks.
      *
      * @return View
      */
     public function index(): View
     {
-        $events = Event::with('creator')
-            ->orderByDesc('starts_at')
-            ->paginate(25);
+        $events = QueryBuilder::for(Event::class)
+            ->with('creator')
+            ->allowedSorts('starts_at', 'ends_at', 'title', 'location')
+            ->defaultSort('-starts_at')
+            ->paginate(25)
+            ->withQueryString();
 
         $teamsInstalled      = Schema::hasTable('teams');
         $managementInstalled = Schema::hasTable('management_tasks');
 
-        // DB::table instead of Eloquent Team model — keeps Events decoupled from Teams.
+        // DB::table() instead of Team::all() — no cross-module Eloquent import
         $teams = $teamsInstalled
             ? DB::table('teams')->orderBy('name')->get()
             : collect();
@@ -84,7 +65,7 @@ class EventController extends Controller
     }
 
     /**
-     * Creates a new event and redirects to its detail page.
+     * Store a newly created event.
      *
      * @param  StoreEventRequest $request
      * @return RedirectResponse
@@ -100,7 +81,7 @@ class EventController extends Controller
     }
 
     /**
-     * Renders the event detail page.
+     * Display the event detail page with member JS data bridge.
      *
      * @param  Event $event
      * @return View
@@ -120,7 +101,7 @@ class EventController extends Controller
     }
 
     /**
-     * Updates the event and redirects back to the detail page.
+     * Update an existing event.
      *
      * @param  UpdateEventRequest $request
      * @param  Event              $event
@@ -134,7 +115,7 @@ class EventController extends Controller
     }
 
     /**
-     * Deletes the event and redirects back to the index.
+     * Delete an event.
      *
      * @param  Event $event
      * @return RedirectResponse
@@ -147,7 +128,8 @@ class EventController extends Controller
     }
 
     /**
-     * Marks an event-task as complete or incomplete via AJAX.
+     * Toggle the completed state of a management task assigned to an event.
+     * Used by the AJAX progress bar in events-detail.js.
      *
      * @param  int $eventId
      * @param  int $taskId
@@ -173,7 +155,8 @@ class EventController extends Controller
     }
 
     /**
-     * Assigns an existing task to this event via AJAX.
+     * Assign a management task to an event.
+     * Returns 409 if the task is already assigned.
      *
      * @param  StoreEventTaskRequest $request
      * @param  Event                 $event
@@ -199,7 +182,7 @@ class EventController extends Controller
     }
 
     /**
-     * Removes a task from this event via AJAX.
+     * Remove a management task from an event.
      *
      * @param  Event $event
      * @param  int   $taskId
@@ -210,57 +193,6 @@ class EventController extends Controller
         DB::table('event_task')
             ->where('event_id', $event->id)
             ->where('task_id', $taskId)
-            ->delete();
-
-        DB::table('event_task_member')
-            ->where('event_id', $event->id)
-            ->where('task_id', $taskId)
-            ->delete();
-
-        return response()->json(['success' => true]);
-    }
-
-    /**
-     * Assigns a member to an event-task slot via AJAX.
-     *
-     * @param  Event $event
-     * @param  int   $taskId
-     * @return JsonResponse
-     */
-    public function assignMember(Event $event, int $taskId): JsonResponse
-    {
-        $data = request()->validate([
-            'member_id' => ['required', 'integer', 'exists:members,id'],
-            'time_from' => ['nullable', 'date_format:H:i'],
-            'time_to'   => ['nullable', 'date_format:H:i'],
-        ]);
-
-        $startsAt = $event->starts_at->toDateString();
-
-        EventTaskMember::create([
-            'event_id'  => $event->id,
-            'task_id'   => $taskId,
-            'member_id' => $data['member_id'],
-            'time_from' => isset($data['time_from']) ? $startsAt . ' ' . $data['time_from'] . ':00' : null,
-            'time_to'   => isset($data['time_to'])   ? $startsAt . ' ' . $data['time_to']   . ':00' : null,
-        ]);
-
-        return response()->json(['success' => true]);
-    }
-
-    /**
-     * Removes a member from an event-task slot via AJAX.
-     *
-     * @param  Event $event
-     * @param  int   $taskId
-     * @param  int   $memberId
-     * @return JsonResponse
-     */
-    public function removeMember(Event $event, int $taskId, int $memberId): JsonResponse
-    {
-        EventTaskMember::where('event_id', $event->id)
-            ->where('task_id', $taskId)
-            ->where('member_id', $memberId)
             ->delete();
 
         return response()->json(['success' => true]);

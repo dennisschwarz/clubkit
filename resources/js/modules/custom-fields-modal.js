@@ -1,14 +1,14 @@
 /**
  * custom-fields-modal.js
  *
- * Zwei Verantwortlichkeiten:
- *  1. cfDefModal  → Feld-Definitionen anlegen/bearbeiten (Modul-Einstellungen)
- *  2. CF-Tab in Entity-Modals befüllen (Member, Team, Event, Management)
+ * Two responsibilities:
+ *  1. cfDefModal  → create / edit field definitions (Module Settings)
+ *  2. Fill CF tabs in Entity modals (Member, Team, Event, Management)
  *
- * Regeln:
- *  - Kein el.style.*  → nur classList
- *  - Daten kommen aus window.CK_CustomFields (Definitionen)
- *    bzw. window.CK_Members / CK_Teams / CK_Events / CK_Management (Entity-spezifisch)
+ * Rules:
+ *  - No el.style.*  → classList only
+ *  - Data comes from window.CK_CustomFields (definitions)
+ *    and from window.CK_Members / CK_Teams / CK_Events / CK_Management (entity-specific)
  */
 
 (function () {
@@ -17,7 +17,7 @@
     function el(id) { return document.getElementById(id); }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  1. Feld-Definitionen Modal (cfDefModal)
+    //  1. Field definitions modal (cfDefModal)
     // ════════════════════════════════════════════════════════════════════════
 
     const cfData = window.CK_CustomFields || {};
@@ -81,7 +81,7 @@
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  2. CF-Tab in Entity-Modals befüllen
+    //  2. Fill CF tabs in entity modals
     // ════════════════════════════════════════════════════════════════════════
 
     window.cfFillModal = function (formId, hintId, entityId, values, upsertUrl) {
@@ -113,9 +113,9 @@
         });
     };
 
-    // ── Event-Listener für alle unterstützten Modals ──────────────────────
+    // ── Event listeners for all supported modals ──────────────────────────
 
-    // Mitglieder
+    // Members
     window.ckOn('member.modal.open', function (detail) {
         const cf     = (window.CK_Members || {}).customFields || {};
         if (!cf.definitions || !cf.definitions.length) return;
@@ -131,7 +131,7 @@
         cfFillModal('teamCfForm', 'teamCfCreateHint', detail.teamId, values, cf.upsertRoute || '');
     });
 
-    // Termine
+    // Events
     window.ckOn('event.modal.open', function (detail) {
         const cf     = (window.CK_Events || {}).customFields || {};
         if (!cf.definitions || !cf.definitions.length) return;
@@ -139,7 +139,7 @@
         cfFillModal('evtCfForm', 'evtCfCreateHint', detail.eventId, values, cf.upsertRoute || '');
     });
 
-    // Management: Funktionen
+    // Management: Functions
     window.ckOn('management.function.modal.open', function (detail) {
         const cf     = (window.CK_Management || {}).customFieldsFunction || {};
         if (!cf.definitions || !cf.definitions.length) return;
@@ -147,7 +147,7 @@
         cfFillModal('mgmtFunctionCfForm', 'mgmtFunctionCfCreateHint', detail.functionId, values, cf.upsertRoute || '');
     });
 
-    // Management: Aufgaben
+    // Management: Tasks
     window.ckOn('management.task.modal.open', function (detail) {
         const cf     = (window.CK_Management || {}).customFieldsTask || {};
         if (!cf.definitions || !cf.definitions.length) return;
@@ -167,7 +167,7 @@
         if (input) input.checked = !!checked;
     }
 
-    // ── Initialisierung ───────────────────────────────────────────────────
+    // ── Initialisation ────────────────────────────────────────────────────
 
     document.addEventListener('DOMContentLoaded', function () {
         const typeSelect = el('cfDefFieldType');

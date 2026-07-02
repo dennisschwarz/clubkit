@@ -67,7 +67,7 @@ class ImportController extends Controller
             "\n"
         );
 
-        // Detect the file format via the registry instead of a hard-coded array
+        // Use the registry to detect the file format – avoids hardcoded array checks
         $importer = $this->importerRegistry->findByCanHandle($filename, $firstLine);
         if (! $importer) {
             return back()->withErrors(['csv_file' => 'Dateiformat nicht erkannt.']);
@@ -117,13 +117,14 @@ class ImportController extends Controller
         $suggested = $importer ? $importer->getSuggestedMapping() : [];
 
         $memberFields = $this->getMemberFields();
+
         $customFields = [];
         $objectTypes  = [];
         $fieldTypes   = [];
 
-        // Schema::hasTable() checks the actual DB structure.
-        // class_exists() can give false-positives after module uninstall when
-        // the autoloader cache has not been cleared yet.
+        // Schema::hasTable() checks the actual DB structure (not class_exists()).
+        // class_exists() can return a false-positive after a module is uninstalled
+        // as long as the autoloader cache has not been cleared.
         $customFieldsEnabled = Schema::hasTable('custom_field_definitions');
 
         if ($customFieldsEnabled) {
@@ -235,7 +236,7 @@ class ImportController extends Controller
     /**
      * Executes the final import for the selected rows.
      *
-     * Members import and team assignment run inside a single atomic transaction.
+     * Member import and team assignment run inside a single atomic transaction.
      * If team assignment fails, the created members are also rolled back.
      *
      * @param  Request $request
@@ -267,12 +268,12 @@ class ImportController extends Controller
                     importedBy:      $request->user()->id,
                 );
 
-                if (! empty($teamAssignments) && ! empty($stats['created_ids'])) {
-                    $this->assignPerRow($teamAssignments, $stats['created_ids']);
+                if (! empty($teamAssignments) && ! empty($stats['selected_ids'])) {
+                    $this->assignPerRow($teamAssignments, $stats['selected_ids']);
                 }
             });
         } catch (\Throwable $e) {
-            // Log exception details without exposing internal stack traces to the user
+            // Never expose SQL, file paths, or stack traces to the user
             Log::error('Import fehlgeschlagen', [
                 'session_id' => $sessionId,
                 'user_id'    => $request->user()->id,
@@ -280,7 +281,6 @@ class ImportController extends Controller
                 'trace'      => $e->getTraceAsString(),
             ]);
 
-            // Never expose SQL, file paths, or stack traces to the user
             return back()->withErrors([
                 'import' => 'Import fehlgeschlagen – alle Änderungen wurden rückgängig gemacht. Bitte den Administrator kontaktieren.',
             ]);
@@ -318,11 +318,14 @@ class ImportController extends Controller
      * Assigns newly created members to teams on a per-row basis.
      * Called inside DB::transaction() in execute() – rolls back with the rest on failure.
      *
+     * joined_at is set explicitly to match TeamController::addMember() behavior.
+     * Pivot array format: [member_id => pivot_data] for a single batched INSERT per team.
+     *
      * @param  array<int|string, string>  $teamAssignments  rowIndex → teamId
-     * @param  array<int, int>            $createdIds        rowIndex → memberId
+     * @param  array<int, int>            $memberIds         rowIndex → memberId
      * @return void
      */
-    private function assignPerRow(array $teamAssignments, array $createdIds): void
+    private function assignPerRow(array $teamAssignments, array $memberIds): void
     {
         // Schema::hasTable() checks the actual DB structure (not class_exists())
         if (! Schema::hasTable('teams')) return;
@@ -335,18 +338,18 @@ class ImportController extends Controller
                         ->keyBy('id');
 
         $grouped = [];
-        foreach ($createdIds as $rowIndex => $memberId) {
+        foreach ($memberIds as $rowIndex => $memberId) {
             $teamId = (int) ($teamAssignments[$rowIndex] ?? 0);
             if (! $teamId) continue;
             $grouped[$teamId][] = $memberId;
         }
 
-        foreach ($grouped as $teamId => $memberIds) {
+        foreach ($grouped as $teamId => $rowMemberIds) {
             $team = $teamsById->get($teamId);
             if (! $team) continue;
 
             $existingIds = $team->members()->pluck('members.id')->toArray();
-            $toAssign    = array_diff($memberIds, $existingIds);
+            $toAssign    = array_diff($rowMemberIds, $existingIds);
             if (empty($toAssign)) continue;
 
             if ($team->eligible_only) {
@@ -359,7 +362,10 @@ class ImportController extends Controller
 
             if (empty($toAssign)) continue;
 
-            $team->members()->attach($toAssign);
+            // Set joined_at explicitly – consistent with TeamController::addMember().
+            // Pivot array: [member_id => pivot_data] for a single batched INSERT per team.
+            $pivotData = array_fill_keys($toAssign, ['joined_at' => now()]);
+            $team->members()->attach($pivotData);
         }
     }
 
@@ -399,7 +405,7 @@ class ImportController extends Controller
     }
 
     /**
-     * Returns the list of mappable members table fields with their German labels.
+     * Returns the list of standard member fields for the mapping UI.
      *
      * @return array<string, string>
      */
@@ -411,8 +417,8 @@ class ImportController extends Controller
             'date_of_birth'         => 'Geburtsdatum',
             'gender'                => 'Geschlecht',
             'pass_number'           => 'Passnummer',
-            'eligible_to_play_date' => 'Spielberechtigt ab (Datum)',
-            'status'                => 'Status (active/inactive)',
+            'eligible_to_play_date' => 'Spielberechtigung ab',
+            'status'                => 'Status',
         ];
     }
 }

@@ -12,7 +12,7 @@
 </div>
 
 {{-- ════════════════════════════════════════════════
-     VEREINSIDENTITÄT
+     CLUB IDENTITY
 ════════════════════════════════════════════════ --}}
 <x-ck-card>
 
@@ -21,13 +21,13 @@
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
         <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
-            Speichern
+            {{ __('Save') }}
         </x-ck-button>
     </x-slot:headerAction>
 
     <div class="ck-settings-section">
 
-        {{-- Vereinsname --}}
+        {{-- Club name --}}
         <div class="ck-settings-row">
             <div>
                 <div class="ck-settings-row__label">Vereinsname</div>
@@ -69,7 +69,7 @@
 </x-ck-card>
 
 {{-- ════════════════════════════════════════════════
-     BRAND-BAR (Zeile 1 im Header)
+     BRAND BAR (row 1 in header)
 ════════════════════════════════════════════════ --}}
 <x-ck-card class="ck-mt-5">
 
@@ -78,7 +78,7 @@
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
         <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
-            Speichern
+            {{ __('Save') }}
         </x-ck-button>
     </x-slot:headerAction>
 
@@ -121,7 +121,7 @@
 </x-ck-card>
 
 {{-- ════════════════════════════════════════════════
-     NAVIGATIONSLEISTE (Zeile 2 im Header)
+     NAVIGATION BAR (row 2 in header)
 ════════════════════════════════════════════════ --}}
 <x-ck-card class="ck-mt-5">
 
@@ -130,7 +130,7 @@
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
         <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
-            Speichern
+            {{ __('Save') }}
         </x-ck-button>
     </x-slot:headerAction>
 
@@ -218,7 +218,7 @@
 </x-ck-card>
 
 {{-- ════════════════════════════════════════════════
-     SUB-TAB-LEISTE
+     SUB-TAB BAR
 ════════════════════════════════════════════════ --}}
 <x-ck-card class="ck-mt-5">
 
@@ -227,7 +227,7 @@
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
         <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
-            Speichern
+            {{ __('Save') }}
         </x-ck-button>
     </x-slot:headerAction>
 
@@ -315,7 +315,7 @@
 </x-ck-card>
 
 {{-- ════════════════════════════════════════════════
-     ALLGEMEIN
+     GENERAL
 ════════════════════════════════════════════════ --}}
 <x-ck-card class="ck-mt-5">
 
@@ -324,7 +324,7 @@
     <x-slot:headerAction>
         <span data-save-status class="ck-save-status"></span>
         <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
-            Speichern
+            {{ __('Save') }}
         </x-ck-button>
     </x-slot:headerAction>
 
@@ -344,7 +344,7 @@
 
 </x-ck-card>
 
-{{-- Logo löschen (nur wenn Logo vorhanden) --}}
+{{-- Delete logo (only shown when a logo is set) --}}
 @if(!empty($settings['logo_path']))
 <x-ck-card class="ck-mt-5">
     <x-slot:header>Logo entfernen</x-slot:header>
@@ -358,14 +358,14 @@
             variant="danger"
             type="submit"
             :confirm="'Logo wirklich entfernen? Die Datei wird dauerhaft gelöscht.'">
-            Logo entfernen
+            {{ __('Remove logo') }}
         </x-ck-button>
     </form>
 </x-ck-card>
 @endif
 
 @push('scripts')
-{{-- Data Bridge: Route + aktuelle CSS-Variablen für das JS --}}
+{{-- Data bridge: route + current CSS variables for JS --}}
 <script>
 window.CK_Appearance = {
     routes: {

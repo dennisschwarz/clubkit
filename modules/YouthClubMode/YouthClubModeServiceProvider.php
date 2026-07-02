@@ -33,7 +33,6 @@ class YouthClubModeServiceProvider extends ServiceProvider
     /** @return void */
     public function boot(): void
     {
-        $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
         $this->loadViewsFrom(__DIR__ . '/Resources/Views', 'youth-club-mode');
 
         $this->registerHooks();

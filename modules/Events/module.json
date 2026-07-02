@@ -1,35 +1,32 @@
 {
-  "name": "Events",
-  "slug": "events",
-  "version": "2.0.0",
-  "description": "Terminverwaltung: Veranstaltungen anlegen, Aufgaben zuweisen, Mitglieder einplanen und Funktionsbesetzung verwalten. Erfordert das Management-Modul für Aufgaben- und Funktionsdefinitionen.",
-  "requires": [
-    "core",
-    "members"
-  ],
-  "tables": [
-    "events",
-    "event_team",
-    "event_task",
-    "event_task_member"
-  ],
-  "provides": {
-    "migrations": true,
-    "routes": true,
-    "views": true,
-    "nav": [
-      {
-        "label": "📅 Termine",
-        "route": "events.index",
-        "module": "events",
-        "permission": "events.view",
-        "nav_order": 2
-      }
+    "name": "Events",
+    "slug": "events",
+    "version": "2.0.0",
+    "description": "Terminverwaltung: Veranstaltungen anlegen, Aufgaben zuweisen, Mitglieder einplanen und Funktionsbesetzung verwalten. Erfordert das Management-Modul für Aufgaben- und Funktionsdefinitionen.",
+    "requires": ["core", "members"],
+    "tables": [
+        "events",
+        "event_team",
+        "event_task",
+        "event_task_member"
     ],
-    "permissions": [
-      "events.view",
-      "events.manage"
-    ]
-  },
-  "author": "ClubKit"
+    "provides": {
+        "migrations": true,
+        "routes": true,
+        "views": true,
+        "nav": [
+            {
+                "label": "📅 Termine",
+                "route": "events.index",
+                "module": "events",
+                "permission": "events.view",
+                "nav_order": 2
+            }
+        ],
+        "permissions": [
+            "events.view",
+            "events.manage"
+        ]
+    },
+    "author": "ClubKit"
 }

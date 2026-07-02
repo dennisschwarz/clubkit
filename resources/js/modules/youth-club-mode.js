@@ -1,31 +1,37 @@
 /**
- * ClubKit YouthClubMode – Familie-Tab Logic
+ * ClubKit YouthClubMode – Family-Tab Logic
  *
- * Erweitert das Member-Modal um den Familie-Tab.
- * Kommuniziert über das ckOn/ckEmit-System mit members-modal.js.
+ * Extends the Member modal with the Family tab.
+ * Communicates with members-modal.js via the ckOn/ckEmit system.
  *
- * Abhängigkeiten:
- *   - window.CK_Members       (Data Bridge: members mit family{}-Objekt pro Eintrag)
- *   - window.CK_YouthClubMode (Data Bridge: csrf, routes, allMembers, relations)
- *   - ckOn(), ckTabEnable()   aus resources/js/app.js
+ * Dependencies:
+ *   - window.CK_Members       (data bridge: members with family{} object per entry)
+ *   - window.CK_YouthClubMode (data bridge: csrf, routes, allMembers, relations)
+ *   - window.CK_Lang          (localised notification strings from layout.blade.php)
+ *   - ckOn(), ckTabEnable(), ckConfirm(), ckNotify()  from resources/js/app.js
  *
- * Regel: Nur classList-Operationen – kein el.style.*
+ * Rule: classList operations only – no el.style.*
  *
- * Ladereihenfolge-Hinweis:
- *   app.js lädt als type="module" (deferred).
- *   Dieses Script läuft synchron am Body-Ende → ckOn ist noch nicht definiert.
- *   Deshalb: ckOn-Registrierung in DOMContentLoaded wrappen.
+ * Load-order note:
+ *   app.js loads as type="module" (deferred).
+ *   This script runs synchronously at the body end → ckOn is not yet defined.
+ *   Therefore: wrap ckOn registrations inside DOMContentLoaded.
  */
 (function () {
     'use strict';
 
-    // ── Modul-State ────────────────────────────────────────────────────────
+    // ── Module state ──────────────────────────────────────────────────────────
     let currentMemberId = null;
 
-    // ── DOMContentLoaded: Event-Listener registrieren ─────────────────────
+    // Shorthand: read from the localised notification bridge.
+    function _lang(key, fallback) {
+        return (((window.CK_Lang || {}).notifications || {})[key]) || fallback;
+    }
+
+    // ── DOMContentLoaded: register event listeners ────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
 
-        // Auf Modal-Öffnen lauschen
+        // Listen for modal-open events
         ckOn('member.modal.open', function (detail) {
             currentMemberId = detail.memberId || null;
 
@@ -35,19 +41,19 @@
                 return;
             }
 
-            // Edit-Modus: Tab aktivieren + Liste rendern
+            // Edit mode: activate tab + render list
             ckTabEnable('memberFamilyTabBtn', 'memberFamilyCreateHint', true);
             _clearAddForm();
             _renderFamilyList();
         });
 
-        // Beziehungs-Dropdown: Mitglieder-Dropdown filtern
+        // Relationship dropdown: filter the member dropdown
         const relSelect = document.getElementById('mFieldRelationship');
         if (relSelect) {
             relSelect.addEventListener('change', _onRelationshipChange);
         }
 
-        // Mitglieds-Dropdown: Hinzufügen-Button freischalten
+        // Member dropdown: enable the add button
         const memberSelect = document.getElementById('mFieldRelatedMember');
         if (memberSelect) {
             memberSelect.addEventListener('change', function () {
@@ -56,7 +62,7 @@
             });
         }
 
-        // Hinzufügen-Button
+        // Add button
         const addBtn = document.getElementById('mBtnAddRelation');
         if (addBtn) {
             addBtn.addEventListener('click', _onAddRelation);
@@ -64,7 +70,7 @@
 
     }); // end DOMContentLoaded
 
-    // ── Dropdown 1 geändert: Dropdown 2 befüllen ──────────────────────────
+    // ── Dropdown 1 changed: populate dropdown 2 ───────────────────────────────
 
     function _onRelationshipChange() {
         const relSelect    = document.getElementById('mFieldRelationship');
@@ -96,15 +102,15 @@
         if (filtered.length === 0) {
             memberSelect.innerHTML = '<option value="">Keine passenden Mitglieder</option>';
         }
-        if (addBtn) addBtn.disabled = true; // erst nach Mitglieds-Auswahl freischalten
+        if (addBtn) addBtn.disabled = true; // enable only after member selection
     }
 
-    // ── Filter-Logik ──────────────────────────────────────────────────────
+    // ── Filter logic ──────────────────────────────────────────────────────────
 
     /**
-     * Filtert allMembers nach den Regeln des gewählten Beziehungstyps.
+     * Filters allMembers by the rules of the selected relationship type.
      * @param  {string} relationshipType  'father'|'mother'|'father_of'|'mother_of'|'sibling'
-     * @return {Array}  Gefilterte Mitglieder [{id, name, ...}]
+     * @return {Array}  Filtered members [{id, name, ...}]
      */
     function _getFilteredMembers(relationshipType) {
         const ycm       = window.CK_YouthClubMode || {};
@@ -112,14 +118,14 @@
         const relations = ycm.relations   || [];
         const all       = Object.values(allMem);
 
-        // Immer: sich selbst ausschließen
+        // Always: exclude self
         let result = all.filter(function (m) { return m.id !== currentMemberId; });
 
         switch (relationshipType) {
 
             case 'father':
-                // Volljährig (oder kein Geburtsdatum) + männlich/divers/ohne Angabe
-                // + ist noch nicht Vater des aktuellen Mitglieds
+                // Adult (or no date of birth) + male/diverse/unspecified
+                // + not yet the current member's father
                 result = result.filter(function (m) {
                     return _isAdultOrNoDob(m)
                         && _isGender(m, ['male', 'diverse', null])
@@ -128,8 +134,8 @@
                 break;
 
             case 'mother':
-                // Volljährig + weiblich/divers/ohne Angabe
-                // + ist noch nicht Mutter des aktuellen Mitglieds
+                // Adult + female/diverse/unspecified
+                // + not yet the current member's mother
                 result = result.filter(function (m) {
                     return _isAdultOrNoDob(m)
                         && _isGender(m, ['female', 'diverse', null])
@@ -138,21 +144,21 @@
                 break;
 
             case 'father_of':
-                // Mitglieder, die noch KEINEN Vater haben
+                // Members that don't yet have a father
                 result = result.filter(function (m) {
                     return !_hasParent(m.id, 'father', relations);
                 });
                 break;
 
             case 'mother_of':
-                // Mitglieder, die noch KEINE Mutter haben
+                // Members that don't yet have a mother
                 result = result.filter(function (m) {
                     return !_hasParent(m.id, 'mother', relations);
                 });
                 break;
 
             case 'sibling':
-                // Alle Mitglieder, die noch kein Geschwister des aktuellen sind
+                // All members that are not yet siblings of the current member
                 result = result.filter(function (m) {
                     return !_areSiblings(currentMemberId, m.id, relations);
                 });
@@ -164,20 +170,20 @@
         });
     }
 
-    // Ist m.age >= 18 (oder kein Geburtsdatum)?
+    // Is m.age >= 18 (or no date of birth)?
     function _isAdultOrNoDob(m) {
-        if (!m.date_of_birth) return true; // kein Datum → trotzdem anzeigen
+        if (!m.date_of_birth) return true; // no date of birth → still show
         const dob   = new Date(m.date_of_birth);
         const ageMs = Date.now() - dob.getTime();
         return ageMs / (1000 * 60 * 60 * 24 * 365.25) >= 18;
     }
 
-    // Hat m.gender einen der erlaubten Werte?
+    // Does m.gender have one of the allowed values?
     function _isGender(m, allowed) {
         return allowed.indexOf(m.gender) !== -1;
     }
 
-    // Existiert bereits: primary=parentId, secondary=childId, relationship=rel?
+    // Does the relation already exist: primary=parentId, secondary=childId, relationship=rel?
     function _relationExists(parentId, childId, rel, relations) {
         return relations.some(function (r) {
             return r.primary_member_id   === parentId
@@ -186,14 +192,14 @@
         });
     }
 
-    // Hat memberId bereits einen Elternteil vom Typ rel?
+    // Does memberId already have a parent of type rel?
     function _hasParent(memberId, rel, relations) {
         return relations.some(function (r) {
             return r.secondary_member_id === memberId && r.relationship === rel;
         });
     }
 
-    // Sind id1 und id2 bereits Geschwister?
+    // Are id1 and id2 already siblings?
     function _areSiblings(id1, id2, relations) {
         return relations.some(function (r) {
             return r.relationship === 'sibling'
@@ -202,7 +208,7 @@
         });
     }
 
-    // ── Verbindung hinzufügen (AJAX) ─────────────────────────────────────
+    // ── Add relation (AJAX) ───────────────────────────────────────────────────
 
     function _onAddRelation() {
         const relSelect    = document.getElementById('mFieldRelationship');
@@ -241,69 +247,79 @@
             if (addBtn) addBtn.classList.remove('ck-btn--loading');
 
             if (!data.success) {
-                _showAddError(data.message || 'Fehler beim Speichern.');
+                // Inline error: shown within the modal (sub-action feedback, not a global notification).
+                _showAddError(data.message || _lang('relation_add_error', 'Fehler beim Speichern.'));
                 if (addBtn) addBtn.disabled = false;
                 return;
             }
 
-            // Neue Verbindung lokal hinzufügen
+            // Add new relation to local state
             (window.CK_YouthClubMode.relations || []).push(data.relation);
 
-            // Formular zurücksetzen + Liste neu rendern
+            // Reset form + re-render list
             _clearAddForm();
             _renderFamilyList();
+
+            // Brief success toast – the modal stays open (sub-action, not a full save).
+            ckNotify('success', _lang('relation_added', 'Verbindung gespeichert.'));
         })
         .catch(function () {
             if (addBtn) {
                 addBtn.classList.remove('ck-btn--loading');
                 addBtn.disabled = false;
             }
-            _showAddError('Netzwerkfehler. Bitte versuche es erneut.');
+            _showAddError(_lang('network_error', 'Netzwerkfehler. Bitte versuche es erneut.'));
         });
     }
 
-    // ── Verbindung entfernen (AJAX) ───────────────────────────────────────
+    // ── Remove relation (AJAX) ────────────────────────────────────────────────
 
     /**
-     * Wird aus dem onclick im gerenderten HTML aufgerufen.
+     * Opens the global confirm modal before sending the DELETE request.
+     * Uses window.ckConfirm() from app.js instead of the blocking browser
+     * confirm() dialog – consistent with all other delete confirmations.
+     *
+     * Called from onclick in the dynamically rendered family list HTML.
+     *
      * @param {number} relationId
      */
     window.ckYcmDeleteRelation = function (relationId) {
-        if (!confirm('Verbindung wirklich entfernen?')) return;
+        window.ckConfirm('Verbindung wirklich entfernen?', function () {
+            const ycm = window.CK_YouthClubMode || {};
+            const url = ((ycm.routes || {}).relationsBase || '')
+                    + '/' + currentMemberId
+                    + '/relations/' + relationId;
 
-        const ycm = window.CK_YouthClubMode || {};
-        const url = ((ycm.routes || {}).relationsBase || '')
-                + '/' + currentMemberId
-                + '/relations/' + relationId;
+            fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Accept':           'application/json',
+                    'X-CSRF-TOKEN':     ycm.csrf || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data.success) {
+                    ckNotify('error', data.message || _lang('relation_delete_error', 'Fehler beim Löschen.'));
+                    return;
+                }
 
-        fetch(url, {
-            method: 'DELETE',
-            headers: {
-                'Accept':           'application/json',
-                'X-CSRF-TOKEN':     ycm.csrf || '',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-            if (!data.success) {
-                alert(data.message || 'Fehler beim Löschen.');
-                return;
-            }
+                // Remove relation from local state and re-render the list
+                window.CK_YouthClubMode.relations = (ycm.relations || []).filter(function (r) {
+                    return r.id !== data.relation_id;
+                });
 
-            // Verbindung lokal entfernen
-            window.CK_YouthClubMode.relations = (ycm.relations || []).filter(function (r) {
-                return r.id !== data.relation_id;
+                _renderFamilyList();
+                ckNotify('success', _lang('relation_removed', 'Verbindung entfernt.'));
+            })
+            .catch(function () {
+                ckNotify('error', _lang('network_error', 'Netzwerkfehler. Bitte versuche es erneut.'));
             });
-
-            _renderFamilyList();
-        })
-        .catch(function () {
-            alert('Netzwerkfehler. Bitte versuche es erneut.');
         });
     };
 
-    // ── Familie-Liste rendern ─────────────────────────────────────────────
+    // ── Render family list ────────────────────────────────────────────────────
 
     function _renderFamilyList() {
         const list = document.getElementById('mFamilyList');
@@ -347,8 +363,8 @@
     }
 
     /**
-     * Berechnet die Familiendaten für ein Mitglied aus dem Relations-Array.
-     * Spiegelt die Logik aus FamilyService::buildFamilyData().
+     * Computes the family data for a member from the relations array.
+     * Mirrors the logic in FamilyService::buildFamilyData().
      */
     function _buildFamily(memberId, relations, allMem) {
         const family = { father: null, mother: null, children: [], siblings: [] };
@@ -358,40 +374,60 @@
             const sid = r.secondary_member_id;
             const rel = r.relationship;
 
-            if (sid === memberId && rel === 'father') {
-                family.father = { relation_id: r.id, id: pid, name: (allMem[pid] || {}).name || '?' };
-            }
-            if (sid === memberId && rel === 'mother') {
-                family.mother = { relation_id: r.id, id: pid, name: (allMem[pid] || {}).name || '?' };
-            }
-            if (pid === memberId && (rel === 'father' || rel === 'mother')) {
-                family.children.push({
-                    relation_id:     r.id,
-                    id:              sid,
-                    name:            (allMem[sid] || {}).name || '?',
-                    parent_relation: rel,
-                });
-            }
-            if (rel === 'sibling' && (pid === memberId || sid === memberId)) {
-                const otherId = pid === memberId ? sid : pid;
-                family.siblings.push({
-                    relation_id: r.id,
-                    id:          otherId,
-                    name:        (allMem[otherId] || {}).name || '?',
-                });
+            const otherIdAsPrimary   = (pid === memberId) ? sid : null;
+            const otherIdAsSecondary = (sid === memberId) ? pid : null;
+
+            if (rel === 'father' || rel === 'mother') {
+                if (pid === memberId) {
+                    // memberId is the parent
+                    const child = allMem[sid];
+                    if (child) {
+                        family.children.push({
+                            name:           child.name,
+                            relation_id:    r.id,
+                            parent_relation: rel,
+                        });
+                    }
+                } else if (sid === memberId) {
+                    // memberId is the child
+                    const parent = allMem[pid];
+                    if (parent) {
+                        if (rel === 'father') family.father = { name: parent.name, relation_id: r.id };
+                        else                  family.mother = { name: parent.name, relation_id: r.id };
+                    }
+                }
+            } else if (rel === 'sibling') {
+                const otherId = otherIdAsPrimary !== null ? otherIdAsPrimary : otherIdAsSecondary;
+                if (otherId !== null) {
+                    const sib = allMem[otherId];
+                    if (sib) family.siblings.push({ name: sib.name, relation_id: r.id });
+                }
             }
         });
 
         return family;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────
+    // ── Error helpers ─────────────────────────────────────────────────────────
+
+    function _showAddError(msg) {
+        const el = document.getElementById('mAddRelationError');
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.remove('is-hidden');
+    }
+
+    function _hideAddError() {
+        const el = document.getElementById('mAddRelationError');
+        if (el) el.classList.add('is-hidden');
+    }
 
     function _clearAddForm() {
         const relSelect    = document.getElementById('mFieldRelationship');
         const memberSelect = document.getElementById('mFieldRelatedMember');
         const addBtn       = document.getElementById('mBtnAddRelation');
-        if (relSelect)    relSelect.value = '';
+
+        if (relSelect) relSelect.value = '';
         if (memberSelect) {
             memberSelect.innerHTML = '<option value="">– erst Beziehung wählen –</option>';
             memberSelect.disabled  = true;
@@ -400,22 +436,14 @@
         _hideAddError();
     }
 
-    function _showAddError(msg) {
-        const el = document.getElementById('mFamilyAddError');
-        if (!el) return;
-        el.textContent = msg;
-        el.classList.remove('is-hidden');
-    }
-
-    function _hideAddError() {
-        const el = document.getElementById('mFamilyAddError');
-        if (el) el.classList.add('is-hidden');
-    }
+    // ── Escape helper ──────────────────────────────────────────────────────────
 
     function _esc(str) {
-        const d = document.createElement('div');
-        d.appendChild(document.createTextNode(String(str)));
-        return d.innerHTML;
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 
 }());

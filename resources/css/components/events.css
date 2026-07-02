@@ -1,8 +1,8 @@
 /* ══════════════════════════════════════════════════════════════════════
-   Termine-Modul
+   Events module
 ══════════════════════════════════════════════════════════════════════ */
 
-/* ── Tabelle ──────────────────────────────────────────────────────────── */
+/* ── Table ────────────────────────────────────────────────────────────── */
 .ck-event-date        { white-space: nowrap; }
 .ck-event-date__day   { display: block; font-weight: 600; font-size: var(--ck-font-base); color: var(--ck-text); }
 .ck-event-date__time  { display: block; font-size: var(--ck-font-xs); color: var(--ck-text-muted); margin-top: 1px; }
@@ -16,15 +16,15 @@
 .ck-event-function__members { font-size: var(--ck-font-xs); color: var(--ck-text-muted); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Modal: Grauer Canvas-Hintergrund
-   Sektion-Cards (weiß) heben sich klar vom grauen Hintergrund ab.
+   Modal: grey canvas background
+   Section cards (white) stand out clearly against the grey background.
 ══════════════════════════════════════════════════════════════════════ */
 #evtModal .ck-modal__body {
   background: var(--ck-bg);
   padding: var(--ck-space-5);
 }
 
-/* Aktions-Leiste: weißer Balken mit Trennlinie */
+/* Action bar: white band with divider line */
 #evtForm .ck-form-actions {
   background: var(--ck-white);
   margin: var(--ck-space-5) calc(-1 * var(--ck-space-5)) calc(-1 * var(--ck-space-5));
@@ -34,29 +34,29 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Sektion-Cards: Basis
-   Weißes Card auf grauem Canvas.
-   Visuelle Differenzierung über:
-     1. linken farbigen Border-Akzent (4px)
-     2. farbigen Header-Hintergrund passend zur Sektion
-   → jede Sektion ist sofort erkennbar ohne Grau-in-Grau-Einheitsbrei.
+   Section cards: base
+   White card on grey canvas.
+   Visual differentiation via:
+     1. left coloured border accent (4px)
+     2. coloured header background matching the section
+   → each section is immediately recognisable without grey-on-grey monotony.
 ══════════════════════════════════════════════════════════════════════ */
 .ck-orga-section {
   background: var(--ck-white);
-  border: 1.5px solid #cbd5e0;
-  border-left-width: 4px;          /* linker Akzent – Farbe via Modifier */
+  border: 1.5px solid var(--ck-border-strong);
+  border-left-width: 4px;          /* left accent – colour via modifier */
   border-radius: var(--ck-radius-lg);
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,0.07);
 }
 
-/* Header-Balken (Farbe via Modifier) */
+/* Header band (colour via modifier) */
 .ck-orga-section__head {
   display: flex;
   align-items: center;
   gap: var(--ck-space-2);
   padding: var(--ck-space-3) var(--ck-space-4);
-  border-bottom: 1.5px solid #cbd5e0;
+  border-bottom: 1.5px solid var(--ck-border-strong);
   font-size: var(--ck-font-xs);
   font-weight: 700;
   text-transform: uppercase;
@@ -82,42 +82,42 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Farb-Modifier für Sektion-Cards
-   Jede Sektion-Art hat eine eigene Farb-Identität.
-   Basis-Palette kommt aus base.css (--ck-purple-bg, --ck-success-bg etc.)
+   Colour modifiers for section cards
+   Each section type has its own colour identity.
+   Base palette comes from base.css (--ck-purple-bg, --ck-success-bg etc.)
 ══════════════════════════════════════════════════════════════════════ */
 
-/* ── Blau: Primärinformation (Wann & Wo, Vereinsaufgaben) ──────────── */
+/* ── Blue: primary information (When & Where, club tasks) ───────────── */
 .ck-orga-section--blue {
   border-left-color: var(--ck-accent);         /* #60a5fa */
 }
 .ck-orga-section--blue .ck-orga-section__head {
-  background: #eff6ff;
-  border-bottom-color: #bfdbfe;
+  background: var(--ck-blue-tint);
+  border-bottom-color: var(--ck-blue-section-border);
   color: var(--ck-accent-dark);                /* #1a6fc4 */
 }
 
-/* ── Lila: Vereinsfunktionen / Rollen ──────────────────────────────── */
+/* ── Purple: club functions / roles ─────────────────────────────────── */
 .ck-orga-section--purple {
   border-left-color: var(--ck-purple);         /* #7c3aed */
 }
 .ck-orga-section--purple .ck-orga-section__head {
-  background: #faf5ff;
-  border-bottom-color: #e9d5ff;
+  background: var(--ck-purple-bg);
+  border-bottom-color: var(--ck-purple-section-border);
   color: var(--ck-purple-text);                /* #7e22ce */
 }
 
-/* ── Amber: Einmalige / Sonder-Aufgaben ────────────────────────────── */
+/* ── Amber: one-off / special tasks ─────────────────────────────────── */
 .ck-orga-section--amber {
   border-left-color: var(--ck-warning);        /* #d97706 */
 }
 .ck-orga-section--amber .ck-orga-section__head {
-  background: #fffbeb;
-  border-bottom-color: #fde68a;
-  color: #92400e;
+  background: var(--ck-amber-section-bg);
+  border-bottom-color: var(--ck-amber-section-border);
+  color: var(--ck-team-amber-text);
 }
 
-/* ── Grün: Teams ───────────────────────────────────────────────────── */
+/* ── Green: teams ────────────────────────────────────────────────────── */
 .ck-orga-section--green {
   border-left-color: var(--ck-success);        /* #16a34a */
 }
@@ -127,17 +127,17 @@
   color: var(--ck-success-text);               /* #166534 */
 }
 
-/* ── Neutral: Texte/Beschreibungen ────────────────────────────────── */
+/* ── Neutral: texts / descriptions ──────────────────────────────────── */
 .ck-orga-section--neutral {
-  border-left-color: #94a3b8;
+  border-left-color: var(--ck-text-muted);
 }
 .ck-orga-section--neutral .ck-orga-section__head {
-  background: #f1f5f9;
-  border-bottom-color: #cbd5e0;
+  background: var(--ck-border-light);
+  border-bottom-color: var(--ck-border-strong);
   color: var(--ck-text-secondary);             /* #64748b */
 }
 
-/* ── 50/50 Grid ─────────────────────────────────────────────────────── */
+/* ── 50/50 grid ──────────────────────────────────────────────────────── */
 .ck-org-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -149,7 +149,7 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Checkbox-Listen
+   Checkbox lists
 ══════════════════════════════════════════════════════════════════════ */
 .ck-checkbox-list {
   display: flex;
@@ -199,17 +199,17 @@
   height: 15px;
   cursor: pointer;
 }
-.ck-checkbox-item:hover              { background: #edf2f7; }
-.ck-checkbox-item:has(input:checked) { background: #dbeafe; color: var(--ck-accent-dark); font-weight: 600; }
+.ck-checkbox-item:hover              { background: var(--ck-checkbox-hover-bg); }
+.ck-checkbox-item:has(input:checked) { background: var(--ck-team-blue-bg); color: var(--ck-accent-dark); font-weight: 600; }
 .ck-checkbox-item .ck-text-muted     { font-size: var(--ck-font-xs); font-weight: 400; }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Textarea-Höhen (CSS-Garantie – rows-Attribut ist cache-sensitiv)
+   Textarea heights (CSS guarantee – rows attribute is cache-sensitive)
 ══════════════════════════════════════════════════════════════════════ */
 #evtDescription { min-height: 90px;  resize: vertical; }
 #evtNotes       { min-height: 62px;  resize: vertical; }
 
-/* ── Einmalige Aufgaben ──────────────────────────────────────────────── */
+/* ── One-off tasks ───────────────────────────────────────────────────── */
 #evtAssignmentList {
   display: flex;
   flex-direction: column;
@@ -229,7 +229,7 @@
 .ck-organizer-row .ck-field__input:first-child  { flex: 1.5; min-width: 0; }
 .ck-organizer-row .ck-field__input:nth-child(2) { flex: 1;   min-width: 0; }
 
-/* ── Trennlinie mit Label (allgemein) ───────────────────────────────── */
+/* ── Divider with label (general) ────────────────────────────────────── */
 .ck-modal-section-divider {
   display: flex; align-items: center; gap: var(--ck-space-3);
   margin: var(--ck-space-5) 0 var(--ck-space-4);

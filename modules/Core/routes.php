@@ -5,12 +5,19 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Modules\Core\Http\Controllers\Admin\ActivityLogController;
 use Modules\Core\Http\Controllers\Admin\AppearanceController;
+use Modules\Core\Http\Controllers\Admin\CoreSettingsController;
 use Modules\Core\Http\Controllers\Admin\ModuleController;
 use Modules\Core\Http\Controllers\Admin\ModuleSettingsController;
 use Modules\Core\Http\Controllers\Admin\RolesController;
 use Modules\Core\Http\Controllers\Admin\SystemController;
 use Modules\Core\Http\Controllers\Admin\UserController;
 use Modules\Core\Http\Controllers\DashboardController;
+use Modules\Core\Http\Controllers\WelcomeController;
+
+// ── Willkommensseite ──────────────────────────────────────────────────────────
+// Zugänglich für Gäste und eingeloggte User (Controller entscheidet).
+
+Route::get('/', WelcomeController::class)->name('welcome');
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
@@ -64,7 +71,8 @@ Route::prefix('admin')
 
         // ── Module settings (hook-based hub) ──────────────────────────────
         Route::prefix('module-settings')->name('module-settings.')->group(function () {
-            Route::get('/', [ModuleSettingsController::class, 'index'])->name('index');
+            Route::get('/',     [ModuleSettingsController::class, 'index'])->name('index');
+            Route::patch('/core', [CoreSettingsController::class, 'store'])->name('core.update');
         });
 
         // ── Appearance ────────────────────────────────────────────────────

@@ -22,7 +22,7 @@
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.55);
+  background: var(--ck-overlay-bg);
   z-index: 9999;
   align-items: flex-start;
   justify-content: center;
@@ -113,6 +113,27 @@
   padding: var(--ck-space-6);
 }
 
+/* ── Footer (action buttons) ─────────────────────────────────────── */
+.ck-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ck-space-3);
+  padding: var(--ck-space-4) var(--ck-space-6);
+  border-top: 1px solid var(--ck-border);
+  flex-shrink: 0;
+  background: var(--ck-bg-subtle);
+}
+
+/* ── Confirm modal text ───────────────────────────────────────────── */
+/* Question text shown in the global confirm modal (#ck-confirm-overlay). */
+.ck-confirm__text {
+  font-size: var(--ck-font-base);
+  font-weight: 600;
+  color: var(--ck-text);
+  margin-bottom: var(--ck-space-3);
+}
+
 /* ── Tab-Sections ────────────────────────────────────────────────── */
 .ck-modal__section         { display: none; }
 .ck-modal__section--active {
@@ -165,7 +186,7 @@
   position: fixed;
   inset: 0;
   z-index: 9998;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--ck-loading-overlay-bg);
   align-items: center;
   justify-content: center;
 }
@@ -177,7 +198,7 @@
 .ck-loading-spinner {
   width: 48px;
   height: 48px;
-  border: 4px solid rgba(255, 255, 255, 0.25);
+  border: 4px solid var(--ck-spinner-border);
   border-top-color: var(--ck-text-white);
   border-radius: 50%;
   animation: ck-spin 0.75s linear infinite;

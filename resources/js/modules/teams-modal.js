@@ -1,6 +1,7 @@
 /**
  * teams-modal.js
- * Controls the Team modal (create / edit) and the competition-block toggle.
+ * Controls the Team modal (create / edit), competition-block toggle,
+ * and the Roster Dual Listbox modal.
  *
  * Rules:
  *  - No el.style.*  → classList only
@@ -17,7 +18,7 @@
 
     function el(id) { return document.getElementById(id); }
 
-    // ── Team-Modal öffnen ─────────────────────────────────────────────────
+    // ── Open team edit modal ──────────────────────────────────────────────
 
     window.teamsModalOpen = function (mode, teamId) {
         teamId = teamId || null;
@@ -33,8 +34,6 @@
         _setChecked('tFieldIsCompetition', false);
         _setChecked('tFieldEligibleOnly', false);
         teamsToggleCompetition(false);
-
-        // Reset color picker to default
         _setColor('');
 
         // Return to first tab
@@ -75,6 +74,53 @@
         }
     };
 
+    // ── Roster Dual Listbox modal ─────────────────────────────────────────
+
+    /**
+     * Opens the Roster modal for a given team.
+     * Populates the available (left) and current roster (right) select lists,
+     * and sets the form action to the correct syncRoster URL.
+     *
+     * @param {number} teamId
+     */
+    window.openRosterModal = function (teamId) {
+        const t         = (data.teams     || {})[teamId];
+        const roster    = (data.roster    || {})[teamId] || [];
+        const available = (data.available || {})[teamId] || [];
+        const form      = el('rosterForm');
+        const titleEl   = document.querySelector('#teamRosterModal .ck-modal__title');
+
+        if (!t) return;
+
+        if (titleEl) titleEl.textContent = 'Kader: ' + t.name;
+        if (form)    form.action = (data.routes.syncRoster || '') + '/' + teamId + '/members/sync';
+
+        _populateSelect('rosterAvail',    available);
+        _populateSelect('rosterCurrent',  roster);
+
+        ckModalOpen('teamRosterModal');
+    };
+
+    /**
+     * Moves selected options between the Available ↔ Roster selects.
+     *
+     * @param {'right'|'left'} direction
+     */
+    window.ckRosterMove = function (direction) {
+        const fromId = direction === 'right' ? 'rosterAvail' : 'rosterCurrent';
+        const toId   = direction === 'right' ? 'rosterCurrent' : 'rosterAvail';
+        const from   = el(fromId);
+        const to     = el(toId);
+        if (!from || !to) return;
+
+        // Collect and move selected options
+        const selected = Array.from(from.options).filter(function (o) { return o.selected; });
+        selected.forEach(function (opt) {
+            opt.selected = false;
+            to.appendChild(opt);
+        });
+    };
+
     // ── Competition-Block expand/collapse ─────────────────────────────────
 
     window.teamsToggleCompetition = function (open) {
@@ -97,7 +143,6 @@
         if (!picker) return;
 
         const swatches = picker.querySelectorAll('.ck-color-swatch');
-
         for (let i = 0; i < swatches.length; i++) {
             (function (sw) {
                 sw.addEventListener('click', function () {
@@ -111,7 +156,23 @@
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────
+    // ── Roster form: select all right-side options before submit ──────────
+
+    function _initRosterForm() {
+        const form = el('rosterForm');
+        if (!form) return;
+
+        form.addEventListener('submit', function () {
+            const right = el('rosterCurrent');
+            if (!right) return;
+            // Select all options so they are all submitted as member_ids[].
+            // An empty right-side list will result in no member_ids[] being sent,
+            // which syncRoster() interprets as "clear entire roster".
+            Array.from(right.options).forEach(function (o) { o.selected = true; });
+        });
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────
 
     function _setField(id, value) {
         const input = el(id);
@@ -144,10 +205,30 @@
         }
     }
 
+    /**
+     * Replaces all options in a <select> with the given member array.
+     *
+     * @param {string}                             selectId
+     * @param {Array<{id: number, name: string}>}  members
+     */
+    function _populateSelect(selectId, members) {
+        const sel = el(selectId);
+        if (!sel) return;
+
+        sel.innerHTML = '';
+        members.forEach(function (m) {
+            const opt       = document.createElement('option');
+            opt.value       = m.id;
+            opt.textContent = m.name;
+            sel.appendChild(opt);
+        });
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────
 
     document.addEventListener('DOMContentLoaded', function () {
         _initColorPicker();
+        _initRosterForm();
     });
 
 }());

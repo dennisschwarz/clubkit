@@ -3,7 +3,7 @@
 
 @section('content')
 
-{{-- ── Breadcrumb + Aktionen ──────────────────────────────────────────────── --}}
+{{-- ── Breadcrumb + actions ──────────────────────────────────────────────── --}}
 <div class="ck-page-header">
     <div class="ck-page-header__left">
         <a href="{{ route('events.index') }}" class="ck-breadcrumb">← Termine</a>
@@ -11,15 +11,15 @@
     </div>
     <div class="ck-page-header__actions">
         <x-ck-button variant="secondary" type="button" onclick="window.print()">
-            🖨 Drucken
+            🖨 {{ __('Print') }}
         </x-ck-button>
         <x-ck-button variant="danger" size="sm"
             :confirm="'Termin \'' . $event->title . '\' wirklich löschen?'"
             :form="'deleteEventForm'">
-            Löschen
+            {{ __('Delete') }}
         </x-ck-button>
         <x-ck-button variant="primary" type="button" onclick="ckModalOpen('editEventModal')">
-            Bearbeiten
+            {{ __('Edit') }}
         </x-ck-button>
     </div>
 </div>
@@ -28,12 +28,12 @@
     @csrf @method('DELETE')
 </form>
 
-{{-- ── Flash-Meldungen ────────────────────────────────────────────────────── --}}
+{{-- ── Flash messages ────────────────────────────────────────────────────── --}}
 @if(session('success'))
     <div class="ck-alert ck-alert--success">{{ session('success') }}</div>
 @endif
 
-{{-- ── Event-Info ─────────────────────────────────────────────────────────── --}}
+{{-- ── Event details ─────────────────────────────────────────────────────── --}}
 <x-ck-card class="ck-event-info ck-no-print">
     <x-slot:header>Termindetails</x-slot:header>
 
@@ -69,9 +69,9 @@
     </dl>
 
     {{--
-        Aufgaben-Fortschrittsbalken — Daten aus EventController ($totalTasks, $doneTasks).
-        Events liest aus event_task direkt, kein Management-Import erforderlich.
-        data-progress wird von events-detail.js via setProperty('--progress', ...) gelesen.
+        Task progress bar — data provided by EventController ($totalTasks, $doneTasks).
+        Events reads from event_task directly; no Management import required.
+        data-progress is read by events-detail.js via setProperty('--progress', ...).
     --}}
     @if($totalTasks > 0)
     <div class="ck-event-progress">
@@ -88,27 +88,26 @@
 </x-ck-card>
 
 {{--
-    ── Aufgaben-Panel ─────────────────────────────────────────────────────────
+    ── Tasks panel ─────────────────────────────────────────────────────────
     Extension point: events.show.tasks-panel
-    Registriert von: ManagementServiceProvider
+    Registered by: ManagementServiceProvider
 
-    Rendert: Aufgaben-Sektionen (nach Kategorie), Aufgabe-hinzufügen-Form,
-    Vereinsfunktionen-Card.
-    Wenn Management nicht installiert ist: nichts wird gerendert.
+    Renders: task sections (by category), add-task form, management-functions card.
+    Without Management: nothing is rendered.
 --}}
 @ckHook('events.show.tasks-panel')
 
 {{--
-    ── Teams-Panel ────────────────────────────────────────────────────────────
+    ── Teams panel ────────────────────────────────────────────────────────
     Extension point: events.show.teams-panel
-    Registriert von: TeamsServiceProvider
+    Registered by: TeamsServiceProvider
 
-    Rendert die Teams-Card auf der Detailseite.
-    Wenn Teams nicht installiert ist: nichts wird gerendert.
+    Renders the teams card on the detail page.
+    Without Teams: nothing is rendered.
 --}}
 @ckHook('events.show.teams-panel')
 
-{{-- ── Custom Fields ───────────────────────────────────────────────────────── --}}
+{{-- ── Custom fields ───────────────────────────────────────────────────────── --}}
 @if(!empty($eventCfDefs))
 <x-ck-card>
     <x-slot:header>Weitere Informationen</x-slot:header>
@@ -123,7 +122,7 @@
 </x-ck-card>
 @endif
 
-{{-- ── Bearbeiten-Modal ────────────────────────────────────────────────────── --}}
+{{-- ── Edit modal ────────────────────────────────────────────────────────── --}}
 <x-ck-modal id="editEventModal" title="Termin bearbeiten" size="md">
     <form method="POST" action="{{ route('events.update', $event) }}">
         @csrf
@@ -131,10 +130,12 @@
 
         <x-ck-field label="Bezeichnung" name="title"
             :value="old('title', $event->title)" :required="true" />
-        <x-ck-field type="datetime-local" label="Beginn" name="starts_at"
-            :value="old('starts_at', $event->starts_at->format('Y-m-d\TH:i'))" :required="true" />
-        <x-ck-field type="datetime-local" label="Ende" name="ends_at"
-            :value="old('ends_at', $event->ends_at?->format('Y-m-d\TH:i'))" />
+        <x-ck-field type="text" label="Beginn" name="starts_at"
+            :value="old('starts_at', $event->starts_at->format('Y-m-d H:i'))"
+            :required="true" data-ck-datetime="1" />
+        <x-ck-field type="text" label="Ende" name="ends_at"
+            :value="old('ends_at', $event->ends_at?->format('Y-m-d H:i'))"
+            data-ck-datetime="1" />
         <x-ck-field label="Ort" name="location"
             :value="old('location', $event->location)" />
         <x-ck-field type="textarea" label="Beschreibung" name="description"
@@ -143,9 +144,9 @@
             :value="old('notes', $event->notes)" />
 
         <div class="ck-modal__footer">
-            <x-ck-button variant="primary" type="submit">Speichern</x-ck-button>
+            <x-ck-button variant="primary" type="submit">{{ __('Save') }}</x-ck-button>
             <x-ck-button variant="secondary" type="button"
-                onclick="ckModalClose(null, 'editEventModal')">Abbrechen</x-ck-button>
+                onclick="ckModalClose(null, 'editEventModal')">{{ __('Cancel') }}</x-ck-button>
         </div>
     </form>
 </x-ck-modal>
@@ -156,7 +157,7 @@
 <script>
     /**
      * CK_EventDetail — Data bridge for events-detail.js
-     * tasks wird von ManagementServiceProvider via events.show.page.scripts befüllt.
+     * tasks is populated by ManagementServiceProvider via events.show.page.scripts.
      */
     window.CK_EventDetail = {
         eventId: {{ $event->id }},
@@ -169,7 +170,7 @@
     };
 </script>
 {{--
-    Management injiziert hier CK_EventDetail.tasks (verfügbare Aufgaben für Dropdown).
+    Management injects CK_EventDetail.tasks here (available tasks for dropdown).
     Extension point: events.show.page.scripts
 --}}
 @ckHook('events.show.page.scripts')

@@ -32,7 +32,7 @@
         @ckHook('team.show.header')
 
         @if(!$team->is_active)
-            {{-- Inaktives Team: kein Button, nur Hinweis --}}
+            {{-- Inactive team: no button, info notice only --}}
             <div class="ck-alert ck-alert--warning">
                 ⚠️ Inaktives Team – Mitglieder können nicht hinzugefügt werden.
             </div>
@@ -92,7 +92,7 @@
                               class="ck-inline-form">
                             @csrf @method('DELETE')
                             <x-ck-button variant="danger" size="icon" type="submit"
-                                title="Mitglied entfernen"
+                                title="{{ __('Remove') }}"
                                 :confirm="$member->last_name . ' aus dem Team entfernen?'">
                                 <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -121,7 +121,7 @@
 
 @ckHook('team.show.sections')
 
-{{-- Mitglied-hinzufügen Modal: nur wenn Team aktiv und Mitglieder verfügbar --}}
+{{-- Add-member modal: only rendered when team is active and members are available --}}
 @if($canAddMembers && $availableMembers->isNotEmpty())
     @php
         $memberOptions = ['' => '– Mitglied auswählen –'];
@@ -145,9 +145,9 @@
                 </p>
             @endif
             <div class="ck-form-actions">
-                <x-ck-button type="submit" variant="primary">Hinzufügen</x-ck-button>
+                <x-ck-button type="submit" variant="primary">{{ __('Add') }}</x-ck-button>
                 <x-ck-button type="button" variant="secondary"
-                    onclick="ckModalClose(null, 'addMemberModal')">Abbrechen</x-ck-button>
+                    onclick="ckModalClose(null, 'addMemberModal')">{{ __('Cancel') }}</x-ck-button>
             </div>
         </form>
     </x-ck-modal>

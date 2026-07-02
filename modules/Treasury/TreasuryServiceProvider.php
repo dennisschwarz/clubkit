@@ -27,7 +27,6 @@ class TreasuryServiceProvider extends ServiceProvider
     {
         $this->loadRoutes();
         $this->loadViews();
-        $this->loadMigrations();
         $this->registerHooks();
     }
 
@@ -39,11 +38,6 @@ class TreasuryServiceProvider extends ServiceProvider
     private function loadViews(): void
     {
         $this->loadViewsFrom(__DIR__ . '/Resources/Views', 'treasury');
-    }
-
-    private function loadMigrations(): void
-    {
-        $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
     }
 
     /**

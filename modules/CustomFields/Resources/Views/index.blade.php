@@ -114,7 +114,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                         <td class="ck-table__actions">
                             <div class="ck-table__action-cell">
                                 <x-ck-button variant="warning" size="icon"
-                                    title="Feld bearbeiten"
+                                    title="{{ __('Edit') }}"
                                     onclick="cfDefModalOpen('edit', null, {{ $def->id }})">
                                     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
                                         <path d="M13.586 3.586a2 2 0 112.828 2.828l-8 8a2 2 0 01-.9.52l-3 .75a.5.5 0 01-.607-.606l.75-3a2 2 0 01.52-.9l8-8z"/>
@@ -125,7 +125,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                                       class="ck-inline-form">
                                     @csrf @method('DELETE')
                                     <x-ck-button variant="danger" size="icon" type="submit"
-                                        title="Feld löschen"
+                                        title="{{ __('Delete') }}"
                                         :confirm="'Feld »' . $def->label . '« und alle gespeicherten Werte wirklich löschen?'">
                                         <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -146,7 +146,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 
 @endif
 
-{{-- ══ Definitionen-Modal ═════════════════════════════════════════════════ --}}
+{{-- ══ Definitions modal ═════════════════════════════════════════════════ --}}
 <x-ck-modal id="cfDefModal" title="Eigenes Feld" size="md">
     <div class="ck-modal__section ck-modal__section--active">
         <form id="cfDefForm" method="POST">
@@ -170,7 +170,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                             id="cfDefPlaceholder" placeholder="z.B. M, L, XL" />
             </div>
 
-            {{-- Optionen (nur für select-Typ sichtbar) --}}
+            {{-- Options (visible only for field_type=select) --}}
             <div class="ck-mt-3 is-hidden" id="cfDefOptionsBlock">
                 <x-ck-field type="textarea" label="Auswahloptionen (eine pro Zeile)"
                             name="options_raw" id="cfDefOptionsRaw" rows="4"
@@ -184,9 +184,9 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
             </div>
 
             <div class="ck-form-actions">
-                <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
+                <x-ck-button type="submit" variant="primary">{{ __('Save') }}</x-ck-button>
                 <x-ck-button type="button" variant="secondary"
-                    onclick="ckModalClose(null, 'cfDefModal')">Abbrechen</x-ck-button>
+                    onclick="ckModalClose(null, 'cfDefModal')">{{ __('Cancel') }}</x-ck-button>
             </div>
         </form>
     </div>

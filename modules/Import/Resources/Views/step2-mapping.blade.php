@@ -10,12 +10,12 @@
     <div class="ck-row ck-row--gap">
         <form method="POST" action="{{ route('import.cancel', $session->id) }}">
             @csrf
-            <x-ck-button variant="secondary" type="submit">Abbrechen</x-ck-button>
+            <x-ck-button variant="secondary" type="submit">{{ __('Cancel') }}</x-ck-button>
         </form>
     </div>
 </div>
 
-{{-- Info-Banner: DFBnet-Geschlechtskennzeichen --}}
+{{-- Info banner: DFBnet gender indicator --}}
 @if($session->source === 'dfbnet')
 <div class="ck-alert ck-alert--info ck-mb-4">
     ℹ️ <strong>DFBnet-Format erkannt:</strong>
@@ -36,7 +36,7 @@
         </span>
     </x-slot:header>
 
-    {{-- "Feld anlegen"-Button im Card-Header (nur wenn CF-Modul installiert) --}}
+    {{-- "Add field" button in card header (only when CustomFields module is active) --}}
     @if($customFieldsEnabled)
     <x-slot:headerAction>
         <x-ck-button variant="secondary" size="sm" onclick="ckModalOpen('cfDefModal')">
@@ -79,7 +79,7 @@
                             @endforeach
                         </td>
                         <td>
-                            {{-- .ck-mapping-select wird vom Import-JS genutzt um neue CF-Optionen einzufügen --}}
+                            {{-- .ck-mapping-select is used by the import JS to inject new custom-field options --}}
                             <select name="mapping[{{ $header }}]" class="ck-field__input ck-mapping-select">
 
                                 <option value="skip"
@@ -116,13 +116,13 @@
 
         <div class="ck-form-actions ck-mt-4">
             <x-ck-button variant="primary" type="submit">
-                Zuordnung bestätigen und Vorschau laden →
+                {{ __('Confirm mapping and load preview →') }}
             </x-ck-button>
         </div>
     </form>
 </x-ck-card>
 
-{{-- ══ Custom Field anlegen (nur wenn CF-Modul installiert) ══════════════════ --}}
+{{-- ══ Create custom field (only when CustomFields module is active) ══════════════════ --}}
 @if($customFieldsEnabled)
 <x-ck-modal id="cfDefModal" title="Benutzerdefiniertes Feld anlegen" size="md">
     <div class="ck-modal__section ck-modal__section--active">
@@ -159,9 +159,9 @@
             </div>
 
             <div class="ck-form-actions">
-                <x-ck-button type="submit" variant="primary" id="cfDefSubmitBtn">Anlegen</x-ck-button>
+                <x-ck-button type="submit" variant="primary" id="cfDefSubmitBtn">{{ __('Create') }}</x-ck-button>
                 <x-ck-button type="button" variant="secondary"
-                    onclick="ckModalClose(null, 'cfDefModal')">Abbrechen</x-ck-button>
+                    onclick="ckModalClose(null, 'cfDefModal')">{{ __('Cancel') }}</x-ck-button>
             </div>
         </form>
     </div>
@@ -211,7 +211,7 @@
                 return resp.json();
             })
             .then(function (data) {
-                // Neue Option in alle .ck-mapping-select Dropdowns einfügen
+                // Inject the new option into every .ck-mapping-select dropdown
                 const optVal  = 'cf:' + data.slug;
                 const optText = data.label + ' (' + data.field_type + ')';
 

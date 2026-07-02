@@ -1,13 +1,13 @@
 /**
  * ClubKit Members – Modal Logic
  *
- * Erwartet window.CK_Members (Data Bridge aus der Blade-View).
- * Regel: Nur classList-Operationen – kein el.style.*
+ * Expects window.CK_Members (data bridge from the Blade view).
+ * Rule: ONLY classList operations – no el.style.*
  *
- * Dieses Modul weiß nichts von YouthClubMode oder anderen Erweiterungen.
- * Es kommuniziert über ckEmit() mit anderen Modulen.
+ * This module has no knowledge of YouthClubMode or other extensions.
+ * It communicates with other modules via ckEmit().
  *
- * Emittierte Ereignisse:
+ * Emitted events:
  *   ck:member.modal.open  → { mode: 'create'|'edit', memberId: id|null, member: {...}|null }
  */
 (function () {
@@ -23,7 +23,8 @@
     const titleEl     = document.getElementById('memberModal-title');
 
     /**
-     * Modal öffnen und befüllen.
+     * Opens and populates the member modal.
+     *
      * @param {string}      mode      'create' | 'edit'
      * @param {number|null} memberId
      */
@@ -33,20 +34,21 @@
         if (mode === 'create') {
             if (titleEl) titleEl.textContent = 'Mitglied hinzufügen';
 
-            _setField('mFieldFirstName', '');
-            _setField('mFieldLastName',  '');
-            _setField('mFieldGender',    '');
-            _setField('mFieldDob',       '');
-            _setField('mFieldStatus',    'active');
-            _setField('mFieldEligible',  '');  // Datumsfeld – leer = nicht spielberechtigt
+            _setField('mFieldFirstName',  '');
+            _setField('mFieldLastName',   '');
+            _setField('mFieldPassNumber', '');
+            _setField('mFieldGender',     '');
+            _setField('mFieldDob',        '');
+            _setField('mFieldStatus',     'active');
+            _setField('mFieldEligible',   '');  // date field – empty = not eligible
 
             methodInput.value = 'POST';
             form.action       = routes.store || '';
 
-            // Foto-Tab deaktivieren – Mitglied muss erst existieren
+            // Disable photo tab – member must be saved first
             ckTabEnable('memberPhotoTabBtn', 'memberPhotoCreateHint', false);
 
-            // Ersten Tab aktivieren
+            // Activate first tab
             const firstTab = document.querySelector('#memberModal .ck-modal-tab');
             if (firstTab) ckModalTab('memberModal', 'memberTab-stamm', firstTab);
 
@@ -60,13 +62,14 @@
 
             if (titleEl) titleEl.textContent = m.last_name + ', ' + m.first_name + ' bearbeiten';
 
-            _setField('mFieldFirstName', m.first_name);
-            _setField('mFieldLastName',  m.last_name);
-            _setField('mFieldGender',    m.gender        || '');
-            _setField('mFieldDob',       m.date_of_birth || '');
-            _setField('mFieldStatus',    m.status        || 'active');
-            // eligible_to_play_date = YYYY-MM-DD oder '' (Datumsfeld, kein Checkbox)
-            _setField('mFieldEligible',  m.eligible_to_play_date || '');
+            _setField('mFieldFirstName',  m.first_name);
+            _setField('mFieldLastName',   m.last_name);
+            _setField('mFieldPassNumber', m.pass_number    || '');
+            _setField('mFieldGender',     m.gender         || '');
+            _setField('mFieldDob',        m.date_of_birth  || '');
+            _setField('mFieldStatus',     m.status         || 'active');
+            // eligible_to_play_date = YYYY-MM-DD or '' (date field, no checkbox)
+            _setField('mFieldEligible',   m.eligible_to_play_date || '');
 
             methodInput.value = 'PATCH';
             form.action       = (routes.update || '') + '/' + memberId;
@@ -87,7 +90,7 @@
         }
     };
 
-    // ── Foto-Vorschau ────────────────────────────────────────────────────────
+    // ── Photo preview ─────────────────────────────────────────────────────────
 
     function _resetPhotoPreview(existingUrl) {
         const preview     = document.getElementById('photoPreview');
@@ -107,7 +110,7 @@
         }
     }
 
-    // Live-Vorschau beim Datei-Upload
+    // Live preview on file selection
     const fileInput = document.getElementById('mFieldPhoto');
     if (fileInput) {
         fileInput.addEventListener('change', function () {
@@ -125,7 +128,7 @@
         });
     }
 
-    // ── Private Helpers ──────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
 
     function _setField(id, value) {
         const el = document.getElementById(id);

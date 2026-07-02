@@ -14,7 +14,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
 /**
- * Represents a club management task (e.g. Getränkeverkauf, Ordnerdienst).
+ * Represents a club management task (e.g. drink sales, ticket checking).
  *
  * A task is a reusable template. It can be assigned to multiple events via
  * the event_task pivot, where per-event metadata (notes, completed, deadline_at)
