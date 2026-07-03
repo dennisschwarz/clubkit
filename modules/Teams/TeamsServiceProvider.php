@@ -319,13 +319,13 @@ class TeamsServiceProvider extends ServiceProvider
         // ── Events: Event detail page teams panel ──────────────────────────────
         View::composer('teams::event-show-teams-panel', function (ViewContract $view): void {
             if (! Schema::hasTable('teams') || ! Schema::hasTable('event_team')) {
-                $view->with('ckShowTeams', collect());
+                $view->with(['ckShowTeams' => collect(), 'ckAvailableTeams' => collect()]);
                 return;
             }
 
             $event = $view->getData()['event'] ?? null;
             if (! $event) {
-                $view->with('ckShowTeams', collect());
+                $view->with(['ckShowTeams' => collect(), 'ckAvailableTeams' => collect()]);
                 return;
             }
 
@@ -334,9 +334,20 @@ class TeamsServiceProvider extends ServiceProvider
                 ->pluck('team_id')
                 ->toArray();
 
-            $view->with('ckShowTeams', ! empty($ckShowTeamIds)
+            // Teams currently assigned to this event
+            $ckShowTeams = ! empty($ckShowTeamIds)
                 ? Team::whereIn('id', $ckShowTeamIds)->orderBy('name')->get()
-                : collect());
+                : collect();
+
+            // Teams not yet assigned to this event (for the add-select dropdown)
+            $ckAvailableTeams = empty($ckShowTeamIds)
+                ? Team::orderBy('name')->get()
+                : Team::whereNotIn('id', $ckShowTeamIds)->orderBy('name')->get();
+
+            $view->with([
+                'ckShowTeams'      => $ckShowTeams,
+                'ckAvailableTeams' => $ckAvailableTeams,
+            ]);
         });
 
         // ── Events: Event index row team badges ────────────────────────────────

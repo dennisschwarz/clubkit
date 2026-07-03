@@ -173,9 +173,10 @@ class ManagementServiceProvider extends ServiceProvider
      * View Composer: management::event-show-page-scripts
      *
      * Provides:
-     *   $mgmtAvailableTasksJs  → array<int, array{id, name, category, priority}>
-     *   $mgmtCategoriesJs      → array<int, array{id, name}> for newTaskModal category dropdown
-     *   $mgmtEinsatzTasksJs    → array<int, array{id, name}> of event-day tasks for slotModal task dropdown
+     *   $mgmtAvailableTasksJs       → array<int, array{id, name, category, priority}>
+     *   $mgmtCategoriesJs           → array<int, array{id, name}> for newTaskModal category dropdown
+     *   $mgmtEinsatzTasksJs         → array<int, array{id, name}> of event-day tasks for slotModal task dropdown
+     *   $mgmtAvailableFunctionsJs   → array<int, array{id, name}> für das "Funktion hinzufügen"-Modal
      *
      * @return void
      */
@@ -183,9 +184,10 @@ class ManagementServiceProvider extends ServiceProvider
     {
         View::composer('management::event-show-page-scripts', function ($view) {
             $empty = [
-                'mgmtAvailableTasksJs' => [],
-                'mgmtCategoriesJs'     => [],
-                'mgmtEinsatzTasksJs'   => [],
+                'mgmtAvailableTasksJs'      => [],
+                'mgmtCategoriesJs'          => [],
+                'mgmtEinsatzTasksJs'        => [],
+                'mgmtAvailableFunctionsJs'  => [],
             ];
 
             if (! Schema::hasTable('management_tasks')) {
@@ -248,10 +250,26 @@ class ManagementServiceProvider extends ServiceProvider
                 }
             }
 
+            // Available functions not yet assigned to this event (for the add-function modal)
+            $mgmtAvailableFunctionsJs = [];
+            if (Schema::hasTable('management_functions') && Schema::hasTable('event_management_function')) {
+                $assignedFnIds = DB::table('event_management_function')
+                    ->where('event_id', $event->id)
+                    ->pluck('management_function_id')
+                    ->toArray();
+
+                foreach (ManagementFunction::orderBy('name')->get() as $fn) {
+                    if (! in_array($fn->id, $assignedFnIds, true)) {
+                        $mgmtAvailableFunctionsJs[$fn->id] = ['id' => $fn->id, 'name' => $fn->name];
+                    }
+                }
+            }
+
             $view->with([
-                'mgmtAvailableTasksJs' => $mgmtAvailableTasksJs,
-                'mgmtCategoriesJs'     => $mgmtCategoriesJs,
-                'mgmtEinsatzTasksJs'   => $mgmtEinsatzTasksJs,
+                'mgmtAvailableTasksJs'     => $mgmtAvailableTasksJs,
+                'mgmtCategoriesJs'         => $mgmtCategoriesJs,
+                'mgmtEinsatzTasksJs'       => $mgmtEinsatzTasksJs,
+                'mgmtAvailableFunctionsJs' => $mgmtAvailableFunctionsJs,
             ]);
         });
     }
@@ -279,6 +297,8 @@ class ManagementServiceProvider extends ServiceProvider
                 'mgmtKpiDoneTasks'       => 0,
                 'mgmtKpiPeopleCount'     => 0,
                 'mgmtKpiSlotsCount'      => 0,
+                'mgmtOvFunctions'        => [],
+                'mgmtOvTeams'            => collect(),
             ];
 
             if (! Schema::hasTable('management_tasks') || ! Schema::hasTable('event_task')) {
@@ -300,10 +320,8 @@ class ManagementServiceProvider extends ServiceProvider
 
             $assignedIds = $pivots->keys()->toArray();
 
-            if (empty($assignedIds)) {
-                $view->with($empty);
-                return;
-            }
+            // Do not bail early when the assigned task list is empty —
+            // KPI tiles must remain visible even with 0 assigned tasks.
 
             $assignedTasks = ManagementTask::with('category')
                 ->whereIn('id', $assignedIds)
@@ -355,12 +373,62 @@ class ManagementServiceProvider extends ServiceProvider
                     ->count();
             }
 
+            // Functions assigned to this event: name + staffing status
+            $mgmtOvFunctions = [];
+            if (Schema::hasTable('management_functions') && Schema::hasTable('event_management_function')) {
+                $funcRows = DB::table('event_management_function')
+                    ->where('event_id', $event->id)
+                    ->get();
+
+                $assignedFnIds = $funcRows->pluck('management_function_id')->toArray();
+                $functions = ! empty($assignedFnIds)
+                    ? ManagementFunction::whereIn('id', $assignedFnIds)->orderBy('name')->get()->keyBy('id')
+                    : collect();
+
+                $memberIds = $funcRows->pluck('member_id')->filter()->unique()->toArray();
+                $members   = ! empty($memberIds) && Schema::hasTable('members')
+                    ? DB::table('members')
+                        ->whereIn('id', $memberIds)
+                        ->select('id', 'first_name', 'last_name')
+                        ->get()
+                        ->keyBy('id')
+                    : collect();
+
+                foreach ($funcRows as $row) {
+                    $fn = $functions[$row->management_function_id] ?? null;
+                    if (! $fn) { continue; }
+                    $m = $row->member_id ? ($members[$row->member_id] ?? null) : null;
+                    $mgmtOvFunctions[] = [
+                        'name'        => $fn->name,
+                        'member_name' => $m ? $m->last_name . ', ' . $m->first_name : null,
+                    ];
+                }
+            }
+
+            // Teams assigned to this event (Schema-guarded — Teams module is optional)
+            $mgmtOvTeams = collect();
+            if (Schema::hasTable('event_team') && Schema::hasTable('teams')) {
+                $teamIds = DB::table('event_team')
+                    ->where('event_id', $event->id)
+                    ->pluck('team_id')
+                    ->toArray();
+                if (! empty($teamIds)) {
+                    $mgmtOvTeams = DB::table('teams')
+                        ->whereIn('id', $teamIds)
+                        ->orderBy('name')
+                        ->select('id', 'name', 'color')
+                        ->get();
+                }
+            }
+
             $view->with([
                 'mgmtOverviewByCategory' => $byCategory,
                 'mgmtKpiTotalTasks'      => $totalTasks,
                 'mgmtKpiDoneTasks'       => $doneTasks,
                 'mgmtKpiPeopleCount'     => $peopleCount,
                 'mgmtKpiSlotsCount'      => $slotsCount,
+                'mgmtOvFunctions'        => $mgmtOvFunctions,
+                'mgmtOvTeams'            => $mgmtOvTeams,
             ]);
         });
     }
@@ -382,7 +450,7 @@ class ManagementServiceProvider extends ServiceProvider
     private function composeEventTasksPanel(): void
     {
         View::composer('management::event-tasks-panel', function ($view) {
-            $priorityColors = ['normal' => 'gray', 'important' => 'orange', 'critical' => 'red'];
+            $priorityColors = ['normal' => 'gray', 'important' => 'amber', 'critical' => 'red'];
             $priorityLabels = ['normal' => 'Normal', 'important' => 'Wichtig', 'critical' => 'Kritisch'];
 
             $empty = [
@@ -531,7 +599,7 @@ class ManagementServiceProvider extends ServiceProvider
     private function composeEventEinsatzplanPanel(): void
     {
         View::composer('management::event-slots-panel', function ($view) {
-            $priorityColors = ['normal' => 'gray', 'important' => 'orange', 'critical' => 'red'];
+            $priorityColors = ['normal' => 'gray', 'important' => 'amber', 'critical' => 'red'];
             $priorityLabels = ['normal' => 'Normal', 'important' => 'Wichtig', 'critical' => 'Kritisch'];
 
             $empty = [
@@ -660,39 +728,39 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            // All management functions
-            $functions = ManagementFunction::orderBy('name')->get();
-
-            // Event-specific overrides (member_id may be null = use global default)
-            $eventOverrides = [];
+            // Load only the functions explicitly assigned to this event.
+            // Each assignment = one row in event_management_function.
+            $eventRows = [];
             if (Schema::hasTable('event_management_function')) {
                 foreach (DB::table('event_management_function')
                     ->where('event_id', $event->id)
                     ->get() as $row) {
-                    $eventOverrides[$row->management_function_id] = $row->member_id;
+                    $eventRows[$row->management_function_id] = $row->member_id;
                 }
             }
 
-            // Global defaults (management_function_member: one default member per function)
-            $globalDefaults = [];
-            if (Schema::hasTable('management_function_member')) {
-                foreach (DB::table('management_function_member')
-                    ->get() as $row) {
-                    $globalDefaults[$row->management_function_id] = $row->member_id;
+            // All global functions for the "add function" modal (not yet assigned to this event)
+            $allFunctions = ManagementFunction::orderBy('name')->get();
+            $availableJs  = [];
+            foreach ($allFunctions as $fn) {
+                if (! array_key_exists($fn->id, $eventRows)) {
+                    $availableJs[$fn->id] = ['id' => $fn->id, 'name' => $fn->name];
                 }
             }
 
-            // Resolve effective member IDs and load member records in one query
-            $allMemberIds = [];
-            foreach ($functions as $fn) {
-                $memberId = array_key_exists($fn->id, $eventOverrides)
-                    ? $eventOverrides[$fn->id]
-                    : ($globalDefaults[$fn->id] ?? null);
-                if ($memberId) {
-                    $allMemberIds[] = $memberId;
-                }
+            if (empty($eventRows)) {
+                $view->with(['mgmtFuncItems' => [], 'mgmtAvailableFunctionsJs' => $availableJs]);
+                return;
             }
 
+            // Load the assigned functions in a single query
+            $assignedFunctionIds = array_keys($eventRows);
+            $assignedFunctions   = ManagementFunction::whereIn('id', $assignedFunctionIds)
+                ->orderBy('name')
+                ->get();
+
+            // Load members for the person-assignment lookup in a single query
+            $allMemberIds = array_filter(array_values($eventRows));
             $memberRecords = [];
             if (! empty($allMemberIds) && Schema::hasTable('members')) {
                 foreach (DB::table('members')
@@ -704,19 +772,19 @@ class ManagementServiceProvider extends ServiceProvider
             }
 
             $items = [];
-            foreach ($functions as $fn) {
-                $memberId = array_key_exists($fn->id, $eventOverrides)
-                    ? $eventOverrides[$fn->id]
-                    : ($globalDefaults[$fn->id] ?? null);
-
+            foreach ($assignedFunctions as $fn) {
+                $memberId = $eventRows[$fn->id] ?? null;
                 $items[] = [
                     'function'  => $fn,
                     'member'    => $memberId ? ($memberRecords[$memberId] ?? null) : null,
-                    'member_id' => $memberId, // raw int for JS pre-select in event-functions-panel
+                    'member_id' => $memberId, // raw ID for JS pre-select
                 ];
             }
 
-            $view->with(['mgmtFuncItems' => $items]);
+            $view->with([
+                'mgmtFuncItems'            => $items,
+                'mgmtAvailableFunctionsJs' => $availableJs,
+            ]);
         });
     }
 }

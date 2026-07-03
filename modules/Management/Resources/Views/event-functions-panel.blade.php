@@ -4,9 +4,10 @@
     Registered by: ManagementServiceProvider
 
     Data injected by ManagementServiceProvider::composeEventFunctionsPanel():
-      $mgmtFuncItems → array<array{function: ManagementFunction, member: ?object, member_id: ?int}>
-                       member_id = effective person ID (event override > global default > null)
-                       Used by events-detail.js to pre-select the current member in the assign select.
+      $mgmtFuncItems             → array<array{function: ManagementFunction, member: ?object, member_id: ?int}>
+                                   Only functions explicitly assigned to this event.
+      $mgmtAvailableFunctionsJs  → array<id, array{id, name}>  (functions not yet assigned)
+                                   Used by events-detail.js for the "Funktion hinzufügen" modal select.
 --}}
 
 {{-- ── Action bar ───────────────────────────────────────────────────────────── --}}
@@ -16,7 +17,7 @@
     </x-ck-button>
 </div>
 
-{{-- ── Function cards per concept: name + assigned member or ⚠ not staffed ── --}}
+{{-- ── Function cards: name + assigned person (or hint) + remove button ──────── --}}
 @if(empty($mgmtFuncItems))
 <x-ck-card>
     <p class="ck-text-muted">{{ __('events.function.empty') }}</p>
@@ -27,12 +28,24 @@
     <div class="ck-func-grid">
         @foreach($mgmtFuncItems as $mgmtFuncItem)
         <div class="ck-func-card">
-            <div class="ck-func-card__name">{{ $mgmtFuncItem['function']->name }}</div>
+            <div class="ck-func-card__header">
+                <span class="ck-func-card__name">{{ $mgmtFuncItem['function']->name }}</span>
+                {{-- Remove this function from the event --}}
+                <button type="button"
+                        class="ck-func-remove-btn ck-btn ck-btn--icon ck-btn--danger"
+                        data-function-id="{{ $mgmtFuncItem['function']->id }}"
+                        data-ck-confirm="{{ __('events.function.remove_confirm', ['name' => $mgmtFuncItem['function']->name]) }}"
+                        aria-label="{{ __('Remove') }}">
+                    <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
             <div class="ck-func-card__member">
                 @if($mgmtFuncItem['member'])
                     {{ $mgmtFuncItem['member']->last_name }}, {{ $mgmtFuncItem['member']->first_name }}
                 @else
-                    <x-ck-badge color="orange">{{ __('events.function.not_staffed') }}</x-ck-badge>
+                    <span class="ck-text-muted">{{ __('events.function.not_staffed') }}</span>
                 @endif
             </div>
             {{--

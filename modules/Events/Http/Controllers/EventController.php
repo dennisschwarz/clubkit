@@ -217,4 +217,150 @@ class EventController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Assign an existing management function to an event (member_id defaults to null).
+     * Returns 409 if the function is already assigned.
+     *
+     * POST body: { function_id: int }
+     *
+     * @param  Request $request
+     * @param  Event   $event
+     * @return JsonResponse
+     */
+    public function addFunction(Request $request, Event $event): JsonResponse
+    {
+        if (! Schema::hasTable('event_management_function')) {
+            return response()->json(['success' => false, 'message' => 'Tabelle nicht verfügbar.'], 500);
+        }
+
+        $validated  = $request->validate(['function_id' => 'required|integer']);
+        $functionId = $validated['function_id'];
+
+        if (DB::table('event_management_function')
+            ->where('event_id', $event->id)
+            ->where('management_function_id', $functionId)
+            ->exists()) {
+            return response()->json(['success' => false, 'message' => 'Funktion bereits zugewiesen.'], 409);
+        }
+
+        DB::table('event_management_function')->insert([
+            'event_id'               => $event->id,
+            'management_function_id' => $functionId,
+            'member_id'              => null,
+            'created_at'             => now(),
+            'updated_at'             => now(),
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Assign or remove a member for a function on this event (upsert).
+     *
+     * PATCH body: { member_id: int|null }
+     *
+     * @param  Request $request
+     * @param  Event   $event
+     * @param  int     $functionId
+     * @return JsonResponse
+     */
+    public function assignFunction(Request $request, Event $event, int $functionId): JsonResponse
+    {
+        if (! Schema::hasTable('event_management_function')) {
+            return response()->json(['success' => false, 'message' => 'Tabelle nicht verfügbar.'], 500);
+        }
+
+        $validated = $request->validate(['member_id' => 'nullable|integer']);
+
+        DB::table('event_management_function')->updateOrInsert(
+            [
+                'event_id'               => $event->id,
+                'management_function_id' => $functionId,
+            ],
+            [
+                'member_id'  => $validated['member_id'] ?? null,
+                'updated_at' => now(),
+            ]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Remove a management function from this event.
+     *
+     * @param  Event $event
+     * @param  int   $functionId
+     * @return JsonResponse
+     */
+    public function removeFunction(Event $event, int $functionId): JsonResponse
+    {
+        if (! Schema::hasTable('event_management_function')) {
+            return response()->json(['success' => false, 'message' => 'Tabelle nicht verfügbar.'], 500);
+        }
+
+        DB::table('event_management_function')
+            ->where('event_id', $event->id)
+            ->where('management_function_id', $functionId)
+            ->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Assign a team to this event.
+     *
+     * POST body: { team_id: int }
+     *
+     * @param  Request $request
+     * @param  Event   $event
+     * @return JsonResponse
+     */
+    public function addTeam(Request $request, Event $event): JsonResponse
+    {
+        if (! Schema::hasTable('event_team')) {
+            return response()->json(['success' => false, 'message' => 'Tabelle nicht verfügbar.'], 500);
+        }
+
+        $validated = $request->validate(['team_id' => 'required|integer']);
+        $teamId    = $validated['team_id'];
+
+        if (DB::table('event_team')
+            ->where('event_id', $event->id)
+            ->where('team_id', $teamId)
+            ->exists()) {
+            return response()->json(['success' => false, 'message' => 'Team bereits zugewiesen.'], 409);
+        }
+
+        DB::table('event_team')->insert([
+            'event_id'   => $event->id,
+            'team_id'    => $teamId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Remove a team from this event.
+     *
+     * @param  Event $event
+     * @param  int   $teamId
+     * @return JsonResponse
+     */
+    public function removeTeam(Event $event, int $teamId): JsonResponse
+    {
+        if (! Schema::hasTable('event_team')) {
+            return response()->json(['success' => false, 'message' => 'Tabelle nicht verfügbar.'], 500);
+        }
+
+        DB::table('event_team')
+            ->where('event_id', $event->id)
+            ->where('team_id', $teamId)
+            ->delete();
+
+        return response()->json(['success' => true]);
+    }
 }

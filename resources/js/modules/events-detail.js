@@ -24,15 +24,15 @@
  * @param {HTMLElement} btn    The clicked tab button
  */
 window.ckEvtTab = function (tabId, btn) {
-    // Deactivate all panes
-    document.querySelectorAll('.ck-event-tab-pane').forEach(function (pane) {
-        pane.classList.remove('ck-event-tab-pane--active');
+    // Deactivate all panes (now use .ck-local-section, same as Management/Treasury)
+    document.querySelectorAll('.ck-local-section').forEach(function (pane) {
+        pane.classList.remove('ck-local-section--active');
     });
-    // Deactivate all tab buttons
-    document.querySelectorAll('.ck-event-tab').forEach(function (b) {
-        b.classList.remove('ck-event-tab--active');
+    // Deactivate all tab buttons (now use .ck-local-tab)
+    document.querySelectorAll('.ck-local-tab').forEach(function (b) {
+        b.classList.remove('ck-local-tab--active');
     });
-    // Deactivate all header action buttons
+    // Deactivate all header action buttons (kept for optional future use)
     document.querySelectorAll('.ck-event-tab-action').forEach(function (a) {
         a.classList.remove('ck-event-tab-action--active');
     });
@@ -40,8 +40,8 @@ window.ckEvtTab = function (tabId, btn) {
     // Activate target pane, tab button and (optionally) header action button
     var pane   = document.getElementById('ckEvtPane-' + tabId);
     var action = document.getElementById('ckEvtAction-' + tabId);
-    if (pane)   { pane.classList.add('ck-event-tab-pane--active'); }
-    if (btn)    { btn.classList.add('ck-event-tab--active'); }
+    if (pane)   { pane.classList.add('ck-local-section--active'); }
+    if (btn)    { btn.classList.add('ck-local-tab--active'); }
     if (action) { action.classList.add('ck-event-tab-action--active'); }
 };
 
@@ -83,11 +83,11 @@ window.ckEvtTab = function (tabId, btn) {
         const badge = document.querySelector('[data-section-badge="' + sectionSlug + '"]');
         if (badge) {
             badge.textContent = done + '/' + total;
-            badge.classList.remove('ck-badge--green', 'ck-badge--orange', 'ck-badge--gray');
+            badge.classList.remove('ck-badge--green', 'ck-badge--amber', 'ck-badge--gray');
             if (done === total) {
                 badge.classList.add('ck-badge--green');
             } else if (done > 0) {
-                badge.classList.add('ck-badge--orange');
+                badge.classList.add('ck-badge--amber');
             } else {
                 badge.classList.add('ck-badge--gray');
             }
@@ -607,22 +607,38 @@ window.ckEvtTab = function (tabId, btn) {
         });
     }
 
-    // ── New Function Modal submit (Tab 4: Funktionen → "Neue Funktion") ───────
+    // ── Populate function select from available functions (Funktionen-Tab modal) ──
+
+    (function populateFuncSelect() {
+        var funcSel = document.getElementById('newFuncSelect');
+        if (! funcSel) { return; }
+        var available = cfg.availableFunctions;
+        if (! available) { return; }
+        Object.values(available).forEach(function (fn) {
+            var opt         = document.createElement('option');
+            opt.value       = fn.id;
+            opt.textContent = fn.name;
+            funcSel.appendChild(opt);
+        });
+    }());
+
+    // ── Add function to event (Funktionen-Tab: "Funktion hinzufügen" button) ────
 
     var newFuncBtn = document.getElementById('newFuncSubmitBtn');
 
     if (newFuncBtn) {
         newFuncBtn.addEventListener('click', function () {
-            var nameInput = document.getElementById('newFuncName');
-            var name      = nameInput ? nameInput.value.trim() : '';
-            if (! name) {
-                if (nameInput) { nameInput.classList.add('ck-input--error'); }
+            var funcSel    = document.getElementById('newFuncSelect');
+            var functionId = funcSel ? funcSel.value : '';
+            if (! functionId) {
+                if (funcSel) { funcSel.classList.add('ck-input--error'); }
                 return;
             }
-            if (nameInput) { nameInput.classList.remove('ck-input--error'); }
+            if (funcSel) { funcSel.classList.remove('ck-input--error'); }
             newFuncBtn.disabled = true;
 
-            fetch(cfg.routes.functionsBase, {
+            // POST /events/{event}/functions — assigns a global function to this event
+            fetch(cfg.routes.funcAddBase, {
                 method:  'POST',
                 headers: {
                     'Content-Type':     'application/json',
@@ -630,14 +646,14 @@ window.ckEvtTab = function (tabId, btn) {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept':           'application/json',
                 },
-                body: JSON.stringify({ name: name }),
+                body: JSON.stringify({ function_id: parseInt(functionId, 10) }),
             })
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.success) {
                     window.location.reload();
                 } else {
-                    ckNotify('error', data.message || 'Fehler beim Anlegen der Funktion.');
+                    ckNotify('error', data.message || 'Fehler beim Hinzufügen der Funktion.');
                     newFuncBtn.disabled = false;
                 }
             })
@@ -647,6 +663,49 @@ window.ckEvtTab = function (tabId, btn) {
             });
         });
     }
+
+    // ── Remove function from event (Funktionen-Tab: × button) ──────────────────
+
+    document.addEventListener('click', function (e) {
+        var btn = closest(e.target, '.ck-func-remove-btn');
+        if (! btn) { return; }
+
+        var functionId = btn.dataset.functionId;
+        if (! functionId) { return; }
+
+        var confirmMsg = btn.dataset.ckConfirm;
+
+        function doRemoveFunc() {
+            btn.disabled = true;
+            fetch(cfg.routes.funcAssignBase + '/' + functionId, {
+                method:  'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                },
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    ckNotify('error', data.message || 'Fehler beim Entfernen der Funktion.');
+                    btn.disabled = false;
+                }
+            })
+            .catch(function () {
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+                btn.disabled = false;
+            });
+        }
+
+        if (confirmMsg) {
+            window.ckConfirm(confirmMsg, doRemoveFunc);
+        } else {
+            doRemoveFunc();
+        }
+    });
 
     // ── Assign member to function (Funktionen-Tab) ───────────────────────────
 
@@ -708,6 +767,90 @@ window.ckEvtTab = function (tabId, btn) {
             else              { btn.disabled = false; }
         })
         .catch(function () { btn.disabled = false; });
+    });
+
+    // ── Add team to event (Teams-Tab: "Team hinzufügen" button) ─────────────
+
+    var teamAddBtn = document.getElementById('teamAddBtn');
+
+    if (teamAddBtn && cfg.routes.teamsBase) {
+        teamAddBtn.addEventListener('click', function () {
+            var teamSel = document.getElementById('teamAddSelect');
+            var teamId  = teamSel ? teamSel.value : '';
+            if (! teamId) {
+                if (teamSel) { teamSel.classList.add('ck-input--error'); }
+                return;
+            }
+            if (teamSel) { teamSel.classList.remove('ck-input--error'); }
+            teamAddBtn.disabled = true;
+
+            fetch(cfg.routes.teamsBase, {
+                method:  'POST',
+                headers: {
+                    'Content-Type':     'application/json',
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                },
+                body: JSON.stringify({ team_id: parseInt(teamId, 10) }),
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    ckNotify('error', data.message || 'Fehler beim Hinzufügen des Teams.');
+                    teamAddBtn.disabled = false;
+                }
+            })
+            .catch(function () {
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+                teamAddBtn.disabled = false;
+            });
+        });
+    }
+
+    // ── Remove team from event (Teams-Tab: × button) ─────────────────────────
+
+    document.addEventListener('click', function (e) {
+        var btn = closest(e.target, '.ck-team-remove-btn');
+        if (! btn) { return; }
+
+        var teamId = btn.dataset.teamId;
+        if (! teamId) { return; }
+
+        var confirmMsg = btn.dataset.ckConfirm;
+
+        function doRemoveTeam() {
+            btn.disabled = true;
+            fetch(cfg.routes.teamsBase + '/' + teamId, {
+                method:  'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                },
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    ckNotify('error', data.message || 'Fehler beim Entfernen des Teams.');
+                    btn.disabled = false;
+                }
+            })
+            .catch(function () {
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+                btn.disabled = false;
+            });
+        }
+
+        if (confirmMsg) {
+            window.ckConfirm(confirmMsg, doRemoveTeam);
+        } else {
+            doRemoveTeam();
+        }
     });
 
 }());

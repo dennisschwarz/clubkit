@@ -43,7 +43,7 @@
 .ck-event-meta {
     display:        flex;
     flex-direction: column;
-    gap:            var(--ck-space-2);
+    gap:            0;
     margin:         0;
 }
 
@@ -53,6 +53,11 @@
     gap: var(--ck-space-3);
     padding: var(--ck-space-2) 0;
     border-bottom: 1px solid var(--ck-border);
+}
+
+/* Reduce body padding on the Termindetails card (it only holds compact meta rows) */
+.ck-event-info .ck-card__body {
+    padding: var(--ck-space-3) var(--ck-space-5);
 }
 
 .ck-event-meta__row:last-child {
@@ -204,11 +209,12 @@ details[open] .ck-event-section__summary::before {
     max-width:  220px;
 }
 
-/* Add-task row */
+/* Add-task row — flex:1 ensures it stretches within .ck-pane-actions (justify-content: flex-end) */
 .ck-add-task {
     display:     flex;
     align-items: center;
     gap:         var(--ck-space-3);
+    flex:        1;
 }
 
 .ck-add-task .ck-form-select {
@@ -345,8 +351,29 @@ details[open] .ck-event-section__summary::before {
 /* ── Pane action bar (top of each tab pane) ──────────────────────────────── */
 .ck-pane-actions {
     display:         flex;
+    justify-content: flex-end;
     gap:             var(--ck-space-2);
     margin-bottom:   var(--ck-space-5);
+}
+
+/* ── Overview summary list (Übersicht-Tab) ────────────────────────────────── */
+.ck-overview-summary {
+    list-style: none;
+    margin:     0;
+    padding:    0;
+}
+
+.ck-overview-summary__item {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    padding:         var(--ck-space-2) 0;
+    border-bottom:   1px solid var(--ck-border-light);
+    font-size:       var(--ck-font-base);
+}
+
+.ck-overview-summary__item:last-child {
+    border-bottom: none;
 }
 
 /* ── KPI tiles (Übersicht-Tab) ────────────────────────────────────────────── */
@@ -427,10 +454,18 @@ details[open] .ck-event-section__summary::before {
     box-shadow:    0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+.ck-func-card__header {
+    display:         flex;
+    align-items:     flex-start;
+    justify-content: space-between;
+    gap:             var(--ck-space-2);
+    margin-bottom:   var(--ck-space-2);
+}
+
 .ck-func-card__name {
-    font-weight:   600;
-    font-size:     var(--ck-font-base);
-    margin-bottom: var(--ck-space-2);
+    font-weight: 600;
+    font-size:   var(--ck-font-base);
+    flex:        1;
 }
 
 .ck-func-card__member {

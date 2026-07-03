@@ -12,7 +12,7 @@
         <x-ck-button variant="secondary" type="button" onclick="window.print()">
             🖨 {{ __('Print') }}
         </x-ck-button>
-        <x-ck-button variant="danger" size="sm"
+        <x-ck-button variant="danger"
             :confirm="'Termin \'' . $event->title . '\' wirklich löschen?'"
             :form="'deleteEventForm'">
             {{ __('Delete') }}
@@ -39,15 +39,15 @@ Content of tab 5 is provided by TeamsServiceProvider hook.
 Without Management: tabs 2–4 show an empty-state card.
 Without Teams: tab 5 shows an empty-state card.
 --}}
-<div class="ck-event-tab-bar">
-    <button class="ck-event-tab ck-event-tab--active" type="button" onclick="ckEvtTab('overview', this)">{{ __('events.tab.overview') }}</button>
-    <button class="ck-event-tab" type="button" onclick="ckEvtTab('tasks', this)">{{ __('events.tab.tasks') }}</button>
-    <button class="ck-event-tab" type="button" onclick="ckEvtTab('slots', this)">{{ __('events.tab.slots') }}</button>
-    <button class="ck-event-tab" type="button" onclick="ckEvtTab('functions', this)">{{ __('events.tab.functions') }}</button>
-    <button class="ck-event-tab" type="button" onclick="ckEvtTab('teams', this)">{{ __('events.tab.teams') }}</button>
+<div class="ck-local-tabs">
+    <button class="ck-local-tab ck-local-tab--active" type="button" onclick="ckEvtTab('overview', this)">📊 {{ __('events.tab.overview') }}</button>
+    <button class="ck-local-tab ck-local-tab--blue" type="button" onclick="ckEvtTab('tasks', this)">📋 {{ __('events.tab.tasks') }}</button>
+    <button class="ck-local-tab ck-local-tab--amber" type="button" onclick="ckEvtTab('slots', this)">🗓️ {{ __('events.tab.slots') }}</button>
+    <button class="ck-local-tab ck-local-tab--purple" type="button" onclick="ckEvtTab('functions', this)">⚙️ {{ __('events.tab.functions') }}</button>
+    <button class="ck-local-tab ck-local-tab--green" type="button" onclick="ckEvtTab('teams', this)">👥 {{ __('events.tab.teams') }}</button>
 </div>
 {{-- ── Pane: Übersicht ─────────────────────────────────────────────────────── --}}
-<div class="ck-event-tab-pane ck-event-tab-pane--active" id="ckEvtPane-overview">
+<div class="ck-local-section ck-local-section--active" id="ckEvtPane-overview">
 <x-ck-card class="ck-event-info ck-no-print">
     <x-slot:header>{{ __('events.detail.event_details') }}</x-slot:header>
     <dl class="ck-event-meta">
@@ -128,35 +128,35 @@ Extension point: events.show.tasks-panel
 Registered by: ManagementServiceProvider (event-tasks-panel.blade.php)
 Renders: collapsible task sections by category + add-task select.
 --}}
-<div class="ck-event-tab-pane" id="ckEvtPane-tasks"> @ckHook('events.show.tasks-panel') </div>
+<div class="ck-local-section" id="ckEvtPane-tasks"> @ckHook('events.show.tasks-panel') </div>
 {{-- ── Pane: Einsatzplan ────────────────────────────────────────────────────── --}}
 {{--
 Extension point: events.show.einsatzplan-panel
 Registered by: ManagementServiceProvider (event-einsatzplan-panel.blade.php)
 Renders: event-day tasks with time-slot ETMs + add-slot form.
 --}}
-<div class="ck-event-tab-pane" id="ckEvtPane-slots"> @ckHook('events.show.slots-panel') </div>
+<div class="ck-local-section" id="ckEvtPane-slots"> @ckHook('events.show.slots-panel') </div>
 {{-- ── Pane: Funktionen ─────────────────────────────────────────────────────── --}}
 {{--
 Extension point: events.show.functions-panel
 Registered by: ManagementServiceProvider (event-functions-panel.blade.php)
 Renders: management-functions cards with assigned members.
 --}}
-<div class="ck-event-tab-pane" id="ckEvtPane-functions"> @ckHook('events.show.functions-panel') </div>
+<div class="ck-local-section" id="ckEvtPane-functions"> @ckHook('events.show.functions-panel') </div>
 {{-- ── Pane: Teams ──────────────────────────────────────────────────────────── --}}
 {{--
 Extension point: events.show.teams-panel
 Registered by: TeamsServiceProvider (event-show-teams-panel.blade.php)
 Renders: assigned teams tag list.
 --}}
-<div class="ck-event-tab-pane" id="ckEvtPane-teams"> @ckHook('events.show.teams-panel') </div>
+<div class="ck-local-section" id="ckEvtPane-teams"> @ckHook('events.show.teams-panel') </div>
 {{-- ── Edit modal ───────────────────────────────────────────────────────────── --}}
 {{--
-    editEventModal  — PATCH /events/{event}  (standard form submit)
-    newTaskModal    — POST  /events/{event}/tasks (AJAX, wired in events-detail.js)
-    newCatModal     — POST  /management/categories (AJAX, wired in events-detail.js)
-    slotModal       — POST  /events/{event}/slots  (AJAX, wired in events-detail.js)
-    newFuncModal    — POST  /management/functions  (AJAX, wired in events-detail.js)
+    editEventModal  — PATCH  /events/{event}               (standard form submit)
+    newTaskModal    — POST   /events/{event}/tasks          (AJAX, wired in events-detail.js)
+    newCatModal     — POST   /management/task-categories    (AJAX, wired in events-detail.js)
+    slotModal       — POST   /events/{event}/slots          (AJAX, wired in events-detail.js)
+    newFuncModal    — POST   /events/{event}/functions      (AJAX, assigns existing function to event)
 --}}
 <x-ck-modal id="editEventModal" title="Termin bearbeiten" size="md">
 <form method="POST" action="{{ route('events.update', $event) }}">
@@ -305,14 +305,22 @@ Renders: assigned teams tag list.
     </div>
 </x-ck-modal>
 
-{{-- ── New function modal (Tab 4: Funktionen) ──────────────────────────────── --}}
-{{-- Fields per concept: Bezeichnung only — keine Priorität, keine Deadline, keine Kategorie. --}}
+{{-- ── Add function modal (Tab 4: Funktionen) ────────────────────────────────── --}}
+{{--
+    Assigns an existing global management function to this event.
+    New functions are created in Organisation → Funktionen.
+    Options are populated by events-detail.js from CK_EventDetail.availableFunctions.
+    Submit: AJAX POST to CK_EventDetail.routes.funcAddBase (events/{event}/functions).
+--}}
 <x-ck-modal id="newFuncModal" :title="__('events.function.modal_title')" size="sm">
     <x-ck-field
-        :label="__('events.function.field_name')"
-        name="new_func_name"
-        id="newFuncName"
+        type="select"
+        :label="__('events.function.field_select')"
+        name="new_func_id"
+        id="newFuncSelect"
+        :options="[]"
         :required="true" />
+    {{-- Options are populated by events-detail.js from CK_EventDetail.availableFunctions --}}
     <div class="ck-form-actions">
         <x-ck-button variant="primary" type="button" id="newFuncSubmitBtn">
             {{ __('Save') }}
@@ -335,13 +343,14 @@ Renders: assigned teams tag list.
         eventId: {{ $event->id }},
         csrf:    '{{ csrf_token() }}',
         routes:  {
-            tasksBase:     "{{ url('events/' . $event->id . '/tasks') }}",
-            slotsBase:     "{{ url('events/' . $event->id . '/slots') }}",
-            membersBase:   "{{ url('events/' . $event->id . '/members') }}",
-            mgmtTasksBase: "{{ url('management/tasks') }}",
-            categoriesBase:"{{ url('management/task-categories') }}",
-            functionsBase: "{{ url('management/functions') }}",
-            funcAssignBase:"{{ url('events/' . $event->id . '/functions') }}"
+            tasksBase:      "{{ url('events/' . $event->id . '/tasks') }}",
+            slotsBase:      "{{ url('events/' . $event->id . '/slots') }}",
+            membersBase:    "{{ url('events/' . $event->id . '/members') }}",
+            mgmtTasksBase:  "{{ url('management/tasks') }}",
+            categoriesBase: "{{ url('management/task-categories') }}",
+            funcAddBase:    "{{ url('events/' . $event->id . '/functions') }}",
+            funcAssignBase: "{{ url('events/' . $event->id . '/functions') }}",
+            teamsBase:      "{{ url('events/' . $event->id . '/teams') }}"
         },
         tasks:   {},
         members: @json($allMembersJs)

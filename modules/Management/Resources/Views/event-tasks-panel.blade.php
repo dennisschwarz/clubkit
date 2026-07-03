@@ -18,7 +18,7 @@
 {{-- ── Action bar ───────────────────────────────────────────────────────────── --}}
 <div class="ck-pane-actions">
     <div class="ck-header-dropdown">
-        <x-ck-button variant="primary" type="button"
+        <x-ck-button variant="success" type="button"
             class="ck-header-dropdown__toggle"
             onclick="this.closest('.ck-header-dropdown').classList.toggle('ck-header-dropdown--open')">
             {{ __('events.task.add_header_btn') }} ▾
@@ -53,11 +53,11 @@
                 <thead>
                     <tr>
                         <th class="ck-table__col--checkbox"></th>
-                        <th>Aufgabe</th>
-                        <th>Priorität</th>
-                        <th>Deadline</th>
-                        <th>Notiz</th>
-                        <th>Verantwortliche(r)</th>
+                        <th>{{ __('events.task.col_task') }}</th>
+                        <th>{{ __('events.task.col_priority') }}</th>
+                        <th>{{ __('events.task.col_deadline') }}</th>
+                        <th>{{ __('events.task.col_notes') }}</th>
+                        <th>{{ __('events.function.col_responsible') }}</th>
                         <th class="ck-table__col--actions"></th>
                     </tr>
                 </thead>
@@ -139,17 +139,17 @@
 
 @empty
     <x-ck-card>
-        <p class="ck-text-muted">Noch keine Aufgaben zugewiesen. Füge unten eine Aufgabe hinzu.</p>
+        <p class="ck-text-muted">{{ __('events.task.empty') }}</p>
     </x-ck-card>
 @endforelse
 
 {{-- ── Add task ──────────────────────────────────────────────────────────────── --}}
 @if($mgmtGroupedAvailableTasks->isNotEmpty())
 <x-ck-card class="ck-no-print">
-    <x-slot:header>Aufgabe hinzufügen</x-slot:header>
+    <x-slot:header>{{ __('events.task.add_card_header') }}</x-slot:header>
     <div class="ck-add-task">
         <select id="addTaskSelect" class="ck-form-select">
-            <option value="">– Aufgabe wählen –</option>
+            <option value="">{{ __('events.task.select_placeholder') }}</option>
             @foreach($mgmtGroupedAvailableTasks as $mgmtGroupName => $mgmtGroupTasks)
                 <optgroup label="{{ $mgmtGroupName }}">
                     @foreach($mgmtGroupTasks as $mgmtT)
@@ -159,7 +159,7 @@
             @endforeach
         </select>
         <x-ck-button variant="primary" type="button" id="addTaskBtn">
-            Hinzufügen
+            {{ __('Add') }}
         </x-ck-button>
     </div>
 </x-ck-card>
