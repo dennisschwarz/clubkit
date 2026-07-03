@@ -438,6 +438,10 @@ details[open] .ck-event-section__summary::before {
     color:     var(--ck-text-muted);
 }
 
+.ck-func-card__assign {
+    margin-top: var(--ck-space-3);
+}
+
 /* ── Slot badges + member chips (Einsatzplan-Tab) ────────────────────────── */
 .ck-slot-badge {
     display:          inline-block;

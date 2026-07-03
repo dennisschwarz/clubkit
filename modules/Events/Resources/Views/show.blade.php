@@ -100,6 +100,13 @@ Without Teams: tab 5 shows an empty-state card.
     @endif
 </x-ck-card>
 
+{{--
+    Extension point: events.show.overview-panel
+    Registered by: ManagementServiceProvider (event-overview-panel.blade.php)
+    Renders: 4 KPI tiles + Fortschritt nach Kategorie progress bars.
+--}}
+@ckHook('events.show.overview-panel')
+
 {{-- Custom fields (CustomFields module) --}}
 @if(!empty($eventCfDefs))
 <x-ck-card>
@@ -328,9 +335,13 @@ Renders: assigned teams tag list.
         eventId: {{ $event->id }},
         csrf:    '{{ csrf_token() }}',
         routes:  {
-            tasksBase:   "{{ url('events/' . $event->id . '/tasks') }}",
-            slotsBase:   "{{ url('events/' . $event->id . '/slots') }}",
-            membersBase: "{{ url('events/' . $event->id . '/members') }}"
+            tasksBase:     "{{ url('events/' . $event->id . '/tasks') }}",
+            slotsBase:     "{{ url('events/' . $event->id . '/slots') }}",
+            membersBase:   "{{ url('events/' . $event->id . '/members') }}",
+            mgmtTasksBase: "{{ url('management/tasks') }}",
+            categoriesBase:"{{ url('management/task-categories') }}",
+            functionsBase: "{{ url('management/functions') }}",
+            funcAssignBase:"{{ url('events/' . $event->id . '/functions') }}"
         },
         tasks:   {},
         members: @json($allMembersJs)

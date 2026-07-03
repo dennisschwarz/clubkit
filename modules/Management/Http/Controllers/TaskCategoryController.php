@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Management\Http\Controllers;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
 use Modules\Management\Http\Requests\StoreTaskCategoryRequest;
@@ -25,18 +26,23 @@ class TaskCategoryController extends Controller
 {
     /**
      * Creates a new task category.
+     * When called via AJAX (expectsJson), returns JSON with id and name.
      *
      * @param  StoreTaskCategoryRequest $request
-     * @return RedirectResponse
+     * @return JsonResponse|RedirectResponse
      */
-    public function store(StoreTaskCategoryRequest $request): RedirectResponse
+    public function store(StoreTaskCategoryRequest $request): JsonResponse|RedirectResponse
     {
         $name = $request->validated()['name'];
 
-        ManagementTaskCategory::create([
+        $cat = ManagementTaskCategory::create([
             'name'       => $name,
             'created_by' => $request->user()->id,
         ]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'id' => $cat->id, 'name' => $cat->name], 201);
+        }
 
         return redirect()->route('admin.module-settings.index')
             ->with('success', 'Kategorie „' . $name . '" angelegt.');

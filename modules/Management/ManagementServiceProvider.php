@@ -174,23 +174,32 @@ class ManagementServiceProvider extends ServiceProvider
      *
      * Provides:
      *   $mgmtAvailableTasksJs  → array<int, array{id, name, category, priority}>
+     *   $mgmtCategoriesJs      → array<int, array{id, name}> for newTaskModal category dropdown
+     *   $mgmtEinsatzTasksJs    → array<int, array{id, name}> of event-day tasks for slotModal task dropdown
      *
      * @return void
      */
     private function composeEventShowPageScripts(): void
     {
         View::composer('management::event-show-page-scripts', function ($view) {
+            $empty = [
+                'mgmtAvailableTasksJs' => [],
+                'mgmtCategoriesJs'     => [],
+                'mgmtEinsatzTasksJs'   => [],
+            ];
+
             if (! Schema::hasTable('management_tasks')) {
-                $view->with(['mgmtAvailableTasksJs' => []]);
+                $view->with($empty);
                 return;
             }
 
             $event = $view->getData()['event'] ?? null;
             if (! $event) {
-                $view->with(['mgmtAvailableTasksJs' => []]);
+                $view->with($empty);
                 return;
             }
 
+            // Available tasks (not yet assigned to this event) for the quick-add dropdown
             $assignedIds = DB::table('event_task')
                 ->where('event_id', $event->id)
                 ->pluck('task_id')
@@ -211,7 +220,39 @@ class ManagementServiceProvider extends ServiceProvider
                 ];
             }
 
-            $view->with(['mgmtAvailableTasksJs' => $mgmtAvailableTasksJs]);
+            // All categories for the newTaskModal category dropdown
+            $mgmtCategoriesJs = [];
+            if (Schema::hasTable('management_task_categories')) {
+                foreach (DB::table('management_task_categories')->orderBy('name')->get() as $cat) {
+                    $mgmtCategoriesJs[$cat->id] = ['id' => $cat->id, 'name' => $cat->name];
+                }
+            }
+
+            // Event-day tasks (assigned to this event) for the slotModal task dropdown
+            $mgmtEinsatzTasksJs = [];
+            if (Schema::hasTable('event_task')) {
+                $eventDate    = $event->starts_at->toDateString();
+                $einsatzPivots = DB::table('event_task')
+                    ->where('event_id', $event->id)
+                    ->where(function ($q) use ($eventDate) {
+                        $q->whereNull('deadline_at')
+                          ->orWhereDate('deadline_at', '=', $eventDate);
+                    })
+                    ->pluck('task_id')
+                    ->toArray();
+
+                if (! empty($einsatzPivots)) {
+                    foreach (ManagementTask::whereIn('id', $einsatzPivots)->orderBy('name')->get() as $task) {
+                        $mgmtEinsatzTasksJs[$task->id] = ['id' => $task->id, 'name' => $task->name];
+                    }
+                }
+            }
+
+            $view->with([
+                'mgmtAvailableTasksJs' => $mgmtAvailableTasksJs,
+                'mgmtCategoriesJs'     => $mgmtCategoriesJs,
+                'mgmtEinsatzTasksJs'   => $mgmtEinsatzTasksJs,
+            ]);
         });
     }
 
@@ -669,8 +710,9 @@ class ManagementServiceProvider extends ServiceProvider
                     : ($globalDefaults[$fn->id] ?? null);
 
                 $items[] = [
-                    'function' => $fn,
-                    'member'   => $memberId ? ($memberRecords[$memberId] ?? null) : null,
+                    'function'  => $fn,
+                    'member'    => $memberId ? ($memberRecords[$memberId] ?? null) : null,
+                    'member_id' => $memberId, // raw int for JS pre-select in event-functions-panel
                 ];
             }
 

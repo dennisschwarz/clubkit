@@ -100,5 +100,6 @@
   "events.function.col_function": "Funktion",
   "events.function.col_responsible": "Verantwortliche(r)",
   "events.function.not_staffed": "⚠ Nicht besetzt",
+  "events.function.assign_placeholder": "Person zuweisen",
   "events.function.empty": "Noch keine Vereinsfunktionen angelegt. Funktionen können unter Organisation → Funktionen verwaltet werden."
 }

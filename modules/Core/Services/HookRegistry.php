@@ -71,7 +71,7 @@ namespace Modules\Core\Services;
  *   event.page.scripts             → Additional scripts on the events list page
  *   event.table.teams.header       → <th> for the Teams column (injected by Teams module)
  *   event.table.teams.row          → <td> Teams badges per row (injected by Teams module)
- *   event.table.besetzung.row      → Content of the Besetzung cell (injected by Management)
+ *   event.table.staffing.row       → Content of the Besetzung cell (injected by Management)
  *   events.show.tasks-panel        → Full tasks section on the detail page (Management)
  *   events.show.teams-panel        → Teams card on the detail page (Teams)
  *   events.show.page.scripts       → Additional scripts on the detail page
@@ -93,7 +93,7 @@ namespace Modules\Core\Services;
  *   management.task.modal.*       → Teams (priority 10)
  *   management.page.scripts       → Teams (priority 10)
  *   events.show.tasks-panel       → Management (priority 10)
- *   event.table.besetzung.row     → Management (priority 10)
+ *   event.table.staffing.row      → Management (priority 10)
  *   event.table.teams.*           → Teams (priority 10)
  *   events.show.teams-panel       → Teams (priority 10)
  */

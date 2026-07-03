@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Modules\Management\Models\ManagementFunction;
 use Modules\Management\Models\ManagementTask;
+use Modules\Management\Models\ManagementTaskCategory;
 
 beforeEach(function () {
     DB::table('installed_modules')->insertOrIgnore([
@@ -172,4 +173,125 @@ test('user mit management.functions.manage aber ohne tasks.manage kann keine Auf
 
     $this->actingAs($user)->delete('/management/tasks/' . $task->id)->assertStatus(403);
     $this->assertDatabaseHas('management_tasks', ['id' => $task->id]);
+});
+
+// ── AJAX: Aufgaben JSON-Response ───────────────────────────────────────────────
+
+test('AJAX store Aufgabe gibt JSON mit id zurück', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $response = $this->actingAs($user)
+        ->postJson('/management/tasks', [
+            'name'     => 'Tor aufbauen',
+            'priority' => 'normal',
+        ]);
+
+    $response->assertStatus(201)
+        ->assertJsonStructure(['success', 'id', 'name'])
+        ->assertJson(['success' => true, 'name' => 'Tor aufbauen']);
+
+    $this->assertDatabaseHas('management_tasks', ['name' => 'Tor aufbauen']);
+});
+
+test('AJAX store Aufgabe gibt 422 bei fehlendem Namen zurück', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $this->actingAs($user)
+        ->postJson('/management/tasks', [])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('name');
+});
+
+test('AJAX store Aufgabe speichert Kategorie und Priorität', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $cat = ManagementTaskCategory::create([
+        'name'       => 'Aufbau',
+        'created_by' => $user->id,
+    ]);
+
+    $response = $this->actingAs($user)
+        ->postJson('/management/tasks', [
+            'name'        => 'Tribüne aufbauen',
+            'category_id' => $cat->id,
+            'priority'    => 'important',
+        ]);
+
+    $response->assertStatus(201)->assertJson(['success' => true]);
+
+    $this->assertDatabaseHas('management_tasks', [
+        'name'        => 'Tribüne aufbauen',
+        'category_id' => $cat->id,
+        'priority'    => 'important',
+    ]);
+});
+
+// ── AJAX: Funktionen JSON-Response ─────────────────────────────────────────────
+
+test('AJAX store Funktion gibt JSON mit id zurück', function () {
+    $user = createUserWithPermission('management.functions.manage');
+
+    $response = $this->actingAs($user)
+        ->postJson('/management/functions', ['name' => 'Hallenwart']);
+
+    $response->assertStatus(201)
+        ->assertJsonStructure(['success', 'id', 'name'])
+        ->assertJson(['success' => true, 'name' => 'Hallenwart']);
+
+    $this->assertDatabaseHas('management_functions', ['name' => 'Hallenwart']);
+});
+
+test('AJAX store Funktion gibt 422 bei fehlendem Namen zurück', function () {
+    $user = createUserWithPermission('management.functions.manage');
+
+    $this->actingAs($user)
+        ->postJson('/management/functions', [])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('name');
+});
+
+// ── AJAX: Kategorien JSON-Response ────────────────────────────────────────────
+
+test('AJAX store Kategorie gibt JSON mit id und name zurück', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $response = $this->actingAs($user)
+        ->postJson('/management/task-categories', ['name' => 'Catering']);
+
+    $response->assertStatus(201)
+        ->assertJsonStructure(['success', 'id', 'name'])
+        ->assertJson(['success' => true, 'name' => 'Catering']);
+
+    $this->assertDatabaseHas('management_task_categories', ['name' => 'Catering']);
+});
+
+test('AJAX store Kategorie gibt 422 bei fehlendem Namen zurück', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $this->actingAs($user)
+        ->postJson('/management/task-categories', [])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('name');
+});
+
+// ── Form (non-AJAX) bleibt Redirect ────────────────────────────────────────────
+
+test('nicht-AJAX store Aufgabe gibt weiterhin Redirect zurück', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $this->actingAs($user)
+        ->post('/management/tasks', ['name' => 'Platzpflege 2'])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('management_tasks', ['name' => 'Platzpflege 2']);
+});
+
+test('nicht-AJAX store Funktion gibt weiterhin Redirect zurück', function () {
+    $user = createUserWithPermission('management.functions.manage');
+
+    $this->actingAs($user)
+        ->post('/management/functions', ['name' => 'Torwart-Trainer'])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('management_functions', ['name' => 'Torwart-Trainer']);
 });

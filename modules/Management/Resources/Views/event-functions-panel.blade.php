@@ -4,8 +4,9 @@
     Registered by: ManagementServiceProvider
 
     Data injected by ManagementServiceProvider::composeEventFunctionsPanel():
-      $mgmtFuncItems → array<array{function: ManagementFunction, member: ?object}>
-                       member is the effective person (event override > global default > null)
+      $mgmtFuncItems → array<array{function: ManagementFunction, member: ?object, member_id: ?int}>
+                       member_id = effective person ID (event override > global default > null)
+                       Used by events-detail.js to pre-select the current member in the assign select.
 --}}
 
 {{-- ── Action bar ───────────────────────────────────────────────────────────── --}}
@@ -33,6 +34,19 @@
                 @else
                     <x-ck-badge color="orange">{{ __('events.function.not_staffed') }}</x-ck-badge>
                 @endif
+            </div>
+            {{--
+                Inline assign select.
+                Options are populated by events-detail.js from CK_EventDetail.members.
+                The data-current-member-id attribute lets JS pre-select the current person.
+                On change: PATCH /events/{event}/functions/{functionId} via events-detail.js.
+            --}}
+            <div class="ck-func-card__assign">
+                <select class="ck-form-select ck-func-assign-select"
+                        data-function-id="{{ $mgmtFuncItem['function']->id }}"
+                        data-current-member-id="{{ $mgmtFuncItem['member_id'] ?? '' }}">
+                    <option value="">– {{ __('events.function.assign_placeholder') }} –</option>
+                </select>
             </div>
         </div>
         @endforeach

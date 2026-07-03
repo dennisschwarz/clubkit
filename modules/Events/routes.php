@@ -70,4 +70,12 @@ Route::middleware(['auth'])->prefix('events')->name('events.')->group(function (
     Route::delete('/{event}/slots/{slot}', [EventSlotController::class, 'destroy'])
         ->name('slots.destroy')
         ->middleware('permission:events.manage');
+
+    // ── Function member assignment per event ──────────────────────────────────
+    // PATCH body: { member_id: int|null }
+    // Upserts event_management_function.member_id for the given function on this event.
+
+    Route::patch('/{event}/functions/{functionId}', [EventController::class, 'assignFunction'])
+        ->name('functions.assign')
+        ->middleware('permission:events.manage');
 });

@@ -7,6 +7,7 @@ namespace Modules\Management\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Repositories\CustomFieldRepository;
 use App\Services\ModuleLoader;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -155,11 +156,12 @@ class ManagementController extends Controller
 
     /**
      * Store a newly created management function and sync team and member assignments.
+     * When called via AJAX (expectsJson), returns JSON instead of a redirect.
      *
      * @param  StoreFunctionRequest $request
-     * @return RedirectResponse
+     * @return JsonResponse|RedirectResponse
      */
-    public function storeFunction(StoreFunctionRequest $request): RedirectResponse
+    public function storeFunction(StoreFunctionRequest $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validated();
         $userId    = $request->user()->id;
@@ -177,6 +179,10 @@ class ManagementController extends Controller
                 $pivot[(int) $id] = ['created_by' => $userId];
             }
             $fn->members()->sync($pivot);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'id' => $fn->id, 'name' => $fn->name], 201);
         }
 
         return redirect()->route('management.index')
@@ -228,11 +234,12 @@ class ManagementController extends Controller
 
     /**
      * Store a newly created management task and sync team and member assignments.
+     * When called via AJAX (expectsJson), returns JSON with the new task id and name.
      *
      * @param  StoreTaskRequest $request
-     * @return RedirectResponse
+     * @return JsonResponse|RedirectResponse
      */
-    public function storeTask(StoreTaskRequest $request): RedirectResponse
+    public function storeTask(StoreTaskRequest $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validated();
         $userId    = $request->user()->id;
@@ -253,6 +260,10 @@ class ManagementController extends Controller
                 $pivot[(int) $id] = ['created_by' => $userId];
             }
             $task->members()->sync($pivot);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'id' => $task->id, 'name' => $task->name], 201);
         }
 
         return redirect()->route('management.index')
@@ -318,8 +329,7 @@ class ManagementController extends Controller
      */
     private function syncFunctionTeams(int $functionId, array $teamIds, int $userId): void
     {
-        // Pivot-Spalte heißt role_id (Legacy-Name aus Migration 000011).
-        // Nicht function_id – das ist der Fehler, den dieser Fix behebt.
+        // Pivot column is named role_id (legacy name from migration 000011), not function_id.
         DB::table('management_function_team')->where('role_id', $functionId)->delete();
 
         foreach ($teamIds as $teamId) {

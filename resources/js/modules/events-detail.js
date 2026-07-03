@@ -243,14 +243,67 @@ window.ckEvtTab = function (tabId, btn) {
         });
     });
 
-    // ── Populate member assign selects (Aufgaben-Tab inline assignment) ──────────
-    // Reads from CK_EventDetail.members — no extra Blade variable needed.
+    // ── Populate selects from CK_EventDetail data ─────────────────────────────
 
-    document.querySelectorAll('.ck-task-assign-select').forEach(function (sel) {
-        Object.keys(cfg.members).forEach(function (id) {
+    /**
+     * Appends <option> elements to a <select> from a data map.
+     * @param {string}  selId       ID of the <select> element
+     * @param {object}  dataMap     key → {id, name} map
+     * @param {string}  placeholder Placeholder option text (empty value)
+     */
+    function populateSelect(selId, dataMap, placeholder) {
+        var sel = document.getElementById(selId);
+        if (! sel) { return; }
+        // Reset to placeholder only
+        sel.innerHTML = '';
+        var ph    = document.createElement('option');
+        ph.value  = '';
+        ph.textContent = placeholder;
+        sel.appendChild(ph);
+        Object.keys(dataMap).forEach(function (id) {
             var opt       = document.createElement('option');
             opt.value     = id;
+            opt.textContent = dataMap[id].name;
+            sel.appendChild(opt);
+        });
+    }
+
+    // newTaskModal: category dropdown (from CK_EventDetail.categories)
+    if (cfg.categories) {
+        populateSelect('newTaskCategoryId', cfg.categories, '– Keine Kategorie –');
+    }
+
+    // newTaskModal: member dropdown (from CK_EventDetail.members)
+    populateSelect('newTaskMemberId', cfg.members, '– Kein Mitglied –');
+
+    // slotModal: task dropdown (from CK_EventDetail.einsatzplanTasks)
+    if (cfg.einsatzplanTasks) {
+        populateSelect('slotModalTaskId', cfg.einsatzplanTasks, '– Aufgabe wählen –');
+    }
+
+    // slotModal: member dropdown (from CK_EventDetail.members)
+    populateSelect('slotModalMemberId', cfg.members, '– Person wählen –');
+
+    // Inline member assign selects per task row (Aufgaben-Tab)
+    // Reads from CK_EventDetail.members — no extra Blade variable needed.
+    document.querySelectorAll('.ck-task-assign-select').forEach(function (sel) {
+        Object.keys(cfg.members).forEach(function (id) {
+            var opt         = document.createElement('option');
+            opt.value       = id;
             opt.textContent = cfg.members[id].name;
+            sel.appendChild(opt);
+        });
+    });
+
+    // Inline member assign selects per function card (Funktionen-Tab)
+    // Reads from CK_EventDetail.members — pre-selects current assignment via data-current-member-id.
+    document.querySelectorAll('.ck-func-assign-select').forEach(function (sel) {
+        var currentId = sel.dataset.currentMemberId || '';
+        Object.keys(cfg.members).forEach(function (id) {
+            var opt         = document.createElement('option');
+            opt.value       = id;
+            opt.textContent = cfg.members[id].name;
+            if (id === currentId) { opt.selected = true; }
             sel.appendChild(opt);
         });
     });
@@ -336,31 +389,192 @@ window.ckEvtTab = function (tabId, btn) {
         fill.style.setProperty('--progress', (fill.dataset.progress || '0') + '%');
     });
 
-    // ── Add Slot (Einsatzplan-Tab) ────────────────────────────────────────────
+    // ── New Task Modal submit (Tab 2: Aufgaben → Dropdown → "Neue Aufgabe") ──────
+    // Two-step flow: 1) create global ManagementTask, 2) assign to event (+ member).
 
-    var addSlotBtn  = document.getElementById('addSlotBtn');
-    var slotTaskSel = document.getElementById('slotTaskSelect');
-    var slotMemSel  = document.getElementById('slotMemberSelect');
-    var slotFrom    = document.getElementById('slotTimeFrom');
-    var slotTo      = document.getElementById('slotTimeTo');
+    var newTaskBtn = document.getElementById('newTaskSubmitBtn');
 
-    if (addSlotBtn) {
-        addSlotBtn.addEventListener('click', function () {
-            var taskId   = slotTaskSel  ? slotTaskSel.value  : '';
-            var memberId = slotMemSel   ? slotMemSel.value   : '';
-            var timeFrom = slotFrom     ? slotFrom.value     : '';
-            var timeTo   = slotTo       ? slotTo.value       : '';
+    if (newTaskBtn) {
+        newTaskBtn.addEventListener('click', function () {
+            var nameInput    = document.getElementById('newTaskName');
+            var catSelect    = document.getElementById('newTaskCategoryId');
+            var prioSelect   = document.getElementById('newTaskPriority');
+            var deadlineInput= document.getElementById('newTaskDeadline');
+            var memberSelect = document.getElementById('newTaskMemberId');
 
-            if (!taskId || !memberId || !timeFrom || !timeTo) {
-                [slotTaskSel, slotMemSel, slotFrom, slotTo].forEach(function (el) {
-                    if (el && !el.value) { el.classList.add('ck-input--error'); }
-                });
+            var name = nameInput ? nameInput.value.trim() : '';
+            if (! name) {
+                if (nameInput) { nameInput.classList.add('ck-input--error'); }
                 return;
             }
-            [slotTaskSel, slotMemSel, slotFrom, slotTo].forEach(function (el) {
-                if (el) { el.classList.remove('ck-input--error'); }
+            if (nameInput) { nameInput.classList.remove('ck-input--error'); }
+            newTaskBtn.disabled = true;
+
+            var taskBody = { name: name };
+            if (catSelect   && catSelect.value)   { taskBody.category_id = parseInt(catSelect.value, 10); }
+            if (prioSelect  && prioSelect.value)  { taskBody.priority    = prioSelect.value; }
+
+            // Step 1: create the global ManagementTask via management/tasks
+            fetch(cfg.routes.mgmtTasksBase, {
+                method:  'POST',
+                headers: {
+                    'Content-Type':     'application/json',
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                },
+                body: JSON.stringify(taskBody),
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (! data.success) {
+                    ckNotify('error', data.message || 'Fehler beim Anlegen der Aufgabe.');
+                    newTaskBtn.disabled = false;
+                    return;
+                }
+
+                var assignBody = { task_id: data.id };
+                if (deadlineInput && deadlineInput.value) {
+                    assignBody.deadline_at = deadlineInput.value;
+                }
+
+                // Step 2: assign the task to this event
+                return fetch(cfg.routes.tasksBase, {
+                    method:  'POST',
+                    headers: {
+                        'Content-Type':     'application/json',
+                        'X-CSRF-TOKEN':     csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept':           'application/json',
+                    },
+                    body: JSON.stringify(assignBody),
+                })
+                .then(function (res) { return res.json(); })
+                .then(function (assignData) {
+                    if (! assignData.success) {
+                        ckNotify('error', assignData.message || 'Fehler beim Zuweisen der Aufgabe.');
+                        newTaskBtn.disabled = false;
+                        return;
+                    }
+
+                    // Optional step 3: assign selected member (time_from = null → Aufgaben-Tab)
+                    if (memberSelect && memberSelect.value) {
+                        fetch(cfg.routes.membersBase, {
+                            method:  'POST',
+                            headers: {
+                                'Content-Type':     'application/json',
+                                'X-CSRF-TOKEN':     csrf,
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept':           'application/json',
+                            },
+                            body: JSON.stringify({
+                                task_id:   data.id,
+                                member_id: parseInt(memberSelect.value, 10),
+                            }),
+                        })
+                        .then(function () { window.location.reload(); })
+                        .catch(function () { window.location.reload(); });
+                    } else {
+                        window.location.reload();
+                    }
+                });
+            })
+            .catch(function () {
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+                newTaskBtn.disabled = false;
             });
-            addSlotBtn.disabled = true;
+        });
+    }
+
+    // ── New Category Modal submit (Tab 2: Aufgaben → Dropdown → "Neue Kategorie") ─
+
+    var newCatBtn = document.getElementById('newCatSubmitBtn');
+
+    if (newCatBtn) {
+        newCatBtn.addEventListener('click', function () {
+            var nameInput = document.getElementById('newCatName');
+            var name      = nameInput ? nameInput.value.trim() : '';
+            if (! name) {
+                if (nameInput) { nameInput.classList.add('ck-input--error'); }
+                return;
+            }
+            if (nameInput) { nameInput.classList.remove('ck-input--error'); }
+            newCatBtn.disabled = true;
+
+            fetch(cfg.routes.categoriesBase, {
+                method:  'POST',
+                headers: {
+                    'Content-Type':     'application/json',
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                },
+                body: JSON.stringify({ name: name }),
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    // Add the new category to the newTaskModal category select
+                    var catSel = document.getElementById('newTaskCategoryId');
+                    if (catSel) {
+                        var opt         = document.createElement('option');
+                        opt.value       = data.id;
+                        opt.textContent = data.name;
+                        catSel.appendChild(opt);
+                        catSel.value    = data.id;
+                    }
+                    // Update local cache for future populateSelect calls
+                    if (cfg.categories) {
+                        cfg.categories[data.id] = { id: data.id, name: data.name };
+                    }
+                    ckModalClose(null, 'newCatModal');
+                    ckNotify('success', 'Kategorie „' + data.name + '" angelegt.');
+                    newCatBtn.disabled = false;
+                    if (nameInput) { nameInput.value = ''; }
+                } else {
+                    ckNotify('error', data.message || 'Fehler beim Anlegen der Kategorie.');
+                    newCatBtn.disabled = false;
+                }
+            })
+            .catch(function () {
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+                newCatBtn.disabled = false;
+            });
+        });
+    }
+
+    // ── Slot Modal submit (Tab 3: Einsatzplan → "Einsatz zuweisen") ───────────
+    // Replaces the former addSlotBtn handler which referenced now-removed inline form fields.
+
+    var slotModalBtn = document.getElementById('slotModalSubmitBtn');
+
+    if (slotModalBtn) {
+        slotModalBtn.addEventListener('click', function () {
+            var taskSel  = document.getElementById('slotModalTaskId');
+            var memSel   = document.getElementById('slotModalMemberId');
+            var fromInp  = document.getElementById('slotModalTimeFrom');
+            var toInp    = document.getElementById('slotModalTimeTo');
+
+            var taskId   = taskSel  ? taskSel.value  : '';
+            var memberId = memSel   ? memSel.value   : '';
+            var timeFrom = fromInp  ? fromInp.value  : '';
+            var timeTo   = toInp    ? toInp.value    : '';
+
+            // Client-side validation
+            var hasError = false;
+            [taskSel, memSel, fromInp, toInp].forEach(function (el) {
+                if (el) {
+                    if (! el.value) {
+                        el.classList.add('ck-input--error');
+                        hasError = true;
+                    } else {
+                        el.classList.remove('ck-input--error');
+                    }
+                }
+            });
+            if (hasError) { return; }
+
+            slotModalBtn.disabled = true;
 
             fetch(cfg.routes.slotsBase, {
                 method:  'POST',
@@ -368,6 +582,7 @@ window.ckEvtTab = function (tabId, btn) {
                     'Content-Type':     'application/json',
                     'X-CSRF-TOKEN':     csrf,
                     'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
                 },
                 body: JSON.stringify({
                     task_id:   parseInt(taskId,   10),
@@ -381,16 +596,96 @@ window.ckEvtTab = function (tabId, btn) {
                 if (data.success) {
                     window.location.reload();
                 } else {
-                    alert(data.message || 'Fehler beim Speichern.');
-                    addSlotBtn.disabled = false;
+                    ckNotify('error', data.message || 'Fehler beim Speichern des Einsatzes.');
+                    slotModalBtn.disabled = false;
                 }
             })
             .catch(function () {
-                alert('Netzwerkfehler. Bitte Seite neu laden.');
-                addSlotBtn.disabled = false;
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+                slotModalBtn.disabled = false;
             });
         });
     }
+
+    // ── New Function Modal submit (Tab 4: Funktionen → "Neue Funktion") ───────
+
+    var newFuncBtn = document.getElementById('newFuncSubmitBtn');
+
+    if (newFuncBtn) {
+        newFuncBtn.addEventListener('click', function () {
+            var nameInput = document.getElementById('newFuncName');
+            var name      = nameInput ? nameInput.value.trim() : '';
+            if (! name) {
+                if (nameInput) { nameInput.classList.add('ck-input--error'); }
+                return;
+            }
+            if (nameInput) { nameInput.classList.remove('ck-input--error'); }
+            newFuncBtn.disabled = true;
+
+            fetch(cfg.routes.functionsBase, {
+                method:  'POST',
+                headers: {
+                    'Content-Type':     'application/json',
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                },
+                body: JSON.stringify({ name: name }),
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    ckNotify('error', data.message || 'Fehler beim Anlegen der Funktion.');
+                    newFuncBtn.disabled = false;
+                }
+            })
+            .catch(function () {
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+                newFuncBtn.disabled = false;
+            });
+        });
+    }
+
+    // ── Assign member to function (Funktionen-Tab) ───────────────────────────
+
+    document.addEventListener('change', function (e) {
+        if (! e.target.matches('.ck-func-assign-select')) { return; }
+
+        var sel        = e.target;
+        var memberId   = sel.value;
+        var functionId = sel.dataset.functionId;
+        if (! functionId) { return; }
+
+        sel.disabled = true;
+
+        fetch(cfg.routes.funcAssignBase + '/' + functionId, {
+            method:  'PATCH',
+            headers: {
+                'Content-Type':     'application/json',
+                'X-CSRF-TOKEN':     csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept':           'application/json',
+            },
+            body: JSON.stringify({
+                member_id: memberId ? parseInt(memberId, 10) : null,
+            }),
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                ckNotify('error', data.message || 'Fehler beim Zuweisen der Person.');
+                sel.disabled = false;
+            }
+        })
+        .catch(function () {
+            ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+            sel.disabled = false;
+        });
+    });
 
     // ── Remove Slot (Einsatzplan-Tab) ─────────────────────────────────────────
 
