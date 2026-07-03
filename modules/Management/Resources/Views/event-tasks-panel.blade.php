@@ -15,6 +15,27 @@
         $mgmtPriorityLabels        → array<string, string>
 --}}
 
+{{-- ── Action bar ───────────────────────────────────────────────────────────── --}}
+<div class="ck-pane-actions">
+    <div class="ck-header-dropdown">
+        <x-ck-button variant="primary" type="button"
+            class="ck-header-dropdown__toggle"
+            onclick="this.closest('.ck-header-dropdown').classList.toggle('ck-header-dropdown--open')">
+            {{ __('events.task.add_header_btn') }} ▾
+        </x-ck-button>
+        <div class="ck-header-dropdown__menu">
+            <button class="ck-header-dropdown__item" type="button"
+                onclick="ckModalOpen('newTaskModal'); this.closest('.ck-header-dropdown').classList.remove('ck-header-dropdown--open')">
+                {{ __('events.task.new_task') }}
+            </button>
+            <button class="ck-header-dropdown__item" type="button"
+                onclick="ckModalOpen('newCatModal'); this.closest('.ck-header-dropdown').classList.remove('ck-header-dropdown--open')">
+                {{ __('events.task.new_category') }}
+            </button>
+        </div>
+    </div>
+</div>
+
 {{-- ── Task sections (by category, collapsible) ─────────────────────────────── --}}
 @forelse($mgmtByCategory as $mgmtCatName => $mgmtCatSection)
 
@@ -54,7 +75,12 @@
                                 {{ $mgmtTask->ev_completed ? 'checked' : '' }}>
                         </td>
 
-                        <td class="ck-task-row__name">{{ $mgmtTask->name }}</td>
+                        <td class="ck-task-row__name">
+                            {{ $mgmtTask->name }}
+                            @if($mgmtTask->ev_deadline === null)
+                                <x-ck-badge color="blue">{{ __('events.task.event_day_badge') }}</x-ck-badge>
+                            @endif
+                        </td>
 
                         <td>
                             <x-ck-badge :color="$mgmtPriorityColors[$mgmtTask->priority] ?? 'gray'">

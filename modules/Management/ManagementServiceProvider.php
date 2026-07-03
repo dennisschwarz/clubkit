@@ -82,6 +82,9 @@ class ManagementServiceProvider extends ServiceProvider
         // Assignment cell in the events list (functions and task badges)
         $hooks->register('event.table.staffing.row', 'management::event-assignments-index-row', 10);
 
+        // Overview tab: KPI tiles + Fortschritt nach Kategorie
+        $hooks->register('events.show.overview-panel', 'management::event-overview-panel', 10);
+
         // Aufgaben tab: task sections by category + add-task select
         $hooks->register('events.show.tasks-panel', 'management::event-tasks-panel', 10);
 
@@ -108,6 +111,7 @@ class ManagementServiceProvider extends ServiceProvider
     {
         $this->composeAssignmentsIndexRow();
         $this->composeEventShowPageScripts();
+        $this->composeEventOverviewPanel();
         $this->composeEventTasksPanel();
         $this->composeEventEinsatzplanPanel();
         $this->composeEventFunctionsPanel();
@@ -208,6 +212,115 @@ class ManagementServiceProvider extends ServiceProvider
             }
 
             $view->with(['mgmtAvailableTasksJs' => $mgmtAvailableTasksJs]);
+        });
+    }
+
+    /**
+     * View Composer: management::event-overview-panel
+     *
+     * Provides data for the Übersicht tab: 4 KPI tiles + progress per category.
+     *
+     * Provides:
+     *   $mgmtOverviewByCategory → array<string, array{secDone, secTotal}> (same structure as tasks panel)
+     *   $mgmtKpiTotalTasks      → int
+     *   $mgmtKpiDoneTasks       → int
+     *   $mgmtKpiPeopleCount     → int (distinct members, time_from IS NULL)
+     *   $mgmtKpiSlotsCount      → int (ETMs with time_from IS NOT NULL)
+     *
+     * @return void
+     */
+    private function composeEventOverviewPanel(): void
+    {
+        View::composer('management::event-overview-panel', function ($view) {
+            $empty = [
+                'mgmtOverviewByCategory' => [],
+                'mgmtKpiTotalTasks'      => 0,
+                'mgmtKpiDoneTasks'       => 0,
+                'mgmtKpiPeopleCount'     => 0,
+                'mgmtKpiSlotsCount'      => 0,
+            ];
+
+            if (! Schema::hasTable('management_tasks') || ! Schema::hasTable('event_task')) {
+                $view->with($empty);
+                return;
+            }
+
+            $event = $view->getData()['event'] ?? null;
+            if (! $event) {
+                $view->with($empty);
+                return;
+            }
+
+            // Load assigned tasks with category and completion state
+            $pivots = DB::table('event_task')
+                ->where('event_id', $event->id)
+                ->get()
+                ->keyBy('task_id');
+
+            $assignedIds = $pivots->keys()->toArray();
+
+            if (empty($assignedIds)) {
+                $view->with($empty);
+                return;
+            }
+
+            $assignedTasks = ManagementTask::with('category')
+                ->whereIn('id', $assignedIds)
+                ->orderBy('name')
+                ->get();
+
+            foreach ($assignedTasks as $task) {
+                $task->ev_completed = (bool) ($pivots[$task->id]?->completed ?? false);
+            }
+
+            // Group by category for progress bars
+            $rawByCategory = [];
+            foreach ($assignedTasks as $task) {
+                $key = $task->category ? $task->category->name : 'Allgemein';
+                $rawByCategory[$key][] = $task;
+            }
+            ksort($rawByCategory);
+
+            $byCategory = [];
+            foreach ($rawByCategory as $catName => $catTasks) {
+                $done  = (int) collect($catTasks)->where('ev_completed', true)->count();
+                $total = count($catTasks);
+                $byCategory[$catName] = [
+                    'secDone'  => $done,
+                    'secTotal' => $total,
+                ];
+            }
+
+            // KPI counts
+            $totalTasks = count($assignedIds);
+            $doneTasks  = (int) DB::table('event_task')
+                ->where('event_id', $event->id)
+                ->where('completed', true)
+                ->count();
+
+            $peopleCount = 0;
+            $slotsCount  = 0;
+
+            if (Schema::hasTable('event_task_member')) {
+                $peopleCount = (int) DB::table('event_task_member')
+                    ->where('event_id', $event->id)
+                    ->whereNull('time_from')
+                    ->distinct('member_id')
+                    ->count('member_id');
+
+                $slotsCount = (int) DB::table('event_task_member')
+                    ->where('event_id', $event->id)
+                    ->whereNotNull('time_from')
+                    ->count();
+            }
+
+            $view->with([
+                'mgmtOverviewByCategory' => $byCategory,
+                'mgmtKpiTotalTasks'      => $totalTasks,
+                'mgmtKpiDoneTasks'       => $doneTasks,
+                'mgmtKpiPeopleCount'     => $peopleCount,
+                'mgmtKpiSlotsCount'      => $slotsCount,
+            ]);
         });
     }
 

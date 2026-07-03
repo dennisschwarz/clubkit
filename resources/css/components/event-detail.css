@@ -342,6 +342,140 @@ details[open] .ck-event-section__summary::before {
 .ck-slot-cell-time   { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ck-slot-cell-member { font-size: var(--ck-font-base); }
 
+/* ── Pane action bar (top of each tab pane) ──────────────────────────────── */
+.ck-pane-actions {
+    display:         flex;
+    gap:             var(--ck-space-2);
+    margin-bottom:   var(--ck-space-5);
+}
+
+/* ── KPI tiles (Übersicht-Tab) ────────────────────────────────────────────── */
+.ck-kpi-grid {
+    display:               grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap:                   var(--ck-space-4);
+    margin-bottom:         var(--ck-space-5);
+}
+
+.ck-kpi-card {
+    background:    var(--ck-white);
+    border:        1px solid var(--ck-border);
+    border-radius: var(--ck-radius-lg);
+    padding:       var(--ck-space-4);
+    text-align:    center;
+    box-shadow:    0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.ck-kpi-card__value {
+    display:     block;
+    font-size:   var(--ck-font-2xl, 1.75rem);
+    font-weight: 700;
+    color:       var(--ck-accent-dark);
+    line-height: 1;
+    margin-bottom: var(--ck-space-1);
+}
+
+.ck-kpi-card__label {
+    display:   block;
+    font-size: var(--ck-font-sm);
+    color:     var(--ck-text-muted);
+}
+
+/* ── Category progress bars (Übersicht-Tab) ──────────────────────────────── */
+.ck-cat-progress {
+    margin-bottom: var(--ck-space-3);
+}
+
+.ck-cat-progress__header {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     baseline;
+    margin-bottom:   var(--ck-space-1);
+}
+
+.ck-cat-progress__name  { font-size: var(--ck-font-sm); font-weight: 500; }
+.ck-cat-progress__count { font-size: var(--ck-font-sm); color: var(--ck-text-muted); }
+
+.ck-cat-progress__bar {
+    height:        6px;
+    background:    var(--ck-border);
+    border-radius: 3px;
+    overflow:      hidden;
+}
+
+.ck-cat-progress__fill {
+    height:           100%;
+    width:            var(--progress, 0%);
+    background:       var(--ck-success, #22c55e);
+    border-radius:    3px;
+    transition:       width 0.3s ease;
+}
+
+/* ── Function cards (Funktionen-Tab) ─────────────────────────────────────── */
+.ck-func-grid {
+    display:               grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap:                   var(--ck-space-4);
+    padding:               var(--ck-space-4);
+}
+
+.ck-func-card {
+    background:    var(--ck-white);
+    border:        1px solid var(--ck-border);
+    border-radius: var(--ck-radius-lg);
+    padding:       var(--ck-space-4);
+    box-shadow:    0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.ck-func-card__name {
+    font-weight:   600;
+    font-size:     var(--ck-font-base);
+    margin-bottom: var(--ck-space-2);
+}
+
+.ck-func-card__member {
+    font-size: var(--ck-font-sm);
+    color:     var(--ck-text-muted);
+}
+
+/* ── Slot badges + member chips (Einsatzplan-Tab) ────────────────────────── */
+.ck-slot-badge {
+    display:          inline-block;
+    background:       var(--ck-bg-subtle);
+    border:           1px solid var(--ck-border);
+    border-radius:    var(--ck-radius-sm);
+    padding:          2px var(--ck-space-2);
+    font-size:        var(--ck-font-xs);
+    font-variant-numeric: tabular-nums;
+    margin:           2px 2px 2px 0;
+    white-space:      nowrap;
+}
+
+.ck-member-chip {
+    display:       inline-flex;
+    align-items:   center;
+    gap:           var(--ck-space-1);
+    background:    var(--ck-bg-subtle);
+    border:        1px solid var(--ck-border);
+    border-radius: var(--ck-radius-sm);
+    padding:       2px var(--ck-space-2);
+    font-size:     var(--ck-font-xs);
+    margin:        2px 2px 2px 0;
+    white-space:   nowrap;
+}
+
+.ck-member-chip .ck-slot-remove-btn {
+    border:     none;
+    background: none;
+    padding:    0;
+    cursor:     pointer;
+    color:      var(--ck-text-muted);
+    font-size:  var(--ck-font-sm);
+    line-height: 1;
+}
+
+.ck-member-chip .ck-slot-remove-btn:hover { color: var(--ck-danger); }
+
 /* ── Print styles ─────────────────────────────────────────────────────────── */
 
 @media print {

@@ -329,6 +329,13 @@ window.ckEvtTab = function (tabId, btn) {
 
     updateGlobalProgress();
 
+    // ── Category progress bars (Übersicht-Tab) ────────────────────────────────
+    // Uses setProperty() for CSS custom property — only allowed pattern for dynamic widths.
+
+    document.querySelectorAll('.ck-cat-progress__fill').forEach(function (fill) {
+        fill.style.setProperty('--progress', (fill.dataset.progress || '0') + '%');
+    });
+
     // ── Add Slot (Einsatzplan-Tab) ────────────────────────────────────────────
 
     var addSlotBtn  = document.getElementById('addSlotBtn');

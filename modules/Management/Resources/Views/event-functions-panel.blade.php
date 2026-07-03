@@ -8,6 +8,14 @@
                        member is the effective person (event override > global default > null)
 --}}
 
+{{-- ── Action bar ───────────────────────────────────────────────────────────── --}}
+<div class="ck-pane-actions">
+    <x-ck-button variant="primary" type="button" onclick="ckModalOpen('newFuncModal')">
+        {{ __('events.function.new_btn') }}
+    </x-ck-button>
+</div>
+
+{{-- ── Function cards per concept: name + assigned member or ⚠ not staffed ── --}}
 @if(empty($mgmtFuncItems))
 <x-ck-card>
     <p class="ck-text-muted">{{ __('events.function.empty') }}</p>
@@ -15,27 +23,19 @@
 @else
 <x-ck-card>
     <x-slot:header>{{ __('events.function.title') }}</x-slot:header>
-    <table class="ck-table">
-        <thead>
-            <tr>
-                <th>{{ __('events.function.col_function') }}</th>
-                <th>{{ __('events.function.col_responsible') }}</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($mgmtFuncItems as $mgmtFuncItem)
-            <tr>
-                <td><strong>{{ $mgmtFuncItem['function']->name }}</strong></td>
-                <td>
-                    @if($mgmtFuncItem['member'])
-                        {{ $mgmtFuncItem['member']->last_name }}, {{ $mgmtFuncItem['member']->first_name }}
-                    @else
-                        <span class="ck-badge ck-badge--orange">{{ __('events.function.not_staffed') }}</span>
-                    @endif
-                </td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
+    <div class="ck-func-grid">
+        @foreach($mgmtFuncItems as $mgmtFuncItem)
+        <div class="ck-func-card">
+            <div class="ck-func-card__name">{{ $mgmtFuncItem['function']->name }}</div>
+            <div class="ck-func-card__member">
+                @if($mgmtFuncItem['member'])
+                    {{ $mgmtFuncItem['member']->last_name }}, {{ $mgmtFuncItem['member']->first_name }}
+                @else
+                    <x-ck-badge color="orange">{{ __('events.function.not_staffed') }}</x-ck-badge>
+                @endif
+            </div>
+        </div>
+        @endforeach
+    </div>
 </x-ck-card>
 @endif
