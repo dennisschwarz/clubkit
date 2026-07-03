@@ -90,14 +90,33 @@ class EventController extends Controller
     {
         $event->load('creator');
 
-        $membersJs = [];
+        // Named $allMembersJs to match the CK_EventDetail.members key in show.blade.php.
+        $allMembersJs = [];
         foreach (Member::active()->orderBy('last_name')->get() as $m) {
-            $membersJs[$m->id] = ['id' => $m->id, 'name' => $m->full_name];
+            $allMembersJs[$m->id] = ['id' => $m->id, 'name' => $m->full_name];
         }
 
-        $customFields = $this->cfRepository->forObjectType('event');
+        // Task progress counters — guarded: event_task only exists when Management is installed.
+        $totalTasks = 0;
+        $doneTasks  = 0;
+        if (Schema::hasTable('event_task')) {
+            $totalTasks = DB::table('event_task')->where('event_id', $event->id)->count();
+            $doneTasks  = DB::table('event_task')->where('event_id', $event->id)->where('completed', true)->count();
+        }
 
-        return view('events::show', compact('event', 'membersJs', 'customFields'));
+        // Custom fields: extract defs/values into named variables expected by the view.
+        $cf            = $this->cfRepository->loadForObjectType('event');
+        $eventCfDefs   = $cf['defs'];
+        $eventCfValues = $cf['values'];
+
+        return view('events::show', compact(
+            'event',
+            'allMembersJs',
+            'totalTasks',
+            'doneTasks',
+            'eventCfDefs',
+            'eventCfValues',
+        ));
     }
 
     /**

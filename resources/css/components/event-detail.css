@@ -250,6 +250,98 @@ details[open] .ck-event-section__summary::before {
     display: none;
 }
 
+/* ── Page-level tab bar ───────────────────────────────────────────────────── */
+
+.ck-event-tab-bar {
+    display:       flex;
+    gap:           2px;
+    border-bottom: 2px solid var(--ck-border);
+    margin-bottom: var(--ck-space-5);
+    overflow-x:    auto;
+    scrollbar-width: none;
+}
+.ck-event-tab-bar::-webkit-scrollbar { display: none; }
+
+.ck-event-tab {
+    padding:       var(--ck-space-2) var(--ck-space-4);
+    border:        none;
+    background:    none;
+    font-size:     var(--ck-font-base);
+    font-weight:   500;
+    color:         var(--ck-text-muted);
+    cursor:        pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    white-space:   nowrap;
+    transition:    color 0.15s, border-color 0.15s;
+}
+.ck-event-tab:hover { color: var(--ck-text); }
+
+.ck-event-tab--active {
+    color:              var(--ck-accent-dark);
+    border-bottom-color: var(--ck-accent-dark);
+    font-weight:        600;
+}
+
+.ck-event-tab-pane          { display: none; }
+.ck-event-tab-pane--active  { display: block; }
+
+/* Contextual header action button — hidden by default, shown per active tab */
+.ck-event-tab-action            { display: none; }
+.ck-event-tab-action--active    { display: flex; }
+
+/* ── Header dropdown (+ Hinzufügen on Aufgaben-Tab) ──────────────────────── */
+.ck-header-dropdown {
+    position: relative;
+}
+
+.ck-header-dropdown__menu {
+    display:       none;
+    position:      absolute;
+    top:           calc(100% + var(--ck-space-1));
+    right:         0;
+    background:    var(--ck-white);
+    border:        1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
+    box-shadow:    0 4px 12px rgba(0, 0, 0, 0.1);
+    min-width:     180px;
+    z-index:       200;
+    overflow:      hidden;
+}
+
+.ck-header-dropdown--open .ck-header-dropdown__menu {
+    display: block;
+}
+
+.ck-header-dropdown__item {
+    display:    block;
+    width:      100%;
+    padding:    var(--ck-space-2) var(--ck-space-4);
+    border:     none;
+    background: none;
+    text-align: left;
+    font-size:  var(--ck-font-base);
+    color:      var(--ck-text);
+    cursor:     pointer;
+}
+
+.ck-header-dropdown__item:hover {
+    background: var(--ck-bg-subtle);
+}
+
+/* ── Slot modal ──────────────────────────────────────────────────────────── */
+
+.ck-slot-time-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--ck-space-4);
+}
+
+/* ── Slot table: time + member columns ───────────────────────────────────── */
+
+.ck-slot-cell-time   { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ck-slot-cell-member { font-size: var(--ck-font-base); }
+
 /* ── Print styles ─────────────────────────────────────────────────────────── */
 
 @media print {

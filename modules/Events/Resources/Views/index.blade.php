@@ -78,13 +78,13 @@
                 {{-- Staffing: content is injected by Management via hook --}}
                 <td>
                     {{--
-                        Extension point: event.table.besetzung.row
+                        Extension point: event.table.staffing.row
                         Registered by: ManagementServiceProvider
                         Renders function and task badges.
                         Without Management: empty cell with –
                     --}}
-                    @if(app('ck.hooks')->has('event.table.besetzung.row'))
-                        @ckHook('event.table.besetzung.row')
+                    @if(app('ck.hooks')->has('event.table.staffing.row'))
+                        @ckHook('event.table.staffing.row')
                     @else
                         <span class="ck-text-muted">—</span>
                     @endif

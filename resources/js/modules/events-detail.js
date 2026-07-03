@@ -2,9 +2,12 @@
  * ClubKit – Event Detail Page
  *
  * Handles:
+ *   - Tab switching (ckEvtTab — global, outside IIFE)
  *   - Task completion toggle (AJAX PATCH, no page reload)
  *   - Task add (AJAX POST, page reload after success)
  *   - Task remove (AJAX DELETE, page reload after success)
+ *   - Slot add (AJAX POST, page reload after success)
+ *   - Slot remove (AJAX DELETE, page reload after success)
  *   - Progress badge + progress bar update after checkbox change
  *
  * Rules:
@@ -12,6 +15,35 @@
  *   - CSS custom properties set via setProperty() (required for dynamic progress bar width)
  *   - All fetch() calls use window.CK_EventDetail for config
  */
+
+/**
+ * Switches the active event detail tab and toggles the contextual header action button.
+ * Global (outside IIFE) so onclick="ckEvtTab(...)" in show.blade.php can reach it.
+ *
+ * @param {string}      tabId  Pane suffix (e.g. 'tasks', 'slots', 'functions', 'teams')
+ * @param {HTMLElement} btn    The clicked tab button
+ */
+window.ckEvtTab = function (tabId, btn) {
+    // Deactivate all panes
+    document.querySelectorAll('.ck-event-tab-pane').forEach(function (pane) {
+        pane.classList.remove('ck-event-tab-pane--active');
+    });
+    // Deactivate all tab buttons
+    document.querySelectorAll('.ck-event-tab').forEach(function (b) {
+        b.classList.remove('ck-event-tab--active');
+    });
+    // Deactivate all header action buttons
+    document.querySelectorAll('.ck-event-tab-action').forEach(function (a) {
+        a.classList.remove('ck-event-tab-action--active');
+    });
+
+    // Activate target pane, tab button and (optionally) header action button
+    var pane   = document.getElementById('ckEvtPane-' + tabId);
+    var action = document.getElementById('ckEvtAction-' + tabId);
+    if (pane)   { pane.classList.add('ck-event-tab-pane--active'); }
+    if (btn)    { btn.classList.add('ck-event-tab--active'); }
+    if (action) { action.classList.add('ck-event-tab-action--active'); }
+};
 
 (function () {
     'use strict';
@@ -211,8 +243,169 @@
         });
     });
 
+    // ── Populate member assign selects (Aufgaben-Tab inline assignment) ──────────
+    // Reads from CK_EventDetail.members — no extra Blade variable needed.
+
+    document.querySelectorAll('.ck-task-assign-select').forEach(function (sel) {
+        Object.keys(cfg.members).forEach(function (id) {
+            var opt       = document.createElement('option');
+            opt.value     = id;
+            opt.textContent = cfg.members[id].name;
+            sel.appendChild(opt);
+        });
+    });
+
+    // ── Assign member inline (Aufgaben-Tab) ───────────────────────────────────
+
+    document.addEventListener('change', function (e) {
+        if (! e.target.matches('.ck-task-assign-select')) { return; }
+
+        var sel      = e.target;
+        var memberId = sel.value;
+        var taskId   = sel.dataset.taskId;
+        if (! memberId || ! taskId) { return; }
+
+        sel.disabled = true;
+
+        fetch(cfg.routes.membersBase, {
+            method:  'POST',
+            headers: {
+                'Content-Type':     'application/json',
+                'X-CSRF-TOKEN':     cfg.csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({
+                task_id:   parseInt(taskId,   10),
+                member_id: parseInt(memberId, 10),
+            }),
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                sel.value    = '';
+                sel.disabled = false;
+            }
+        })
+        .catch(function () {
+            sel.value    = '';
+            sel.disabled = false;
+        });
+    });
+
+    // ── Remove member assignment (Aufgaben-Tab) ───────────────────────────────
+
+    document.addEventListener('click', function (e) {
+        var btn = closest(e.target, '.ck-etm-remove-btn');
+        if (! btn) { return; }
+
+        var etmId = btn.dataset.etmId;
+        if (! etmId) { return; }
+
+        btn.disabled = true;
+
+        fetch(cfg.routes.membersBase + '/' + etmId, {
+            method:  'DELETE',
+            headers: {
+                'X-CSRF-TOKEN':     cfg.csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                btn.disabled = false;
+            }
+        })
+        .catch(function () {
+            btn.disabled = false;
+        });
+    });
+
     // ── Initial progress bar render ───────────────────────────────────────────
 
     updateGlobalProgress();
+
+    // ── Add Slot (Einsatzplan-Tab) ────────────────────────────────────────────
+
+    var addSlotBtn  = document.getElementById('addSlotBtn');
+    var slotTaskSel = document.getElementById('slotTaskSelect');
+    var slotMemSel  = document.getElementById('slotMemberSelect');
+    var slotFrom    = document.getElementById('slotTimeFrom');
+    var slotTo      = document.getElementById('slotTimeTo');
+
+    if (addSlotBtn) {
+        addSlotBtn.addEventListener('click', function () {
+            var taskId   = slotTaskSel  ? slotTaskSel.value  : '';
+            var memberId = slotMemSel   ? slotMemSel.value   : '';
+            var timeFrom = slotFrom     ? slotFrom.value     : '';
+            var timeTo   = slotTo       ? slotTo.value       : '';
+
+            if (!taskId || !memberId || !timeFrom || !timeTo) {
+                [slotTaskSel, slotMemSel, slotFrom, slotTo].forEach(function (el) {
+                    if (el && !el.value) { el.classList.add('ck-input--error'); }
+                });
+                return;
+            }
+            [slotTaskSel, slotMemSel, slotFrom, slotTo].forEach(function (el) {
+                if (el) { el.classList.remove('ck-input--error'); }
+            });
+            addSlotBtn.disabled = true;
+
+            fetch(cfg.routes.slotsBase, {
+                method:  'POST',
+                headers: {
+                    'Content-Type':     'application/json',
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({
+                    task_id:   parseInt(taskId,   10),
+                    member_id: parseInt(memberId, 10),
+                    time_from: timeFrom,
+                    time_to:   timeTo,
+                }),
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Fehler beim Speichern.');
+                    addSlotBtn.disabled = false;
+                }
+            })
+            .catch(function () {
+                alert('Netzwerkfehler. Bitte Seite neu laden.');
+                addSlotBtn.disabled = false;
+            });
+        });
+    }
+
+    // ── Remove Slot (Einsatzplan-Tab) ─────────────────────────────────────────
+
+    document.addEventListener('click', function (e) {
+        var btn = closest(e.target, '.ck-slot-remove-btn');
+        if (!btn) { return; }
+        var slotId = btn.dataset.slotId;
+        if (!slotId) { return; }
+        btn.disabled = true;
+        fetch(cfg.routes.slotsBase + '/' + slotId, {
+            method:  'DELETE',
+            headers: {
+                'X-CSRF-TOKEN':     csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.success) { window.location.reload(); }
+            else              { btn.disabled = false; }
+        })
+        .catch(function () { btn.disabled = false; });
+    });
 
 }());

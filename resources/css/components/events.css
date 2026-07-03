@@ -48,6 +48,27 @@
   border-radius: var(--ck-radius-lg);
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  margin-bottom: var(--ck-space-4);
+}
+
+/* Native <details> collapse support — summary replaces the head div */
+.ck-orga-section summary.ck-orga-section__head {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.ck-orga-section summary.ck-orga-section__head::-webkit-details-marker { display: none; }
+.ck-orga-section summary.ck-orga-section__head::before {
+  content: '▶';
+  font-size: var(--ck-font-xs);
+  margin-right: var(--ck-space-2);
+  color: currentColor;
+  opacity: 0.6;
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+details[open].ck-orga-section summary.ck-orga-section__head::before {
+  transform: rotate(90deg);
 }
 
 /* Header band (colour via modifier) */

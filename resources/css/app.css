@@ -12,6 +12,7 @@
 @import "./components/events.css";
 @import "./components/custom-fields.css";
 @import "./components/treasury.css";
+@import "./components/event-detail.css";
 
 /* ── Flatpickr: zuerst Original-CSS, dann CK-Override ── */
 @import "./components/datepicker.css";

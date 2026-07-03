@@ -71,18 +71,28 @@
                         <td class="ck-task-row__notes">{{ $mgmtTask->ev_notes ?: '–' }}</td>
 
                         <td class="ck-task-row__members">
-                            @forelse($mgmtMemberMap[$mgmtTask->id] ?? [] as $mgmtEtm)
+                            {{-- Non-slotted ETMs (time_from = null): show name + × remove --}}
+                            {{-- Slotted ETMs (time_from set): show name + time, managed in Einsatzplan tab --}}
+                            @foreach($mgmtMemberMap[$mgmtTask->id] ?? [] as $mgmtEtm)
                                 <span class="ck-task-member">
                                     {{ $mgmtEtm['name'] }}
                                     @if($mgmtEtm['time_from'])
                                         <span class="ck-task-member__time">
                                             ({{ $mgmtEtm['time_from'] }}–{{ $mgmtEtm['time_to'] }})
                                         </span>
+                                    @else
+                                        <button type="button"
+                                            class="ck-etm-remove-btn"
+                                            data-etm-id="{{ $mgmtEtm['id'] }}"
+                                            aria-label="{{ __('Remove') }}">×</button>
                                     @endif
                                 </span>
-                            @empty
-                                <span class="ck-text-muted">–</span>
-                            @endforelse
+                            @endforeach
+                            {{-- Inline assign select — options populated by events-detail.js from CK_EventDetail.members --}}
+                            <select class="ck-task-assign-select ck-form-select"
+                                    data-task-id="{{ $mgmtTask->id }}">
+                                <option value="">{{ __('events.task.assign_member') }}</option>
+                            </select>
                         </td>
 
                         <td class="ck-table__col--actions">
@@ -129,19 +139,4 @@
 </x-ck-card>
 @endif
 
-{{-- ── Management functions ─────────────────────────────────────────────────── --}}
-@if($mgmtFunctions->isNotEmpty())
-<x-ck-card>
-    <x-slot:header>Vereinsfunktionen</x-slot:header>
-    <table class="ck-table">
-        <thead>
-            <tr><th>Funktion</th></tr>
-        </thead>
-        <tbody>
-            @foreach($mgmtFunctions as $mgmtFn)
-            <tr><td>{{ $mgmtFn->name }}</td></tr>
-            @endforeach
-        </tbody>
-    </table>
-</x-ck-card>
-@endif
+{{-- Management functions have moved to the dedicated Funktionen tab (events.show.functions-panel). --}}
