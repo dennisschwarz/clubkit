@@ -23,7 +23,7 @@
   font-weight:     700;
   color:           var(--ck-text);
 }
-.ck-card__header-title  { flex: 1; }
+.ck-card__header-title  { flex: 1; font-size: var(--ck-font-base); }
 .ck-card__header-action { flex-shrink: 0; display: flex; align-items: center; gap: var(--ck-space-3); }
 
 /* ── Accent modifiers: colour-coded cards (Design System v2) ─────────────

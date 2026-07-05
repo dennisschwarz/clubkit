@@ -24,6 +24,7 @@ class EventsServiceProvider extends ServiceProvider
     {
         $this->loadRoutes();
         $this->loadViews();
+        $this->loadMigrations();
     }
 
     /** @return void */
@@ -36,5 +37,11 @@ class EventsServiceProvider extends ServiceProvider
     private function loadViews(): void
     {
         $this->loadViewsFrom(__DIR__ . '/Resources/Views', 'events');
+    }
+
+    /** @return void */
+    private function loadMigrations(): void
+    {
+        $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
     }
 }

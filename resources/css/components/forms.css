@@ -188,9 +188,14 @@ select.ck-field__input {
   background: var(--ck-bg-subtle);
   color: var(--ck-text);
 }
+.ck-local-tab:focus,
+.ck-local-tab:focus-visible {
+  outline: none;  /* browser native ring removed — visual state is the box-shadow ring below */
+}
 .ck-local-tab--active {
   background: var(--ck-white);
-  color: var(--ck-text);
+  color:      var(--ck-text);
+  /* drop shadow + 1.5px border ring — matches EventOverview_v2 mockup exactly */
   box-shadow: 0 1px 4px rgba(0,0,0,0.12), 0 0 0 1.5px var(--ck-border-strong);
 }
 
@@ -223,7 +228,11 @@ select.ck-field__input {
 }
 
 .ck-local-section         { display: none; }
-.ck-local-section--active { display: block; }
+.ck-local-section--active {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--ck-space-5);
+}
 
 /* Member chip */
 .ck-member-chip {

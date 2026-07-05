@@ -61,6 +61,7 @@ class ManagementServiceProvider extends ServiceProvider
     {
         $this->loadRoutes();
         $this->loadViews();
+        $this->loadMigrationsFrom(__DIR__ . '/Database/Migrations');
         $this->registerHooks();
         $this->registerViewComposers();
     }
@@ -94,7 +95,10 @@ class ManagementServiceProvider extends ServiceProvider
         // Assignment cell in the events list (functions + task name badges)
         $hooks->register('event.table.staffing.row', 'management::event-assignments-index-row', 10);
 
-        // Overview tab: KPI tiles + Wochenplan + staffing matrix + functions + teams
+        // Hero card right column: Vereinsfunktionen summary (name + assigned member)
+        $hooks->register('events.show.hero-right', 'management::event-hero-functions', 10);
+
+        // Overview tab: KPI tiles + Wochenplan + staffing matrix + teams
         $hooks->register('events.show.overview-panel', 'management::event-overview-panel', 10);
 
         // Tasks tab: task sections grouped by event_task_category + member assignments
@@ -123,6 +127,7 @@ class ManagementServiceProvider extends ServiceProvider
     {
         $this->composeAssignmentsIndexRow();
         $this->composeEventShowPageScripts();
+        $this->composeEventHeroFunctions();
         $this->composeEventOverviewPanel();
         $this->composeEventTasksPanel();
         $this->composeEventEinsatzplanPanel();
@@ -324,6 +329,59 @@ class ManagementServiceProvider extends ServiceProvider
      *
      * @return void
      */
+
+    /**
+     * Injects the Vereinsfunktionen summary into the hero card right column.
+     * View: management::event-hero-functions
+     * Hook: events.show.hero-right
+     *
+     * Provides: $heroFunctions → list<array{name: string, member_name: string|null}>
+     *
+     * @return void
+     */
+    private function composeEventHeroFunctions(): void
+    {
+        View::composer('management::event-hero-functions', function ($view) {
+            $data          = $view->getData();
+            $event         = $data['event']         ?? null;
+            $showFunctions = $data['showFunctions'] ?? false;
+
+            if (! $event || ! $showFunctions || ! Schema::hasTable('event_management_function')) {
+                $view->with('heroFunctions', []);
+                return;
+            }
+
+            // member_id lives directly on event_management_function (migration 2026_07_04_000040)
+            // — no management_function_member pivot needed here.
+            $functions = DB::table('event_management_function')
+                ->join('management_functions',
+                    'management_functions.id', '=',
+                    'event_management_function.management_function_id')
+                ->leftJoin('members',
+                    'members.id', '=',
+                    'event_management_function.member_id')
+                ->where('event_management_function.event_id', '=', $event->id)
+                ->select([
+                    'management_functions.name',
+                    'members.first_name',
+                    'members.last_name',
+                ])
+                ->get();
+
+            $heroFunctions = [];
+            foreach ($functions as $row) {
+                $heroFunctions[] = [
+                    'name'        => $row->name,
+                    'member_name' => $row->first_name
+                        ? trim($row->first_name . ' ' . $row->last_name)
+                        : null,
+                ];
+            }
+
+            $view->with('heroFunctions', $heroFunctions);
+        });
+    }
+
     private function composeEventOverviewPanel(): void
     {
         View::composer('management::event-overview-panel', function ($view) {

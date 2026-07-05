@@ -18,32 +18,91 @@
       $mgmtOvWeekData             (array)      [{label, range, days, members}]
       $mgmtOvActiveKwIdx          (int)        default visible KW index
       $mgmtOvUnstaffedPrepTasks   (array)      names of prep tasks without ETM
+
+    Feature-flag variables (set in show.blade.php @php block, shared via view scope):
+      $showTasks     (bool)  Management installed && $event->tasks_enabled
+      $showSlots     (bool)  Management installed && $event->slots_enabled
+      $showFunctions (bool)  Management installed && $event->functions_enabled
+      $teamsInstalled (bool) Schema::hasTable('teams')
 --}}
 
+@php
+    /**
+     * Defensive defaults: the panel may theoretically be rendered outside
+     * show.blade.php in tests or previews. Fall back to false so no card
+     * renders unexpectedly.
+     */
+    $showTasks      = $showTasks      ?? false;
+    $showSlots      = $showSlots      ?? false;
+    $showFunctions  = $showFunctions  ?? false;
+    $teamsInstalled = $teamsInstalled ?? false;
+@endphp
+
+{{-- ══════════════════════════════════════════════════════════════════════════
+     SECTION: Tasks (guarded by $showTasks)
+     Includes: KPI tiles + Progress by category
+══════════════════════════════════════════════════════════════════════════ --}}
+
+@if($showTasks)
+
 {{-- ── 1. KPI tiles ────────────────────────────────────────────────────────── --}}
-@if($mgmtKpiTotalTasks > 0)
+{{--
+    Split-design tiles (Design System v2):
+      .ck-kpi-card__top    → solid accent background, white number
+      .ck-kpi-card__bottom → light tint background, coloured label
+    Only rendered when there is at least one task.
+--}}
 <div class="ck-kpi-grid">
+
     <div class="ck-kpi-card">
-        <span class="ck-kpi-card__value">{{ $mgmtKpiTotalTasks }}</span>
-        <span class="ck-kpi-card__label">{{ __('events.kpi.total_tasks') }}</span>
+        <div class="ck-kpi-card__top">
+            <span class="ck-kpi-card__icon">📋</span>
+            <span class="ck-kpi-card__value">{{ $mgmtKpiTotalTasks }}</span>
+        </div>
+        <div class="ck-kpi-card__bottom">
+            <span class="ck-kpi-card__label">{{ __('events.kpi.total_tasks') }}</span>
+        </div>
     </div>
+
     <div class="ck-kpi-card ck-kpi-card--success">
-        <span class="ck-kpi-card__value">{{ $mgmtKpiDoneTasks }}</span>
-        <span class="ck-kpi-card__label">{{ __('events.kpi.done_tasks') }}</span>
+        <div class="ck-kpi-card__top">
+            <span class="ck-kpi-card__icon">✅</span>
+            <span class="ck-kpi-card__value">{{ $mgmtKpiDoneTasks }}</span>
+        </div>
+        <div class="ck-kpi-card__bottom">
+            <span class="ck-kpi-card__label">{{ __('events.kpi.done_tasks') }}</span>
+        </div>
     </div>
+
     <div class="ck-kpi-card ck-kpi-card--warning">
-        <span class="ck-kpi-card__value">{{ $mgmtKpiOpenTasks }}</span>
-        <span class="ck-kpi-card__label">{{ __('events.kpi.open_tasks') }}</span>
+        <div class="ck-kpi-card__top">
+            <span class="ck-kpi-card__icon">⏳</span>
+            <span class="ck-kpi-card__value">{{ $mgmtKpiOpenTasks }}</span>
+        </div>
+        <div class="ck-kpi-card__bottom">
+            <span class="ck-kpi-card__label">{{ __('events.kpi.open_tasks') }}</span>
+        </div>
     </div>
+
     <div class="ck-kpi-card ck-kpi-card--danger">
-        <span class="ck-kpi-card__value">{{ $mgmtKpiUnstaffedPrep }}</span>
-        <span class="ck-kpi-card__label">{{ __('events.kpi.unstaffed') }}</span>
+        <div class="ck-kpi-card__top">
+            <span class="ck-kpi-card__icon">⚠️</span>
+            <span class="ck-kpi-card__value">{{ $mgmtKpiUnstaffedPrep }}</span>
+        </div>
+        <div class="ck-kpi-card__bottom">
+            <span class="ck-kpi-card__label">{{ __('events.kpi.unstaffed') }}</span>
+        </div>
     </div>
+
 </div>
-@endif
 
 {{-- ── 2. Progress by category ─────────────────────────────────────────────── --}}
-<x-ck-card class="ck-mb-4" accent="blue">
+{{--
+    Accent "teal" matches the Tasks tab dot colour (Design System v2).
+    Progress bars: 14px height (see event-detail.css .ck-cat-progress__bar).
+    Bar fill uses CSS custom property --progress set by events-detail.js.
+--}}
+<x-ck-card accent="teal">
     <x-slot:header>
         <span class="ck-card__header-title">📊 {{ __('events.overview.progress_title') }}</span>
     </x-slot:header>
@@ -76,13 +135,29 @@
     @endif
 </x-ck-card>
 
-{{-- ── 3. Schedule (Zeitplan) ──────────────────────────────────────────────── --}}
-<x-ck-card class="ck-mb-4" accent="blue">
+@endif {{-- $showTasks --}}
+
+
+{{-- ══════════════════════════════════════════════════════════════════════════
+     SECTION: Slots / Schedule (guarded by $showSlots)
+     Includes: Zeitplan (preparation schedule) + Staffing matrix (event-day)
+══════════════════════════════════════════════════════════════════════════ --}}
+
+@if($showSlots)
+
+{{-- ── 3. Schedule / Zeitplan (Vorbereitungsaufgaben) ─────────────────────── --}}
+{{--
+    Accent "amber" matches the Einsatzplan tab dot colour (Design System v2).
+    Two views toggled by ckZeitplanView() in events-detail.js:
+      "week" → Wochenplan (KW grid)
+      "cat"  → Nach Kategorie (prep task list)
+--}}
+<x-ck-card accent="amber">
     <x-slot:header>
         <span class="ck-card__header-title">📅 {{ __('events.overview.zeitplan_title') }}</span>
     </x-slot:header>
 
-    {{-- Toolbar: view toggle + KW navigation. data-view drives CSS visibility of KW nav. --}}
+    {{-- Toolbar: view toggle + KW navigation. data-view drives CSS for KW nav. --}}
     <div class="ck-zeitplan-toolbar" id="ckZeitplanToolbar" data-view="week">
         <div class="ck-zeitplan-toggle">
             <button type="button"
@@ -249,7 +324,12 @@
 </x-ck-card>
 
 {{-- ── 4. Staffing matrix (event-day tasks × hour grid) ───────────────────── --}}
-<x-ck-card class="ck-mb-4" accent="gray">
+{{--
+    Also amber — part of the same Einsatzplan feature as the Zeitplan above.
+    Shows event-day tasks (those without a prep deadline) mapped across
+    hour columns, with member avatars in each cell.
+--}}
+<x-ck-card accent="amber">
     <x-slot:header>
         <span class="ck-card__header-title">🗓️ {{ __('events.overview.matrix_title') }}</span>
     </x-slot:header>
@@ -288,7 +368,7 @@
         </table>
     </div>
     @elseif(! empty($mgmtOvDayTasks))
-    {{-- Day tasks exist but no hour columns — should not occur after PHP fallback (step 5) --}}
+    {{-- Day tasks exist but no hour columns — fallback without grid --}}
     <div class="ck-ov-matrix-tasks">
         @foreach($mgmtOvDayTasks as $mgmtDayTask)
         <div class="ck-ov-matrix-tasks__row">
@@ -302,31 +382,23 @@
     @endif
 </x-ck-card>
 
-{{-- ── 5. Management functions assigned to this event ─────────────────────── --}}
-<x-ck-card class="ck-mb-4" accent="gray">
-    <x-slot:header>
-        <span class="ck-card__header-title">⚙️ {{ __('events.overview.functions_title') }}</span>
-    </x-slot:header>
+@endif {{-- $showSlots --}}
 
-    @if(! empty($mgmtOvFunctions))
-    <ul class="ck-overview-summary">
-        @foreach($mgmtOvFunctions as $mgmtOvFn)
-        <li class="ck-overview-summary__item">
-            <span>{{ $mgmtOvFn['name'] }}</span>
-            @if($mgmtOvFn['member_name'])
-                <x-ck-badge color="green">{{ $mgmtOvFn['member_name'] }}</x-ck-badge>
-            @else
-                <x-ck-badge color="red">{{ __('events.overview.unstaffed') }}</x-ck-badge>
-            @endif
-        </li>
-        @endforeach
-    </ul>
-    @else
-    <p class="ck-empty-state">{{ __('events.function.empty') }}</p>
-    @endif
-</x-ck-card>
+
+{{-- Functions summary was moved to the hero card right column.
+     See: management::event-hero-functions + events.show.hero-right hook. --}}
+
+
+{{-- ══════════════════════════════════════════════════════════════════════════
+     SECTION: Teams (guarded by $teamsInstalled — module presence, not a flag)
+     Teams are shown whenever the Teams module is installed, regardless of
+     per-event feature flags. There is no dedicated teams_enabled flag.
+══════════════════════════════════════════════════════════════════════════ --}}
+
+@if($teamsInstalled)
 
 {{-- ── 6. Teams assigned to this event ────────────────────────────────────── --}}
+{{-- Accent "green" matches the Teams concept colour (Design System v2). --}}
 <x-ck-card accent="green">
     <x-slot:header>
         <span class="ck-card__header-title">👥 {{ __('events.overview.teams_title') }}</span>
@@ -344,3 +416,5 @@
     <p class="ck-empty-state">{{ __('events.teams.empty') }}</p>
     @endif
 </x-ck-card>
+
+@endif {{-- $teamsInstalled --}}

@@ -66,6 +66,7 @@
   "events.feature.tasks": "Aufgaben",
   "events.feature.functions": "Funktionen",
   "events.feature.slots": "Einsatzplan",
+  "events.detail.functions_label": "Vereinsfunktionen",
   "events.detail.starts_at": "Beginn",
   "events.detail.ends_at": "Ende",
   "events.detail.location": "Ort",

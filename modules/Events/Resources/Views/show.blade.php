@@ -90,17 +90,17 @@
 <div class="ck-local-section ck-local-section--active" id="ckEvtPane-overview">
 <x-ck-card class="ck-event-info ck-no-print" accent="blue">
     <x-slot:header>
-        <span class="ck-card__header-title">{{ __('events.detail.event_details') }}</span>
+        <span class="ck-card__header-title">📅 {{ __('events.detail.event_details') }}</span>
         <button type="button" class="ck-btn ck-btn--secondary ck-btn--sm"
                 onclick="ckModalOpen('editEventModal')">
             ✏ {{ __('Edit') }}
         </button>
     </x-slot:header>
 
-    {{-- Hero: 50/50 grid — left: event info | right: reserved (functions injected via step 3) --}}
-    <div class="ck-event-hero">
+    {{-- Hero grid: split when functions are enabled, single column otherwise --}}
+    <div class="ck-event-hero {{ $showFunctions ? 'ck-event-hero--split' : 'ck-event-hero--full' }}">
 
-        {{-- Left column: date tile + meta + optional description/notes --}}
+        {{-- Left column: date tile + time / location / description --}}
         <div class="ck-event-hero__left">
 
             {{-- Date tile + time/location in a horizontal row --}}
@@ -136,9 +136,12 @@
 
         </div>
 
-        {{-- Right column: reserved for Vereinsfunktionen (step 3) --}}
+        {{-- Right column: Vereinsfunktionen summary (rendered by Management hook) --}}
+        @if($showFunctions)
         <div class="ck-event-hero__right">
+            @ckHook('events.show.hero-right')
         </div>
+        @endif
 
     </div>
 </x-ck-card>

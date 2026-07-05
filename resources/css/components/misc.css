@@ -263,69 +263,9 @@
 .ck-family-item__label { font-size: var(--ck-font-xs); font-weight: 700; color: var(--ck-text-muted); width: 130px; flex-shrink: 0; }
 .ck-family-item__name  { flex: 1; font-size: var(--ck-font-base); color: var(--ck-text); }
 
-/* ══════════════════════════════════════════════════════════════════════
-   Local page tabs (ck-local-tab)
-   ─────────────────────────────────────────────────────────────────────
-   Page-internal sub-navigation (e.g. Organisation: Functions / Tasks).
-   Colour modifiers mirror the section colours from events.css:
-     --purple → club functions   (= ck-orga-section--purple: #7c3aed)
-     --blue   → club tasks       (= ck-orga-section--blue:   #60a5fa)
-     --green  → teams            (= ck-orga-section--green:  #16a34a)
-     --amber  → one-off tasks    (= ck-orga-section--amber:  #d97706)
-   Consistency: same colour = same meaning, regardless of where in the UI.
-══════════════════════════════════════════════════════════════════════ */
-.ck-local-tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 2px solid var(--ck-border);
-  margin-bottom: var(--ck-space-5);
-}
-
-.ck-local-tab {
-  flex-shrink: 0;
-  padding: var(--ck-space-3) var(--ck-space-4);
-  font-size: var(--ck-font-base);
-  font-weight: 600;
-  cursor: pointer;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;   /* overlaps container border → seamless bar */
-  font-family: var(--ck-font);
-  white-space: nowrap;
-  color: var(--ck-text-secondary);
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.ck-local-tab:hover { color: var(--ck-text); }
-
-/* Active: default blue */
-.ck-local-tab--active {
-  color: var(--ck-text);
-  border-bottom-color: var(--ck-accent);
-}
-
-/* ── Color modifiers: tab bar matches section color in modal ─────────── */
-.ck-local-tab--purple.ck-local-tab--active {
-  color: var(--ck-purple-text);
-  border-bottom-color: var(--ck-purple);
-}
-.ck-local-tab--blue.ck-local-tab--active {
-  color: var(--ck-accent-dark);
-  border-bottom-color: var(--ck-accent);
-}
-.ck-local-tab--green.ck-local-tab--active {
-  color: var(--ck-success-text);
-  border-bottom-color: var(--ck-success);
-}
-.ck-local-tab--amber.ck-local-tab--active {
-  color: var(--ck-team-amber-text);
-  border-bottom-color: var(--ck-warning);
-}
-
-/* Section visibility */
-.ck-local-section         { display: none; }
-.ck-local-section--active { display: block; }
+/* Local page tab styles (.ck-local-tabs, .ck-local-tab, .ck-local-section)
+   have been moved to forms.css (Design System v2 — pill-style tabs).
+   Removed from here to prevent cascade override. */
 
 /* ══════════════════════════════════════════════════════════════════════
    Module card (Admin > Modules)
