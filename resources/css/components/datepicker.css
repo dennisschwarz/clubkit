@@ -176,12 +176,74 @@ input.flatpickr-mobile {
   transition: background 0.15s;
   user-select: none;
 }
-.ck-fp-confirm:hover {
+.ck-fp-confirm:hover:not(:disabled):not(.ck-fp-confirm--disabled) {
   background: var(--ck-primary);
+}
+
+/* Bug-Fix: Disabled state — button is greyed out until a date is selected.
+   Prevents the user from "closing without selecting" which was the old bug. */
+.ck-fp-confirm:disabled,
+.ck-fp-confirm--disabled {
+  background: var(--ck-border);
+  color: var(--ck-text-muted);
+  cursor: not-allowed;
+  border-top-color: var(--ck-border);
 }
 
 /* When the confirm button is appended (.has-confirm-btn), the time picker
    is no longer the last child — remove its bottom radius to avoid the gap. */
 .flatpickr-calendar.has-confirm-btn .flatpickr-time {
   border-radius: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Calendar icon trigger (.ck-fp-trigger) + wrapper (.ck-fp-wrap)
+   _ckFpAddTrigger() in app.js wraps the altInput in .ck-fp-wrap and
+   appends a .ck-fp-trigger button with a calendar icon (📅).
+   This restores the "icon next to field" UX that was present before.
+══════════════════════════════════════════════════════════════════════ */
+
+/* Wrapper: makes input + icon button appear as one unified field */
+.ck-fp-wrap {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--ck-border);
+  border-radius: var(--ck-radius);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ck-fp-wrap:focus-within {
+  border-color: var(--ck-accent-dark);
+  box-shadow: var(--ck-focus-ring);
+}
+
+/* The altInput inside the wrapper: no own border/radius — wrapper owns that */
+.ck-fp-wrap input.flatpickr-input {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  /* Retain all other .ck-field__input styles via the class flatpickr copies */
+}
+
+/* The calendar icon button */
+.ck-fp-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: none;
+  border-left: 1px solid var(--ck-border);
+  background: var(--ck-bg-subtle);
+  color: var(--ck-text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+.ck-fp-trigger:hover {
+  background: var(--ck-border);
+  color: var(--ck-text);
 }

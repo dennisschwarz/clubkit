@@ -21,6 +21,9 @@ flatpickr.setDefaults({
     monthSelectorType: 'static', // No dropdown – prevents split-layout bug
     animate: false,              // No CSS transition (interferes with modal animations)
     closeOnSelect: false,        // Keep picker open until confirmed
+    allowInput: true,            // Bug-Fix: User can type directly into the altInput field.
+                                 // Without this, the altInput is read-only and the user
+                                 // must always open the picker via the calendar icon.
 });
 
 // Make globally available for standalone JS modules (events-modal.js etc.)
@@ -180,6 +183,49 @@ window.ckLocalTab = function (sectionId, btn) {
     if (section) section.classList.add('ck-local-section--active');
 };
 
+// ── Flatpickr calendar icon trigger helper ────────────────────────────────
+
+/**
+ * Wraps the flatpickr altInput in a flex container and appends a calendar icon
+ * button that opens/closes the picker.
+ *
+ * This restores the "icon next to the field" UX that was present in earlier
+ * versions. The icon is the only way to open the picker when allowInput=true
+ * lets the user type directly into the text field.
+ *
+ * DOM result:
+ *   <div class="ck-fp-wrap">
+ *     <input class="flatpickr-input ck-field__input" ...>   ← altInput
+ *     <button class="ck-fp-trigger" aria-label="Kalender öffnen">📅</button>
+ *   </div>
+ *
+ * @param {Object} instance - Flatpickr instance (from onReady callback).
+ */
+function _ckFpAddTrigger(instance) {
+    var altInput = instance.altInput;
+    if (!altInput) { return; }
+
+    // Create the wrapper and insert it where the altInput currently is.
+    var wrap = document.createElement('div');
+    wrap.className = 'ck-fp-wrap';
+    altInput.parentNode.insertBefore(wrap, altInput);
+    wrap.appendChild(altInput);
+
+    // Calendar icon trigger button.
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'ck-fp-trigger';
+    trigger.setAttribute('aria-label', 'Kalender öffnen');
+    trigger.setAttribute('tabindex', '-1'); // Not in tab order – field itself is focusable.
+    trigger.textContent = '📅';
+    trigger.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        instance.toggle();
+    });
+    wrap.appendChild(trigger);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
     // ── 1. Modal Teleport ──────────────────────────────────────────────────
@@ -232,6 +278,13 @@ document.addEventListener('DOMContentLoaded', function () {
             enableTime: false,
             dateFormat: 'Y-m-d',
             altFormat:  'd.m.Y',
+            closeOnSelect: true, // Date-only: close immediately after selection (no time to confirm).
+            onReady: function (selectedDates, dateStr, instance) {
+                // Wrap the altInput with a calendar icon trigger button.
+                // This restores the icon the user previously had and allows
+                // opening the picker without clicking directly on the text field.
+                _ckFpAddTrigger(instance);
+            },
         });
     });
 
@@ -241,17 +294,41 @@ document.addEventListener('DOMContentLoaded', function () {
             dateFormat: 'Y-m-d H:i',
             altFormat:  'd.m.Y H:i',
             onReady: function (selectedDates, dateStr, instance) {
+                // Wrap the altInput with a calendar icon trigger button.
+                _ckFpAddTrigger(instance);
+
                 // "Apply" confirm button appended below the time picker.
-                // Uses the instance parameter from onReady directly — avoids the
-                // synchronous-init timing issue (stored reference would be unset here).
-                var btn          = document.createElement('button');
-                btn.type         = 'button';
-                btn.className    = 'ck-fp-confirm';
-                btn.textContent  = '✓ Datum & Uhrzeit übernehmen';
-                btn.addEventListener('click', function () { instance.close(); });
-                instance.calendarContainer.appendChild(btn);
+                // Bug-Fix: Button is DISABLED initially — it only enables once the user
+                // has actually selected a date. Previously, the button was always active
+                // which allowed closing the picker without having selected anything.
+                var confirmBtn          = document.createElement('button');
+                confirmBtn.type         = 'button';
+                confirmBtn.className    = 'ck-fp-confirm';
+                confirmBtn.textContent  = '✓ Datum & Uhrzeit übernehmen';
+                confirmBtn.disabled     = true; // Disabled until a date is chosen.
+                confirmBtn.classList.add('ck-fp-confirm--disabled');
+                confirmBtn.addEventListener('click', function () { instance.close(); });
+                instance.calendarContainer.appendChild(confirmBtn);
                 // Marker class so CSS can remove the bottom radius from .flatpickr-time
                 instance.calendarContainer.classList.add('has-confirm-btn');
+
+                // Store reference so onChange / onClear can toggle it.
+                instance._ckConfirmBtn = confirmBtn;
+            },
+            onChange: function (selectedDates, dateStr, instance) {
+                // Enable the confirm button as soon as a date is selected.
+                if (instance._ckConfirmBtn) {
+                    var hasDate = selectedDates.length > 0;
+                    instance._ckConfirmBtn.disabled = !hasDate;
+                    instance._ckConfirmBtn.classList.toggle('ck-fp-confirm--disabled', !hasDate);
+                }
+            },
+            onClear: function (selectedDates, dateStr, instance) {
+                // Re-disable the confirm button when the picker is cleared.
+                if (instance._ckConfirmBtn) {
+                    instance._ckConfirmBtn.disabled = true;
+                    instance._ckConfirmBtn.classList.add('ck-fp-confirm--disabled');
+                }
             },
         });
     });
