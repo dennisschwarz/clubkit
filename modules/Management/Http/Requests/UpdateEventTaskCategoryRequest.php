@@ -9,11 +9,14 @@ use Illuminate\Validation\Rule;
 use Modules\Management\Models\EventTaskCategory;
 
 /**
- * Validates the request data for updating an existing global task category.
+ * Validates the request data for updating an event task category.
  *
- * Colour slugs use the same system as event_task_categories and Teams.
+ * Only name and colour can be updated via this request.
+ * sort_order is updated exclusively via the reorder endpoint (MoveEventTaskRequest).
+ *
+ * Permission is enforced at the route level via middleware('permission:events.manage').
  */
-class UpdateTaskCategoryRequest extends FormRequest
+class UpdateEventTaskCategoryRequest extends FormRequest
 {
     /** @return bool */
     public function authorize(): bool
@@ -38,8 +41,9 @@ class UpdateTaskCategoryRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'Kategorienname ist erforderlich.',
-            'color.in'      => 'Ungültiger Farbwert.',
+            'name.required' => 'Category name is required.',
+            'name.max'      => 'Category name must not exceed 100 characters.',
+            'color.in'      => 'Invalid colour value.',
         ];
     }
 }

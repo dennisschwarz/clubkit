@@ -12,14 +12,9 @@
 
 <div {{ $attributes->merge(['class' => $classes]) }}>
 
-    {{-- Header: Titel LINKS, optionaler Action-Slot RECHTS --}}
+    {{-- Card header: renders slot content directly (callers may include action buttons) --}}
     @isset($header)
-    <div class="ck-card__header">
-        <span class="ck-card__header-title">{{ $header }}</span>
-        @isset($headerAction)
-        <div class="ck-card__header-action">{{ $headerAction }}</div>
-        @endisset
-    </div>
+    <div class="ck-card__header">{{ $header }}</div>
     @endisset
 
     <div class="{{ $noPadding ? '' : 'ck-card__body' }}">{{ $slot }}</div>

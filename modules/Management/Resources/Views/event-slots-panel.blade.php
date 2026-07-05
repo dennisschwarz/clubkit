@@ -36,12 +36,12 @@
     </thead>
     <tbody>
         @foreach($mgmtEinsatzTasks as $mgmtETask)
-        <tr class="ck-task-row{{ $mgmtETask->ev_completed ? ' ck-task-row--done' : '' }}">
+        <tr class="ck-task-row{{ $mgmtETask->completed ? ' ck-task-row--done' : '' }}">
             <td class="ck-table__col--checkbox">
                 <input type="checkbox"
                     class="ck-task-checkbox"
                     data-task-id="{{ $mgmtETask->id }}"
-                    {{ $mgmtETask->ev_completed ? 'checked' : '' }}>
+                    {{ $mgmtETask->completed ? 'checked' : '' }}>
             </td>
             <td>{{ $mgmtETask->name }}</td>
             <td>

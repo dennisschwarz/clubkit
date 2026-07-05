@@ -252,17 +252,48 @@ test('AJAX store Funktion gibt 422 bei fehlendem Namen zurück', function () {
 
 // ── AJAX: Kategorien JSON-Response ────────────────────────────────────────────
 
-test('AJAX store Kategorie gibt JSON mit id und name zurück', function () {
+test('AJAX store Kategorie gibt JSON mit id, name und color zurück', function () {
     $user = createUserWithPermission('management.tasks.manage');
 
     $response = $this->actingAs($user)
-        ->postJson('/management/task-categories', ['name' => 'Catering']);
+        ->postJson('/management/task-categories', ['name' => 'Catering', 'color' => 'amber']);
 
     $response->assertStatus(201)
-        ->assertJsonStructure(['success', 'id', 'name'])
-        ->assertJson(['success' => true, 'name' => 'Catering']);
+        ->assertJsonStructure(['success', 'id', 'name', 'color'])
+        ->assertJson(['success' => true, 'name' => 'Catering', 'color' => 'amber']);
 
-    $this->assertDatabaseHas('management_task_categories', ['name' => 'Catering']);
+    $this->assertDatabaseHas('management_task_categories', ['name' => 'Catering', 'color' => 'amber']);
+});
+
+test('AJAX store Kategorie speichert optionale Farbe', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $response = $this->actingAs($user)
+        ->postJson('/management/task-categories', ['name' => 'Spieltag', 'color' => 'blue']);
+
+    $response->assertStatus(201)->assertJsonPath('color', 'blue');
+
+    $this->assertDatabaseHas('management_task_categories', ['name' => 'Spieltag', 'color' => 'blue']);
+});
+
+test('AJAX store Kategorie ohne Farbe ist erlaubt (Farbe kann null sein)', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $response = $this->actingAs($user)
+        ->postJson('/management/task-categories', ['name' => 'Ohne Farbe']);
+
+    $response->assertStatus(201)->assertJsonPath('color', null);
+
+    $this->assertDatabaseHas('management_task_categories', ['name' => 'Ohne Farbe', 'color' => null]);
+});
+
+test('AJAX store Kategorie gibt 422 bei ungültigem Farbwert zurück', function () {
+    $user = createUserWithPermission('management.tasks.manage');
+
+    $this->actingAs($user)
+        ->postJson('/management/task-categories', ['name' => 'Invalid', 'color' => 'not-a-color'])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('color');
 });
 
 test('AJAX store Kategorie gibt 422 bei fehlendem Namen zurück', function () {

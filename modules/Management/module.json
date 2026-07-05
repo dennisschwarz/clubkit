@@ -12,7 +12,10 @@
         "management_tasks",
         "management_task_team",
         "management_task_member",
-        "event_management_function"
+        "event_management_function",
+        "event_task_categories",
+        "event_tasks",
+        "event_task_members"
     ],
     "provides": {
         "migrations": true,

@@ -5,8 +5,8 @@ declare(strict_types=1);
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Modules\Events\Models\Event;
-use Modules\Events\Models\EventTaskMember;
-use Modules\Management\Models\ManagementTask;
+use Modules\Management\Models\EventTask;
+use Modules\Management\Models\EventTaskMember;
 use Modules\Members\Models\Member;
 
 // ── Module seed ───────────────────────────────────────────────────────────────
@@ -18,6 +18,7 @@ beforeEach(function () {
         ['slug' => 'events',     'is_active' => 1, 'installed_at' => now()],
         ['slug' => 'management', 'is_active' => 1, 'installed_at' => now()],
     ]);
+    seedPermissions();
 });
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
@@ -46,16 +47,16 @@ test('user without events.manage cannot create a time slot', function () {
 
 test('store returns 422 when time_from is missing', function () {
     $event  = Event::factory()->create();
-    $task   = ManagementTask::create(['name' => 'Task']);
+    // EventTask replaces the old ManagementTask + event_task pivot approach.
+    $task   = EventTask::create(['event_id' => $event->id, 'name' => 'Task']);
     $member = Member::factory()->create();
     $user   = createUserWithPermission('events.manage');
-    $event->tasks()->attach($task->id);
 
     $this->actingAs($user)
         ->postJson("/events/{$event->id}/slots", [
-            'task_id'   => $task->id,
-            'member_id' => $member->id,
-            'time_to'   => '12:00',
+            'event_task_id' => $task->id,
+            'member_id'     => $member->id,
+            'time_to'       => '12:00',
         ])
         ->assertStatus(422)
         ->assertJsonValidationErrors('time_from');
@@ -63,17 +64,16 @@ test('store returns 422 when time_from is missing', function () {
 
 test('store returns 422 when time_to is before time_from', function () {
     $event  = Event::factory()->create();
-    $task   = ManagementTask::create(['name' => 'Task']);
+    $task   = EventTask::create(['event_id' => $event->id, 'name' => 'Task']);
     $member = Member::factory()->create();
     $user   = createUserWithPermission('events.manage');
-    $event->tasks()->attach($task->id);
 
     $this->actingAs($user)
         ->postJson("/events/{$event->id}/slots", [
-            'task_id'   => $task->id,
-            'member_id' => $member->id,
-            'time_from' => '14:00',
-            'time_to'   => '10:00',
+            'event_task_id' => $task->id,
+            'member_id'     => $member->id,
+            'time_from'     => '14:00',
+            'time_to'       => '10:00',
         ])
         ->assertStatus(422)
         ->assertJsonValidationErrors('time_to');
@@ -83,19 +83,21 @@ test('store returns 422 when time_to is before time_from', function () {
 
 test('store returns 422 when the task has a future deadline (not an event-day task)', function () {
     $event          = Event::factory()->create(['starts_at' => Carbon::parse('2027-07-15 14:00:00')]);
-    $task           = ManagementTask::create(['name' => 'Vorbereitungsaufgabe']);
-    $member         = Member::factory()->create();
-    $user           = createUserWithPermission('events.manage');
-    $futureDeadline = '2027-07-14 10:00:00';
-
-    $event->tasks()->attach($task->id, ['deadline_at' => $futureDeadline]);
+    $futureDeadline = '2027-07-14 10:00:00'; // one day before event — not an event-day task
+    $task           = EventTask::create([
+        'event_id'    => $event->id,
+        'name'        => 'Vorbereitungsaufgabe',
+        'deadline_at' => $futureDeadline,
+    ]);
+    $member = Member::factory()->create();
+    $user   = createUserWithPermission('events.manage');
 
     $this->actingAs($user)
         ->postJson("/events/{$event->id}/slots", [
-            'task_id'   => $task->id,
-            'member_id' => $member->id,
-            'time_from' => '09:00',
-            'time_to'   => '12:00',
+            'event_task_id' => $task->id,
+            'member_id'     => $member->id,
+            'time_from'     => '09:00',
+            'time_to'       => '12:00',
         ])
         ->assertStatus(422)
         ->assertJsonPath('success', false);
@@ -105,50 +107,45 @@ test('store returns 422 when the task has a future deadline (not an event-day ta
 
 test('user with events.manage can assign a member with a time slot to an event-day task', function () {
     $event  = Event::factory()->create(['starts_at' => Carbon::parse('2027-07-15 14:00:00')]);
-    $task   = ManagementTask::create(['name' => 'Kassierer']);
+    // deadline_at = null → event-day task, eligible for time slots.
+    $task   = EventTask::create(['event_id' => $event->id, 'name' => 'Kassierer', 'deadline_at' => null]);
     $member = Member::factory()->create();
     $user   = createUserWithPermission('events.manage');
 
-    $event->tasks()->attach($task->id, ['deadline_at' => null]);
-
     $this->actingAs($user)
         ->postJson("/events/{$event->id}/slots", [
-            'task_id'   => $task->id,
-            'member_id' => $member->id,
-            'time_from' => '10:00',
-            'time_to'   => '13:00',
+            'event_task_id' => $task->id,
+            'member_id'     => $member->id,
+            'time_from'     => '10:00',
+            'time_to'       => '13:00',
         ])
         ->assertStatus(201)
         ->assertJsonPath('success', true)
         ->assertJsonPath('time_from', '10:00')
         ->assertJsonPath('time_to',   '13:00');
 
-    $this->assertDatabaseHas('event_task_member', [
-        'event_id'  => $event->id,
-        'task_id'   => $task->id,
-        'member_id' => $member->id,
+    $this->assertDatabaseHas('event_task_members', [
+        'event_task_id' => $task->id,
+        'member_id'     => $member->id,
     ]);
 });
 
 test('store combines the event date with the H:i time string to produce a full datetime', function () {
     $event  = Event::factory()->create(['starts_at' => Carbon::parse('2027-07-15 14:00:00')]);
-    $task   = ManagementTask::create(['name' => 'Einlasskontrolle']);
+    $task   = EventTask::create(['event_id' => $event->id, 'name' => 'Einlasskontrolle', 'deadline_at' => null]);
     $member = Member::factory()->create();
     $user   = createUserWithPermission('events.manage');
 
-    $event->tasks()->attach($task->id, ['deadline_at' => null]);
-
     $this->actingAs($user)
         ->postJson("/events/{$event->id}/slots", [
-            'task_id'   => $task->id,
-            'member_id' => $member->id,
-            'time_from' => '09:00',
-            'time_to'   => '11:00',
+            'event_task_id' => $task->id,
+            'member_id'     => $member->id,
+            'time_from'     => '09:00',
+            'time_to'       => '11:00',
         ])
         ->assertStatus(201);
 
-    $etm = EventTaskMember::where('event_id', $event->id)
-        ->where('task_id', $task->id)
+    $etm = EventTaskMember::where('event_task_id', $task->id)
         ->where('member_id', $member->id)
         ->firstOrFail();
 
@@ -162,18 +159,15 @@ test('store combines the event date with the H:i time string to produce a full d
 
 test('user with events.manage can remove a time slot', function () {
     $event  = Event::factory()->create(['starts_at' => Carbon::parse('2027-07-15 14:00:00')]);
-    $task   = ManagementTask::create(['name' => 'Aufbau']);
+    $task   = EventTask::create(['event_id' => $event->id, 'name' => 'Aufbau']);
     $member = Member::factory()->create();
     $user   = createUserWithPermission('events.manage');
 
-    $event->tasks()->attach($task->id);
-
     $slot = EventTaskMember::create([
-        'event_id'  => $event->id,
-        'task_id'   => $task->id,
-        'member_id' => $member->id,
-        'time_from' => '2027-07-15 10:00:00',
-        'time_to'   => '2027-07-15 13:00:00',
+        'event_task_id' => $task->id,
+        'member_id'     => $member->id,
+        'time_from'     => '2027-07-15 10:00:00',
+        'time_to'       => '2027-07-15 13:00:00',
     ]);
 
     $this->actingAs($user)
@@ -181,21 +175,19 @@ test('user with events.manage can remove a time slot', function () {
         ->assertStatus(200)
         ->assertJsonPath('success', true);
 
-    $this->assertDatabaseMissing('event_task_member', ['id' => $slot->id]);
+    $this->assertDatabaseMissing('event_task_members', ['id' => $slot->id]);
 });
 
 test('destroy returns 404 when the record has no time slot (use members endpoint instead)', function () {
     $event  = Event::factory()->create();
-    $task   = ManagementTask::create(['name' => 'Task']);
+    $task   = EventTask::create(['event_id' => $event->id, 'name' => 'Task']);
     $member = Member::factory()->create();
     $user   = createUserWithPermission('events.manage');
 
-    $event->tasks()->attach($task->id);
-
+    // Task-tab assignment: no time_from / time_to — must use /members/{id} endpoint.
     $etm = EventTaskMember::create([
-        'event_id'  => $event->id,
-        'task_id'   => $task->id,
-        'member_id' => $member->id,
+        'event_task_id' => $task->id,
+        'member_id'     => $member->id,
     ]);
 
     $this->actingAs($user)

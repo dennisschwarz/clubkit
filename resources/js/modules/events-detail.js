@@ -3,18 +3,98 @@
  *
  * Handles:
  *   - Tab switching (ckEvtTab — global, outside IIFE)
- *   - Task completion toggle (AJAX PATCH, no page reload)
- *   - Task add (AJAX POST, page reload after success)
+ *   - Task completion toggle (AJAX PATCH, optimistic UI, no page reload)
+ *   - Task create (AJAX POST, single-step to EventTaskController)
+ *   - Task import from global library (AJAX POST with template_id)
  *   - Task remove (AJAX DELETE, page reload after success)
- *   - Slot add (AJAX POST, page reload after success)
- *   - Slot remove (AJAX DELETE, page reload after success)
+ *   - Task drag & drop reordering via SortableJS (PATCH move)
+ *   - Category create / rename / delete (AJAX)
+ *   - Member assign via dual-listbox modal (AJAX batch POST/DELETE)
+ *   - Slot add/remove (AJAX)
+ *   - Function add/remove/assign (AJAX)
  *   - Progress badge + progress bar update after checkbox change
  *
  * Rules:
  *   - No el.style.property assignments → use classList only
- *   - CSS custom properties set via setProperty() (required for dynamic progress bar width)
- *   - All fetch() calls use window.CK_EventDetail for config
+ *   - CSS custom properties set via setProperty() (only permitted el.style.* usage)
+ *   - All fetch() calls use window.CK_EventDetail for config (data bridge in show.blade.php)
  */
+
+import Sortable from 'sortablejs';
+
+/**
+ * Switches the Zeitplan view between Wochenplan and Nach-Kategorie.
+ * Global (outside IIFE) so onclick="ckZeitplanView(...)" in Blade can reach it.
+ *
+ * KW nav visibility is controlled by CSS via [data-view] on #ckZeitplanToolbar:
+ *   #ckZeitplanToolbar[data-view="cat"] .ck-kw-nav { display: none !important; }
+ * This function updates that attribute AND toggles the week/cat content panels.
+ *
+ * @param {string}      view  'week' | 'cat'
+ * @param {HTMLElement} btn   The clicked toggle button
+ */
+window.ckZeitplanView = function (view, btn) {
+    // Toggle active state on the button strip
+    document.querySelectorAll('.ck-zeitplan-toggle__btn').forEach(function (b) {
+        b.classList.remove('ck-zeitplan-toggle__btn--active');
+    });
+    btn.classList.add('ck-zeitplan-toggle__btn--active');
+
+    // Drive KW nav visibility via data attribute (CSS handles display)
+    var toolbar = document.getElementById('ckZeitplanToolbar');
+    if (toolbar) { toolbar.dataset.view = view; }
+
+    // Toggle the week / category content panels
+    var weekEl = document.getElementById('ckZeitplanWeek');
+    var catEl  = document.getElementById('ckZeitplanCat');
+
+    if (view === 'week') {
+        if (weekEl) { weekEl.classList.remove('is-hidden'); }
+        if (catEl)  { catEl.classList.add('is-hidden'); }
+    } else {
+        if (weekEl) { weekEl.classList.add('is-hidden'); }
+        if (catEl)  { catEl.classList.remove('is-hidden'); }
+    }
+};
+
+/**
+ * KW navigation state — mutated by ckKwNav().
+ * Initialised from the DOM after the page loads (inside the IIFE).
+ */
+var CK_KwState = { idx: 0, max: 0 };
+
+/**
+ * Navigates the Wochenplan forward or backward by one KW.
+ * Global (outside IIFE) so onclick="ckKwNav(...)" in Blade can reach it.
+ *
+ * @param {number} dir  -1 (previous) | +1 (next)
+ */
+window.ckKwNav = function (dir) {
+    var newIdx = CK_KwState.idx + dir;
+    if (newIdx < 0 || newIdx > CK_KwState.max) { return; }
+
+    // Hide the currently active pane
+    var current = document.getElementById('ckKwPane-' + CK_KwState.idx);
+    if (current) { current.classList.remove('ck-kw-pane--active'); }
+
+    CK_KwState.idx = newIdx;
+
+    // Show the new pane
+    var next = document.getElementById('ckKwPane-' + newIdx);
+    if (next) {
+        next.classList.add('ck-kw-pane--active');
+        var labelEl = document.getElementById('ckKwNavLabel');
+        var rangeEl = document.getElementById('ckKwNavRange');
+        if (labelEl) { labelEl.textContent = next.dataset.kwLabel || ''; }
+        if (rangeEl) { rangeEl.textContent = next.dataset.kwRange || ''; }
+    }
+
+    // Update button disabled states
+    var prevBtn = document.getElementById('ckKwPrev');
+    var nextBtn = document.getElementById('ckKwNext');
+    if (prevBtn) { prevBtn.disabled = newIdx === 0; }
+    if (nextBtn) { nextBtn.disabled = newIdx >= CK_KwState.max; }
+};
 
 /**
  * Switches the active event detail tab and toggles the contextual header action button.
@@ -48,18 +128,44 @@ window.ckEvtTab = function (tabId, btn) {
 (function () {
     'use strict';
 
-    const cfg = window.CK_EventDetail;
+    var cfg  = window.CK_EventDetail;
     if (! cfg) { return; }
 
-    const csrf = cfg.csrf;
+    var csrf = cfg.csrf;
+
+    // ── Restore active tab after AJAX-triggered page reload ───────────────────
+
+    var _restoredTab = sessionStorage.getItem('ck_evt_active_tab');
+    if (_restoredTab) {
+        sessionStorage.removeItem('ck_evt_active_tab');
+        var _restoredBtn = document.querySelector('.ck-local-tab[onclick*="\'' + _restoredTab + '\'"]');
+        if (_restoredBtn) { ckEvtTab(_restoredTab, _restoredBtn); }
+    }
+
+    // ── Wochenplan KW navigation: initialise state from DOM ──────────────────
+
+    (function () {
+        var weekContainer = document.getElementById('ckZeitplanWeek');
+        if (! weekContainer) { return; }
+
+        var allPanes = weekContainer.querySelectorAll('.ck-kw-pane');
+        CK_KwState.max = Math.max(0, allPanes.length - 1);
+        CK_KwState.idx = parseInt(weekContainer.dataset.activeIdx || '0', 10);
+
+        var prevBtn = document.getElementById('ckKwPrev');
+        var nextBtn = document.getElementById('ckKwNext');
+        if (prevBtn) { prevBtn.disabled = CK_KwState.idx === 0; }
+        if (nextBtn) { nextBtn.disabled = CK_KwState.idx >= CK_KwState.max; }
+    }());
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**
-     * Returns the closest ancestor (or self) matching the given selector.
-     * @param {Element} el
-     * @param {string} selector
-     * @returns {Element|null}
+     * Walks up the DOM tree and returns the first ancestor (or self) matching the selector.
+     *
+     * @param  {Element|null} el
+     * @param  {string}       selector
+     * @return {Element|null}
      */
     function closest(el, selector) {
         while (el && ! el.matches(selector)) {
@@ -69,18 +175,30 @@ window.ckEvtTab = function (tabId, btn) {
     }
 
     /**
-     * Updates the section badge text and color class after a checkbox change.
-     * @param {string} sectionSlug
+     * Persists the active tab ID to sessionStorage and reloads the page.
+     * The IIFE reads this value on next load and re-activates the correct tab.
+     */
+    function reloadKeepingTab() {
+        var activePane = document.querySelector('.ck-local-section.ck-local-section--active');
+        if (activePane) {
+            sessionStorage.setItem('ck_evt_active_tab', activePane.id.replace('ckEvtPane-', ''));
+        }
+        window.location.reload();
+    }
+
+    /**
+     * Updates the section badge text and colour class after a completion toggle.
+     *
+     * @param {string} sectionSlug - The value of the data-section attribute on the section container.
      */
     function updateSectionBadge(sectionSlug) {
-        const section = document.querySelector('[data-section="' + sectionSlug + '"]');
+        var section = document.querySelector('[data-section="' + sectionSlug + '"]');
         if (! section) { return; }
 
-        const rows  = section.querySelectorAll('.ck-task-row');
-        const done  = section.querySelectorAll('.ck-task-row--done').length;
-        const total = rows.length;
+        var done  = section.querySelectorAll('.ck-task-row--done').length;
+        var total = section.querySelectorAll('.ck-task-row').length;
 
-        const badge = document.querySelector('[data-section-badge="' + sectionSlug + '"]');
+        var badge = document.querySelector('[data-section-badge="' + sectionSlug + '"]');
         if (badge) {
             badge.textContent = done + '/' + total;
             badge.classList.remove('ck-badge--green', 'ck-badge--amber', 'ck-badge--gray');
@@ -95,25 +213,22 @@ window.ckEvtTab = function (tabId, btn) {
     }
 
     /**
-     * Updates the global progress bar and counter.
-     * Uses setProperty() to write the CSS custom property --progress
-     * (the only permitted el.style.* usage: CSS variable, not a presentation property).
+     * Updates the global progress bar and completed-task counter.
+     * Uses setProperty() to write the --progress CSS custom property —
+     * the only permitted el.style.* usage (CSS variable, not a presentation property).
      */
     function updateGlobalProgress() {
-        const allRows  = document.querySelectorAll('.ck-task-row');
-        const doneRows = document.querySelectorAll('.ck-task-row--done');
-        const total    = allRows.length;
-        const done     = doneRows.length;
+        var allRows  = document.querySelectorAll('.ck-task-row');
+        var doneRows = document.querySelectorAll('.ck-task-row--done');
+        var total    = allRows.length;
+        var done     = doneRows.length;
 
-        const counter = document.getElementById('global-done-count');
-        if (counter) {
-            counter.textContent = String(done);
-        }
+        var counter = document.getElementById('global-done-count');
+        if (counter) { counter.textContent = String(done); }
 
-        const bar = document.querySelector('.ck-event-progress__fill');
+        var bar = document.querySelector('.ck-event-progress__fill');
         if (bar && total > 0) {
-            const pct = Math.round(done / total * 100);
-            bar.style.setProperty('--progress', pct + '%');
+            bar.style.setProperty('--progress', Math.round(done / total * 100) + '%');
         }
     }
 
@@ -172,20 +287,22 @@ window.ckEvtTab = function (tabId, btn) {
         });
     });
 
-    // ── Add Task ──────────────────────────────────────────────────────────────
+    // ── Import task from global library (Tab 2: "Aus Bibliothek importieren") ──
+    // importTaskSelect carries the global ManagementTask id as template_id.
+    // EventTaskController.store() copies name + priority from the template.
 
-    const addBtn    = document.getElementById('addTaskBtn');
-    const addSelect = document.getElementById('addTaskSelect');
+    var importTaskBtn    = document.getElementById('importTaskBtn');
+    var importTaskSelect = document.getElementById('importTaskSelect');
 
-    if (addBtn && addSelect) {
-        addBtn.addEventListener('click', function () {
-            const taskId = addSelect.value;
-            if (! taskId) {
-                addSelect.classList.add('ck-input--error');
+    if (importTaskBtn && importTaskSelect) {
+        importTaskBtn.addEventListener('click', function () {
+            var templateId = importTaskSelect.value;
+            if (! templateId) {
+                importTaskSelect.classList.add('ck-input--error');
                 return;
             }
-            addSelect.classList.remove('ck-input--error');
-            addBtn.disabled = true;
+            importTaskSelect.classList.remove('ck-input--error');
+            importTaskBtn.disabled = true;
 
             fetch(cfg.routes.tasksBase, {
                 method:  'POST',
@@ -193,32 +310,46 @@ window.ckEvtTab = function (tabId, btn) {
                     'Content-Type':     'application/json',
                     'X-CSRF-TOKEN':     csrf,
                     'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
                 },
-                body: JSON.stringify({ task_id: parseInt(taskId, 10) }),
+                body: JSON.stringify({ template_id: parseInt(templateId, 10) }),
             })
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.success) {
-                    window.location.reload();
+                    reloadKeepingTab();
                 } else {
-                    alert(data.message || 'Fehler beim Hinzufügen der Aufgabe.');
-                    addBtn.disabled = false;
+                    ckNotify('error', data.message || 'Fehler beim Importieren der Aufgabe.');
+                    importTaskBtn.disabled = false;
                 }
             })
             .catch(function () {
-                alert('Netzwerkfehler. Bitte Seite neu laden.');
-                addBtn.disabled = false;
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+                importTaskBtn.disabled = false;
             });
         });
     }
 
+    // ── Category quick-add footer: pre-select category before opening newTaskModal ──
+    // The onclick on .ck-event-section__add-task-btn already calls ckModalOpen().
+    // This delegated handler fires after the modal opens and pre-selects the category.
+
+    document.addEventListener('click', function (e) {
+        var btn = closest(e.target, '.ck-event-section__add-task-btn');
+        if (! btn) { return; }
+
+        var defaultCatId = btn.dataset.defaultCatId;
+        var catSel       = document.getElementById('newTaskCategoryId');
+        if (defaultCatId && catSel) { catSel.value = defaultCatId; }
+    });
+
     // ── Remove Task ───────────────────────────────────────────────────────────
 
     document.addEventListener('click', function (e) {
-        const btn = closest(e.target, '.ck-task-remove-btn');
+        var btn = closest(e.target, '.ck-task-remove-btn');
         if (! btn) { return; }
 
-        const taskId = btn.dataset.taskId;
+        var taskId = btn.dataset.taskId;
         if (! taskId) { return; }
 
         btn.disabled = true;
@@ -233,7 +364,7 @@ window.ckEvtTab = function (tabId, btn) {
         .then(function (res) { return res.json(); })
         .then(function (data) {
             if (data.success) {
-                window.location.reload();
+                reloadKeepingTab();
             } else {
                 btn.disabled = false;
             }
@@ -284,17 +415,6 @@ window.ckEvtTab = function (tabId, btn) {
     // slotModal: member dropdown (from CK_EventDetail.members)
     populateSelect('slotModalMemberId', cfg.members, '– Person wählen –');
 
-    // Inline member assign selects per task row (Aufgaben-Tab)
-    // Reads from CK_EventDetail.members — no extra Blade variable needed.
-    document.querySelectorAll('.ck-task-assign-select').forEach(function (sel) {
-        Object.keys(cfg.members).forEach(function (id) {
-            var opt         = document.createElement('option');
-            opt.value       = id;
-            opt.textContent = cfg.members[id].name;
-            sel.appendChild(opt);
-        });
-    });
-
     // Inline member assign selects per function card (Funktionen-Tab)
     // Reads from CK_EventDetail.members — pre-selects current assignment via data-current-member-id.
     document.querySelectorAll('.ck-func-assign-select').forEach(function (sel) {
@@ -305,45 +425,6 @@ window.ckEvtTab = function (tabId, btn) {
             opt.textContent = cfg.members[id].name;
             if (id === currentId) { opt.selected = true; }
             sel.appendChild(opt);
-        });
-    });
-
-    // ── Assign member inline (Aufgaben-Tab) ───────────────────────────────────
-
-    document.addEventListener('change', function (e) {
-        if (! e.target.matches('.ck-task-assign-select')) { return; }
-
-        var sel      = e.target;
-        var memberId = sel.value;
-        var taskId   = sel.dataset.taskId;
-        if (! memberId || ! taskId) { return; }
-
-        sel.disabled = true;
-
-        fetch(cfg.routes.membersBase, {
-            method:  'POST',
-            headers: {
-                'Content-Type':     'application/json',
-                'X-CSRF-TOKEN':     cfg.csrf,
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: JSON.stringify({
-                task_id:   parseInt(taskId,   10),
-                member_id: parseInt(memberId, 10),
-            }),
-        })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-            if (data.success) {
-                window.location.reload();
-            } else {
-                sel.value    = '';
-                sel.disabled = false;
-            }
-        })
-        .catch(function () {
-            sel.value    = '';
-            sel.disabled = false;
         });
     });
 
@@ -368,7 +449,7 @@ window.ckEvtTab = function (tabId, btn) {
         .then(function (res) { return res.json(); })
         .then(function (data) {
             if (data.success) {
-                window.location.reload();
+                reloadKeepingTab();
             } else {
                 btn.disabled = false;
             }
@@ -383,24 +464,25 @@ window.ckEvtTab = function (tabId, btn) {
     updateGlobalProgress();
 
     // ── Category progress bars (Übersicht-Tab) ────────────────────────────────
-    // Uses setProperty() for CSS custom property — only allowed pattern for dynamic widths.
+    // CSS custom property --progress: only permitted el.style.* usage.
 
     document.querySelectorAll('.ck-cat-progress__fill').forEach(function (fill) {
         fill.style.setProperty('--progress', (fill.dataset.progress || '0') + '%');
     });
 
-    // ── New Task Modal submit (Tab 2: Aufgaben → Dropdown → "Neue Aufgabe") ──────
-    // Two-step flow: 1) create global ManagementTask, 2) assign to event (+ member).
+    // ── New Task Modal submit (Tab 2 → "Neue Aufgabe") ────────────────────────
+    // Single-step: POST directly to tasksBase (EventTaskController).
+    // EventTask is fully self-contained — no separate ManagementTask creation needed.
 
     var newTaskBtn = document.getElementById('newTaskSubmitBtn');
 
     if (newTaskBtn) {
         newTaskBtn.addEventListener('click', function () {
-            var nameInput    = document.getElementById('newTaskName');
-            var catSelect    = document.getElementById('newTaskCategoryId');
-            var prioSelect   = document.getElementById('newTaskPriority');
-            var deadlineInput= document.getElementById('newTaskDeadline');
-            var memberSelect = document.getElementById('newTaskMemberId');
+            var nameInput     = document.getElementById('newTaskName');
+            var catSelect     = document.getElementById('newTaskCategoryId');
+            var prioSelect    = document.getElementById('newTaskPriority');
+            var deadlineInput = document.getElementById('newTaskDeadline');
+            var memberSelect  = document.getElementById('newTaskMemberId');
 
             var name = nameInput ? nameInput.value.trim() : '';
             if (! name) {
@@ -410,12 +492,12 @@ window.ckEvtTab = function (tabId, btn) {
             if (nameInput) { nameInput.classList.remove('ck-input--error'); }
             newTaskBtn.disabled = true;
 
-            var taskBody = { name: name };
-            if (catSelect   && catSelect.value)   { taskBody.category_id = parseInt(catSelect.value, 10); }
-            if (prioSelect  && prioSelect.value)  { taskBody.priority    = prioSelect.value; }
+            var body = { name: name };
+            if (catSelect    && catSelect.value)     { body.category_id = parseInt(catSelect.value, 10); }
+            if (prioSelect   && prioSelect.value)    { body.priority    = prioSelect.value; }
+            if (deadlineInput && deadlineInput.value) { body.deadline_at = deadlineInput.value; }
 
-            // Step 1: create the global ManagementTask via management/tasks
-            fetch(cfg.routes.mgmtTasksBase, {
+            fetch(cfg.routes.tasksBase, {
                 method:  'POST',
                 headers: {
                     'Content-Type':     'application/json',
@@ -423,7 +505,7 @@ window.ckEvtTab = function (tabId, btn) {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept':           'application/json',
                 },
-                body: JSON.stringify(taskBody),
+                body: JSON.stringify(body),
             })
             .then(function (res) { return res.json(); })
             .then(function (data) {
@@ -433,51 +515,26 @@ window.ckEvtTab = function (tabId, btn) {
                     return;
                 }
 
-                var assignBody = { task_id: data.id };
-                if (deadlineInput && deadlineInput.value) {
-                    assignBody.deadline_at = deadlineInput.value;
+                // Optional: assign the selected member immediately (event_task_id required!)
+                if (memberSelect && memberSelect.value) {
+                    fetch(cfg.routes.membersBase, {
+                        method:  'POST',
+                        headers: {
+                            'Content-Type':     'application/json',
+                            'X-CSRF-TOKEN':     csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept':           'application/json',
+                        },
+                        body: JSON.stringify({
+                            event_task_id: data.task.id,
+                            member_id:     parseInt(memberSelect.value, 10),
+                        }),
+                    })
+                    .then(function () { reloadKeepingTab(); })
+                    .catch(function ()  { reloadKeepingTab(); });
+                } else {
+                    reloadKeepingTab();
                 }
-
-                // Step 2: assign the task to this event
-                return fetch(cfg.routes.tasksBase, {
-                    method:  'POST',
-                    headers: {
-                        'Content-Type':     'application/json',
-                        'X-CSRF-TOKEN':     csrf,
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept':           'application/json',
-                    },
-                    body: JSON.stringify(assignBody),
-                })
-                .then(function (res) { return res.json(); })
-                .then(function (assignData) {
-                    if (! assignData.success) {
-                        ckNotify('error', assignData.message || 'Fehler beim Zuweisen der Aufgabe.');
-                        newTaskBtn.disabled = false;
-                        return;
-                    }
-
-                    // Optional step 3: assign selected member (time_from = null → Aufgaben-Tab)
-                    if (memberSelect && memberSelect.value) {
-                        fetch(cfg.routes.membersBase, {
-                            method:  'POST',
-                            headers: {
-                                'Content-Type':     'application/json',
-                                'X-CSRF-TOKEN':     csrf,
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept':           'application/json',
-                            },
-                            body: JSON.stringify({
-                                task_id:   data.id,
-                                member_id: parseInt(memberSelect.value, 10),
-                            }),
-                        })
-                        .then(function () { window.location.reload(); })
-                        .catch(function () { window.location.reload(); });
-                    } else {
-                        window.location.reload();
-                    }
-                });
             })
             .catch(function () {
                 ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
@@ -486,7 +543,9 @@ window.ckEvtTab = function (tabId, btn) {
         });
     }
 
-    // ── New Category Modal submit (Tab 2: Aufgaben → Dropdown → "Neue Kategorie") ─
+    // ── New Category Modal submit (Tab 2 → "Neue Kategorie") ─────────────────
+    // POSTs to categoriesBase = events/{event}/task-categories (EventTaskCategoryController).
+    // Response: { success: true, category: { id, name, color, sort_order } }
 
     var newCatBtn = document.getElementById('newCatSubmitBtn');
 
@@ -514,21 +573,21 @@ window.ckEvtTab = function (tabId, btn) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.success) {
-                    // Add the new category to the newTaskModal category select
+                    // Inject new category into the newTaskModal dropdown
                     var catSel = document.getElementById('newTaskCategoryId');
                     if (catSel) {
                         var opt         = document.createElement('option');
-                        opt.value       = data.id;
-                        opt.textContent = data.name;
+                        opt.value       = data.category.id;
+                        opt.textContent = data.category.name;
                         catSel.appendChild(opt);
-                        catSel.value    = data.id;
+                        catSel.value    = data.category.id;
                     }
-                    // Update local cache for future populateSelect calls
+                    // Update local cache so future populateSelect calls include it
                     if (cfg.categories) {
-                        cfg.categories[data.id] = { id: data.id, name: data.name };
+                        cfg.categories[data.category.id] = { id: data.category.id, name: data.category.name };
                     }
                     ckModalClose(null, 'newCatModal');
-                    ckNotify('success', 'Kategorie „' + data.name + '" angelegt.');
+                    ckNotify('success', 'Kategorie „' + data.category.name + '" angelegt.');
                     newCatBtn.disabled = false;
                     if (nameInput) { nameInput.value = ''; }
                 } else {
@@ -540,6 +599,273 @@ window.ckEvtTab = function (tabId, btn) {
                 ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
                 newCatBtn.disabled = false;
             });
+        });
+    }
+
+    // ── Rename Category ───────────────────────────────────────────────────────
+
+    // Module-level state: which category is currently being renamed
+    var _renameCatId = null;
+
+    // Open renameCatModal and populate the name field from the button's data attributes
+    document.addEventListener('click', function (e) {
+        var btn = closest(e.target, '.ck-cat-rename-btn');
+        if (! btn) { return; }
+
+        _renameCatId = btn.dataset.catId;
+        var nameInput = document.getElementById('renameCatName');
+        if (nameInput) { nameInput.value = btn.dataset.catName || ''; }
+        ckModalOpen('renameCatModal');
+    });
+
+    // Submit rename: PATCH categoriesBase/{id} { name }
+    var renameCatBtn = document.getElementById('renameCatSubmitBtn');
+
+    if (renameCatBtn) {
+        renameCatBtn.addEventListener('click', function () {
+            if (! _renameCatId) { return; }
+
+            var nameInput = document.getElementById('renameCatName');
+            var name      = nameInput ? nameInput.value.trim() : '';
+            if (! name) {
+                if (nameInput) { nameInput.classList.add('ck-input--error'); }
+                return;
+            }
+            if (nameInput) { nameInput.classList.remove('ck-input--error'); }
+            renameCatBtn.disabled = true;
+
+            fetch(cfg.routes.categoriesBase + '/' + _renameCatId, {
+                method:  'PATCH',
+                headers: {
+                    'Content-Type':     'application/json',
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                },
+                body: JSON.stringify({ name: name }),
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    ckModalClose(null, 'renameCatModal');
+                    reloadKeepingTab();
+                } else {
+                    ckNotify('error', data.message || 'Fehler beim Umbenennen der Kategorie.');
+                    renameCatBtn.disabled = false;
+                }
+            })
+            .catch(function () {
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+                renameCatBtn.disabled = false;
+            });
+        });
+    }
+
+    // ── Delete Category ───────────────────────────────────────────────────────
+    // DELETE categoriesBase/{id}. DB SET NULL on event_tasks.category_id moves
+    // orphaned tasks to the "Allgemein" section automatically (no tasks deleted).
+
+    document.addEventListener('click', function (e) {
+        var btn = closest(e.target, '.ck-cat-delete-btn');
+        if (! btn) { return; }
+
+        var catId     = btn.dataset.catId;
+        var catName   = btn.dataset.catName;
+        var taskCount = parseInt(btn.dataset.taskCount || '0', 10);
+        if (! catId) { return; }
+
+        var msg = taskCount > 0
+            ? 'Kategorie „' + catName + '" löschen? ' + taskCount + ' Aufgabe(n) werden nach „Allgemein" verschoben.'
+            : 'Kategorie „' + catName + '" wirklich löschen?';
+
+        window.ckConfirm(msg, function () {
+            fetch(cfg.routes.categoriesBase + '/' + catId, {
+                method:  'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                },
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    reloadKeepingTab();
+                } else {
+                    ckNotify('error', data.message || 'Fehler beim Löschen der Kategorie.');
+                }
+            })
+            .catch(function () {
+                ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
+            });
+        });
+    });
+
+    // ── Assign Member to Task (dual-listbox modal) ────────────────────────────
+    // .ck-task-assign-btn click → populate taskAssignModal → user moves members
+    //   between Available (left) and Assigned (right) selects.
+    // taskAssignSaveBtn → diff original vs new → batch POST/DELETE.
+
+    // Module-level state for the currently open taskAssignModal
+    var _taskAssignTaskId   = null;
+    // key = memberId (string), value = { etmId: string, memberId: string, name: string }
+    var _taskAssignOriginal = {};
+
+    /**
+     * Creates an <option> element for the dual-listbox selects.
+     *
+     * @param  {string} value - Option value (member ID as string).
+     * @param  {string} label - Display text.
+     * @return {HTMLOptionElement}
+     */
+    function _assignOpt(value, label) {
+        var opt         = document.createElement('option');
+        opt.value       = value;
+        opt.textContent = label;
+        return opt;
+    }
+
+    // Open modal: read current assignments from DOM, populate both listbox panels
+    document.addEventListener('click', function (e) {
+        var btn = closest(e.target, '.ck-task-assign-btn');
+        if (! btn) { return; }
+
+        _taskAssignTaskId   = btn.dataset.taskId;
+        _taskAssignOriginal = {};
+
+        // Collect current assignments from the task row DOM.
+        // .ck-etm-remove-btn carries data-member-id + data-member-name (added in Step 7).
+        var row = document.querySelector('.ck-task-row[data-task-id="' + _taskAssignTaskId + '"]');
+        if (row) {
+            row.querySelectorAll('.ck-etm-remove-btn').forEach(function (removeBtn) {
+                var etmId    = removeBtn.dataset.etmId;
+                var memberId = removeBtn.dataset.memberId;
+                var name     = removeBtn.dataset.memberName || cfg.members[memberId]?.name || '';
+                if (memberId) {
+                    _taskAssignOriginal[memberId] = { etmId: etmId, memberId: memberId, name: name };
+                }
+            });
+        }
+
+        // Set the modal subtitle to the task name
+        var label = document.getElementById('taskAssignLabel');
+        if (label) { label.textContent = btn.dataset.taskName || ''; }
+
+        // Populate Available (left) and Assigned (right) selects
+        var availSel    = document.getElementById('taskAssignAvailableList');
+        var assignedSel = document.getElementById('taskAssignAssignedList');
+        if (! availSel || ! assignedSel) { return; }
+
+        availSel.innerHTML    = '';
+        assignedSel.innerHTML = '';
+
+        Object.keys(cfg.members).forEach(function (memberId) {
+            var member = cfg.members[memberId];
+            if (_taskAssignOriginal[memberId]) {
+                assignedSel.appendChild(_assignOpt(memberId, member.name));
+            } else {
+                availSel.appendChild(_assignOpt(memberId, member.name));
+            }
+        });
+
+        ckModalOpen('taskAssignModal');
+    });
+
+    // → button: move selected options from Available to Assigned
+    var taskAssignAddBtn = document.getElementById('taskAssignAddBtn');
+    if (taskAssignAddBtn) {
+        taskAssignAddBtn.addEventListener('click', function () {
+            var availSel    = document.getElementById('taskAssignAvailableList');
+            var assignedSel = document.getElementById('taskAssignAssignedList');
+            if (! availSel || ! assignedSel) { return; }
+            Array.from(availSel.selectedOptions).forEach(function (opt) {
+                assignedSel.appendChild(opt);
+            });
+        });
+    }
+
+    // ← button: move selected options from Assigned to Available
+    var taskAssignRemoveBtn = document.getElementById('taskAssignRemoveBtn');
+    if (taskAssignRemoveBtn) {
+        taskAssignRemoveBtn.addEventListener('click', function () {
+            var availSel    = document.getElementById('taskAssignAvailableList');
+            var assignedSel = document.getElementById('taskAssignAssignedList');
+            if (! availSel || ! assignedSel) { return; }
+            Array.from(assignedSel.selectedOptions).forEach(function (opt) {
+                availSel.appendChild(opt);
+            });
+        });
+    }
+
+    // Save: diff original vs current listbox state → batch AJAX add/remove
+    var taskAssignSaveBtn = document.getElementById('taskAssignSaveBtn');
+    if (taskAssignSaveBtn) {
+        taskAssignSaveBtn.addEventListener('click', function () {
+            if (! _taskAssignTaskId) { return; }
+
+            var assignedSel = document.getElementById('taskAssignAssignedList');
+            if (! assignedSel) { return; }
+
+            // Build current "assigned" set from the right listbox
+            var nowAssigned = {};
+            Array.from(assignedSel.options).forEach(function (opt) {
+                nowAssigned[opt.value] = true;
+            });
+
+            var toAdd    = [];  // member IDs to add via POST /members
+            var toRemove = [];  // ETM IDs to remove via DELETE /members/{id}
+
+            Object.keys(nowAssigned).forEach(function (memberId) {
+                if (! _taskAssignOriginal[memberId]) { toAdd.push(memberId); }
+            });
+
+            Object.keys(_taskAssignOriginal).forEach(function (memberId) {
+                if (! nowAssigned[memberId]) { toRemove.push(_taskAssignOriginal[memberId].etmId); }
+            });
+
+            // No changes → just close
+            if (toAdd.length === 0 && toRemove.length === 0) {
+                ckModalClose(null, 'taskAssignModal');
+                return;
+            }
+
+            taskAssignSaveBtn.disabled = true;
+
+            var addPromises = toAdd.map(function (memberId) {
+                return fetch(cfg.routes.membersBase, {
+                    method:  'POST',
+                    headers: {
+                        'Content-Type':     'application/json',
+                        'X-CSRF-TOKEN':     csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept':           'application/json',
+                    },
+                    body: JSON.stringify({
+                        event_task_id: parseInt(_taskAssignTaskId, 10),
+                        member_id:     parseInt(memberId, 10),
+                    }),
+                });
+            });
+
+            var removePromises = toRemove.map(function (etmId) {
+                return fetch(cfg.routes.membersBase + '/' + etmId, {
+                    method:  'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN':     csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+            });
+
+            Promise.all(addPromises.concat(removePromises))
+                .then(function () {
+                    ckModalClose(null, 'taskAssignModal');
+                    reloadKeepingTab();
+                })
+                .catch(function () {
+                    ckNotify('error', 'Netzwerkfehler beim Speichern der Zuweisung.');
+                    taskAssignSaveBtn.disabled = false;
+                });
         });
     }
 
@@ -594,7 +920,7 @@ window.ckEvtTab = function (tabId, btn) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.success) {
-                    window.location.reload();
+                    reloadKeepingTab();
                 } else {
                     ckNotify('error', data.message || 'Fehler beim Speichern des Einsatzes.');
                     slotModalBtn.disabled = false;
@@ -651,7 +977,7 @@ window.ckEvtTab = function (tabId, btn) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.success) {
-                    window.location.reload();
+                    reloadKeepingTab();
                 } else {
                     ckNotify('error', data.message || 'Fehler beim Hinzufügen der Funktion.');
                     newFuncBtn.disabled = false;
@@ -688,7 +1014,7 @@ window.ckEvtTab = function (tabId, btn) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.success) {
-                    window.location.reload();
+                    reloadKeepingTab();
                 } else {
                     ckNotify('error', data.message || 'Fehler beim Entfernen der Funktion.');
                     btn.disabled = false;
@@ -734,7 +1060,7 @@ window.ckEvtTab = function (tabId, btn) {
         .then(function (res) { return res.json(); })
         .then(function (data) {
             if (data.success) {
-                window.location.reload();
+                reloadKeepingTab();
             } else {
                 ckNotify('error', data.message || 'Fehler beim Zuweisen der Person.');
                 sel.disabled = false;
@@ -763,7 +1089,7 @@ window.ckEvtTab = function (tabId, btn) {
         })
         .then(function (res) { return res.json(); })
         .then(function (data) {
-            if (data.success) { window.location.reload(); }
+            if (data.success) { reloadKeepingTab(); }
             else              { btn.disabled = false; }
         })
         .catch(function () { btn.disabled = false; });
@@ -797,7 +1123,7 @@ window.ckEvtTab = function (tabId, btn) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.success) {
-                    window.location.reload();
+                    reloadKeepingTab();
                 } else {
                     ckNotify('error', data.message || 'Fehler beim Hinzufügen des Teams.');
                     teamAddBtn.disabled = false;
@@ -834,7 +1160,7 @@ window.ckEvtTab = function (tabId, btn) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.success) {
-                    window.location.reload();
+                    reloadKeepingTab();
                 } else {
                     ckNotify('error', data.message || 'Fehler beim Entfernen des Teams.');
                     btn.disabled = false;
@@ -851,6 +1177,60 @@ window.ckEvtTab = function (tabId, btn) {
         } else {
             doRemoveTeam();
         }
+    });
+
+    // ── SortableJS: drag & drop task reordering within and across categories ──
+    // Initialised on every .ck-task-sortable tbody on the page.
+    // Shared group 'event-tasks' allows dragging between category sections.
+    // On drop: PATCH tasksBase/{taskId}/move { category_id, sort_order }.
+
+    document.querySelectorAll('.ck-task-sortable').forEach(function (tbody) {
+        Sortable.create(tbody, {
+            group:       'event-tasks',          // Enables cross-section dragging
+            handle:      '.ck-task-drag-handle', // Only the handle initiates DnD
+            animation:   150,
+            ghostClass:  'sortable-ghost',       // CSS placeholder while dragging (Step 8)
+            chosenClass: 'sortable-chosen',      // CSS for the element being dragged (Step 8)
+
+            onEnd: function (evt) {
+                var taskRow   = evt.item;
+                var taskId    = taskRow.dataset.taskId;
+                var targetTbody = evt.to;
+                var rawCatId  = targetTbody.dataset.catId;  // 'allgemein' or numeric string
+
+                // 'allgemein' and '' both map to category_id = null (uncategorised section)
+                var catId = (rawCatId === 'allgemein' || rawCatId === '')
+                    ? null
+                    : parseInt(rawCatId, 10);
+
+                if (! taskId) { return; }
+
+                fetch(cfg.routes.tasksBase + '/' + taskId + '/move', {
+                    method:  'PATCH',
+                    headers: {
+                        'Content-Type':     'application/json',
+                        'X-CSRF-TOKEN':     csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept':           'application/json',
+                    },
+                    body: JSON.stringify({
+                        category_id: catId,
+                        sort_order:  evt.newIndex,
+                    }),
+                })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (! data.success) {
+                        ckNotify('error', 'Fehler beim Verschieben der Aufgabe.');
+                    }
+                    // No full page reload — the DOM position is already correct after DnD.
+                    // Progress bars are updated on the next checkbox interaction.
+                })
+                .catch(function () {
+                    ckNotify('error', 'Netzwerkfehler beim Verschieben. Seite neu laden.');
+                });
+            },
+        });
     });
 
 }());

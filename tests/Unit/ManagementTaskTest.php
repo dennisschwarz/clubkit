@@ -114,16 +114,51 @@ test('deleting a category sets category_id to null on its tasks', function () {
     expect(ManagementTask::find($task->id))->not->toBeNull();
 });
 
-// ── Event assignments ─────────────────────────────────────────────────────────
+// ── Template import into event tasks ─────────────────────────────────────────
+//
+// The old events() BelongsToMany pivot was removed in the task/category refactor.
+// Global tasks now act as templates: EventTask.template_id references ManagementTask.id.
+// This is a soft reference — deleting the template does not delete event tasks.
 
-test('a task can be assigned to multiple events', function () {
-    $task   = ManagementTask::create(['name' => 'Getränkeverkauf']);
-    $event1 = Event::create(['title' => 'Turnier 1', 'starts_at' => now()->addDays(7)]);
-    $event2 = Event::create(['title' => 'Turnier 2', 'starts_at' => now()->addDays(14)]);
+test('a global task can be used as a template for event tasks', function () {
+    $template = ManagementTask::create(['name' => 'Getränkeverkauf']);
+    $event1   = Event::create(['title' => 'Turnier 1', 'starts_at' => now()->addDays(7)]);
+    $event2   = Event::create(['title' => 'Turnier 2', 'starts_at' => now()->addDays(14)]);
 
-    $task->events()->attach([$event1->id, $event2->id]);
+    // Import: create event tasks that reference this global template.
+    \Modules\Management\Models\EventTask::create([
+        'event_id'    => $event1->id,
+        'template_id' => $template->id,
+        'name'        => $template->name,
+    ]);
+    \Modules\Management\Models\EventTask::create([
+        'event_id'    => $event2->id,
+        'template_id' => $template->id,
+        'name'        => $template->name,
+    ]);
 
-    expect($task->fresh()->events)->toHaveCount(2);
+    expect(\Modules\Management\Models\EventTask::where('template_id', $template->id)->count())->toBe(2);
+});
+
+test('deleting a global task template sets template_id to null — event tasks are preserved', function () {
+    $template  = ManagementTask::create(['name' => 'Kassendienst']);
+    $event     = Event::create(['title' => 'Turnier', 'starts_at' => now()->addDays(7)]);
+    $eventTask = \Modules\Management\Models\EventTask::create([
+        'event_id'    => $event->id,
+        'template_id' => $template->id,
+        'name'        => $template->name,
+        'priority'    => 'important',
+    ]);
+
+    $eventTaskId = $eventTask->id;
+    $template->delete();
+
+    $fresh = \Modules\Management\Models\EventTask::find($eventTaskId);
+    expect($fresh)->not->toBeNull();
+    expect($fresh->template_id)->toBeNull();
+    // Local name and priority are preserved after template deletion
+    expect($fresh->name)->toBe('Kassendienst');
+    expect($fresh->priority)->toBe('important');
 });
 
 // ── Scopes ────────────────────────────────────────────────────────────────────

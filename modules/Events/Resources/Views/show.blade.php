@@ -1,14 +1,16 @@
 @extends('core::admin.layout')
 @section('title', $event->title)
 @section('content')
-{{-- ── Page header ─────────────────────────────────────────────────────────── --}}
+{{-- Event detail page – 4 tabs: Übersicht | Aufgaben | Einsatzplan | Funktionen --}}
+{{-- ── Page action bar ─────────────────────────────────────────────────────── --}}
+{{-- Title and event metadata live inside the Termindetails card below. --}}
 <div class="ck-page-header">
     <div class="ck-page-header__left">
-        <a href="{{ route('events.index') }}" class="ck-breadcrumb">← Termine</a>
-        <h1 class="ck-page-header__title">{{ $event->title }}</h1>
+        <a href="{{ route('events.index') }}" class="ck-btn ck-btn--warning">
+            ← {{ __('events.back') }}
+        </a>
     </div>
     <div class="ck-page-header__actions">
-        {{-- Tab-specific action buttons live inside each tab pane (hook views), not here. --}}
         <x-ck-button variant="secondary" type="button" onclick="window.print()">
             🖨 {{ __('Print') }}
         </x-ck-button>
@@ -16,9 +18,6 @@
             :confirm="'Termin \'' . $event->title . '\' wirklich löschen?'"
             :form="'deleteEventForm'">
             {{ __('Delete') }}
-        </x-ck-button>
-        <x-ck-button variant="primary" type="button" onclick="ckModalOpen('editEventModal')">
-            {{ __('Edit') }}
         </x-ck-button>
     </div>
 </div>
@@ -32,72 +31,72 @@
 @endif
 {{-- ── Tab bar ──────────────────────────────────────────────────────────────── --}}
 {{--
-5 tabs: Übersicht | Aufgaben | Einsatzplan | Funktionen | Teams
+4 tabs: Übersicht | Aufgaben | Einsatzplan | Funktionen
 Tab switching: ckEvtTab(id, btn) in events-detail.js (global, outside IIFE).
 Content of tabs 2–4 is provided by ManagementServiceProvider hooks.
-Content of tab 5 is provided by TeamsServiceProvider hook.
 Without Management: tabs 2–4 show an empty-state card.
-Without Teams: tab 5 shows an empty-state card.
 --}}
 <div class="ck-local-tabs">
     <button class="ck-local-tab ck-local-tab--active" type="button" onclick="ckEvtTab('overview', this)">📊 {{ __('events.tab.overview') }}</button>
     <button class="ck-local-tab ck-local-tab--blue" type="button" onclick="ckEvtTab('tasks', this)">📋 {{ __('events.tab.tasks') }}</button>
     <button class="ck-local-tab ck-local-tab--amber" type="button" onclick="ckEvtTab('slots', this)">🗓️ {{ __('events.tab.slots') }}</button>
     <button class="ck-local-tab ck-local-tab--purple" type="button" onclick="ckEvtTab('functions', this)">⚙️ {{ __('events.tab.functions') }}</button>
-    <button class="ck-local-tab ck-local-tab--green" type="button" onclick="ckEvtTab('teams', this)">👥 {{ __('events.tab.teams') }}</button>
 </div>
 {{-- ── Pane: Übersicht ─────────────────────────────────────────────────────── --}}
 <div class="ck-local-section ck-local-section--active" id="ckEvtPane-overview">
-<x-ck-card class="ck-event-info ck-no-print">
-    <x-slot:header>{{ __('events.detail.event_details') }}</x-slot:header>
-    <dl class="ck-event-meta">
-        <div class="ck-event-meta__row">
-            <dt>{{ __('events.detail.starts_at') }}</dt>
-            <dd>{{ $event->starts_at->format('d.m.Y H:i') }} Uhr</dd>
-        </div>
-        @if($event->ends_at)
-        <div class="ck-event-meta__row">
-            <dt>{{ __('events.detail.ends_at') }}</dt>
-            <dd>{{ $event->ends_at->format('d.m.Y H:i') }} Uhr</dd>
-        </div>
-        @endif
-        @if($event->location)
-        <div class="ck-event-meta__row">
-            <dt>{{ __('events.detail.location') }}</dt>
-            <dd>{{ $event->location }}</dd>
-        </div>
-        @endif
-        @if($event->description)
-        <div class="ck-event-meta__row">
-            <dt>{{ __('events.detail.description') }}</dt>
-            <dd>{{ $event->description }}</dd>
-        </div>
-        @endif
-        @if($event->notes)
-        <div class="ck-event-meta__row">
-            <dt>{{ __('events.detail.notes') }}</dt>
-            <dd>{{ $event->notes }}</dd>
-        </div>
-        @endif
-    </dl>
+<x-ck-card class="ck-event-info ck-no-print" accent="blue">
+    <x-slot:header>
+        <span class="ck-card__header-title">{{ __('events.detail.event_details') }}</span>
+        <button type="button" class="ck-btn ck-btn--secondary ck-btn--sm"
+                onclick="ckModalOpen('editEventModal')">
+            ✏ {{ __('Edit') }}
+        </button>
+    </x-slot:header>
 
-    {{--
-        Task progress bar.
-        $totalTasks / $doneTasks injected by EventController::show().
-        event_task table guard applied in controller; variables are always set (0 if absent).
-    --}}
-    @if($totalTasks > 0)
-    <div class="ck-event-progress">
-        <div class="ck-event-progress__bar">
-            <div class="ck-event-progress__fill"
-                 data-progress="{{ round($doneTasks / $totalTasks * 100) }}">
+    {{-- Hero: 50/50 grid — left: event info | right: reserved (functions injected via step 3) --}}
+    <div class="ck-event-hero">
+
+        {{-- Left column: date tile + meta + optional description/notes --}}
+        <div class="ck-event-hero__left">
+
+            {{-- Date tile + time/location in a horizontal row --}}
+            <div class="ck-event-hero__head">
+                <div class="ck-event-hero__date">
+                    <span class="ck-event-hero__month">{{ $event->starts_at->translatedFormat('M') }}</span>
+                    <span class="ck-event-hero__day">{{ $event->starts_at->format('j') }}</span>
+                    <span class="ck-event-hero__weekday">{{ $event->starts_at->translatedFormat('l') }}</span>
+                </div>
+                <div class="ck-event-hero__meta">
+                    <span class="ck-event-hero__meta-item">
+                        ⏱ {{ $event->starts_at->format('H:i') }}{{ $event->ends_at ? ' – ' . $event->ends_at->format('H:i') . ' Uhr' : ' Uhr' }}
+                    </span>
+                    @if($event->location)
+                    <span class="ck-event-hero__meta-item">📍 {{ $event->location }}</span>
+                    @endif
+                </div>
             </div>
+
+            @if($event->description)
+            <div class="ck-event-hero__body">
+                <div class="ck-event-hero__body-label">{{ __('events.detail.description') }}</div>
+                <div class="ck-event-hero__body-text">{{ $event->description }}</div>
+            </div>
+            @endif
+
+            @if($event->notes)
+            <div class="ck-event-hero__body">
+                <div class="ck-event-hero__body-label">{{ __('events.detail.notes') }}</div>
+                <div class="ck-event-hero__body-text">{{ $event->notes }}</div>
+            </div>
+            @endif
+
         </div>
-        <span class="ck-event-progress__label">
-            <span id="global-done-count">{{ $doneTasks }}</span> / {{ $totalTasks }} Aufgaben erledigt
-        </span>
+
+        {{-- Right column: reserved for Vereinsfunktionen (step 3) --}}
+        <div class="ck-event-hero__right">
+        </div>
+
     </div>
-    @endif
 </x-ck-card>
 
 {{--
@@ -109,8 +108,8 @@ Without Teams: tab 5 shows an empty-state card.
 
 {{-- Custom fields (CustomFields module) --}}
 @if(!empty($eventCfDefs))
-<x-ck-card>
-    <x-slot:header>{{ __('events.detail.further_info') }}</x-slot:header>
+<x-ck-card accent="gray">
+    <x-slot:header><span class="ck-card__header-title">{{ __('events.detail.further_info') }}</span></x-slot:header>
     <dl class="ck-event-meta">
         @foreach($eventCfDefs as $def)
         <div class="ck-event-meta__row">
@@ -143,13 +142,6 @@ Registered by: ManagementServiceProvider (event-functions-panel.blade.php)
 Renders: management-functions cards with assigned members.
 --}}
 <div class="ck-local-section" id="ckEvtPane-functions"> @ckHook('events.show.functions-panel') </div>
-{{-- ── Pane: Teams ──────────────────────────────────────────────────────────── --}}
-{{--
-Extension point: events.show.teams-panel
-Registered by: TeamsServiceProvider (event-show-teams-panel.blade.php)
-Renders: assigned teams tag list.
---}}
-<div class="ck-local-section" id="ckEvtPane-teams"> @ckHook('events.show.teams-panel') </div>
 {{-- ── Edit modal ───────────────────────────────────────────────────────────── --}}
 {{--
     editEventModal  — PATCH  /events/{event}               (standard form submit)
@@ -332,6 +324,71 @@ Renders: assigned teams tag list.
     </div>
 </x-ck-modal>
 
+{{-- ── Task member assign modal (Tab 2: Aufgaben → Verantwortliche zuweisen) ─── --}}
+{{--
+    Dual-listbox: available members on the left, assigned members on the right.
+    Opened by .ck-task-assign-btn click in events-detail.js.
+    Submit: batch POST /members (add) + DELETE /members/{id} (remove).
+    CSS layout (.ck-assign-split) is added in Step 8.
+--}}
+<x-ck-modal id="taskAssignModal" :title="__('events.task.assign_member')" size="md">
+    <p id="taskAssignLabel" class="ck-text-muted"></p>
+    <div class="ck-assign-split">
+        <div class="ck-assign-split__col">
+            <div class="ck-assign-split__col-label">{{ __('events.assign.available') }}</div>
+            <select id="taskAssignAvailableList"
+                    class="ck-assign-split__list ck-form-select"
+                    multiple
+                    size="8">
+            </select>
+        </div>
+        <div class="ck-assign-split__arrows">
+            <x-ck-button variant="primary" size="sm" type="button" id="taskAssignAddBtn">→</x-ck-button>
+            <x-ck-button variant="secondary" size="sm" type="button" id="taskAssignRemoveBtn">←</x-ck-button>
+        </div>
+        <div class="ck-assign-split__col">
+            <div class="ck-assign-split__col-label">{{ __('events.assign.assigned') }}</div>
+            <select id="taskAssignAssignedList"
+                    class="ck-assign-split__list ck-form-select"
+                    multiple
+                    size="8">
+            </select>
+        </div>
+    </div>
+    <div class="ck-form-actions">
+        <x-ck-button variant="primary" type="button" id="taskAssignSaveBtn">
+            {{ __('Save') }}
+        </x-ck-button>
+        <x-ck-button variant="secondary" type="button"
+            onclick="ckModalClose(null, 'taskAssignModal')">
+            {{ __('Cancel') }}
+        </x-ck-button>
+    </div>
+</x-ck-modal>
+
+{{-- ── Rename category modal (Tab 2: Aufgaben → ✏ button) ─────────────────────── --}}
+{{--
+    Opened by .ck-cat-rename-btn click in events-detail.js.
+    Submit: AJAX PATCH /events/{event}/task-categories/{id} { name }.
+    The hidden renameCatId value is set by JS before opening the modal.
+--}}
+<x-ck-modal id="renameCatModal" :title="__('events.cat.rename_modal_title')" size="sm">
+    <x-ck-field
+        :label="__('events.cat.field_name')"
+        name="rename_cat_name"
+        id="renameCatName"
+        :required="true" />
+    <div class="ck-form-actions">
+        <x-ck-button variant="primary" type="button" id="renameCatSubmitBtn">
+            {{ __('Save') }}
+        </x-ck-button>
+        <x-ck-button variant="secondary" type="button"
+            onclick="ckModalClose(null, 'renameCatModal')">
+            {{ __('Cancel') }}
+        </x-ck-button>
+    </div>
+</x-ck-modal>
+
 @endsection
 @push('scripts')
 <script>
@@ -347,7 +404,7 @@ Renders: assigned teams tag list.
             slotsBase:      "{{ url('events/' . $event->id . '/slots') }}",
             membersBase:    "{{ url('events/' . $event->id . '/members') }}",
             mgmtTasksBase:  "{{ url('management/tasks') }}",
-            categoriesBase: "{{ url('management/task-categories') }}",
+            categoriesBase: "{{ url('events/' . $event->id . '/task-categories') }}",
             funcAddBase:    "{{ url('events/' . $event->id . '/functions') }}",
             funcAssignBase: "{{ url('events/' . $event->id . '/functions') }}",
             teamsBase:      "{{ url('events/' . $event->id . '/teams') }}"

@@ -33,15 +33,16 @@ class TaskCategoryController extends Controller
      */
     public function store(StoreTaskCategoryRequest $request): JsonResponse|RedirectResponse
     {
-        $name = $request->validated()['name'];
+        $validated = $request->validated();
 
         $cat = ManagementTaskCategory::create([
-            'name'       => $name,
+            'name'       => $validated['name'],
+            'color'      => $validated['color'] ?? null,
             'created_by' => $request->user()->id,
         ]);
 
         if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'id' => $cat->id, 'name' => $cat->name], 201);
+            return response()->json(['success' => true, 'id' => $cat->id, 'name' => $cat->name, 'color' => $cat->color], 201);
         }
 
         return redirect()->route('admin.module-settings.index')
@@ -57,7 +58,10 @@ class TaskCategoryController extends Controller
      */
     public function update(UpdateTaskCategoryRequest $request, ManagementTaskCategory $taskCategory): RedirectResponse
     {
-        $taskCategory->update(['name' => $request->validated()['name']]);
+        $taskCategory->update([
+            'name'  => $request->validated()['name'],
+            'color' => $request->validated()['color'] ?? null,
+        ]);
 
         return redirect()->route('admin.module-settings.index')
             ->with('success', 'Kategorie „' . $taskCategory->name . '" aktualisiert.');

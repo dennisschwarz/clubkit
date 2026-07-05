@@ -13,10 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Modules\Events\Http\Requests\StoreEventRequest;
-use Modules\Events\Http\Requests\StoreEventTaskRequest;
 use Modules\Events\Http\Requests\UpdateEventRequest;
 use Modules\Events\Models\Event;
-use Modules\Events\Models\EventTaskMember;
 use Modules\Members\Models\Member;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -25,7 +23,7 @@ use Spatie\QueryBuilder\QueryBuilder;
  *
  * Architecture notes:
  *   - Teams are optional: $teamsInstalled guard via Schema::hasTable('teams').
- *   - Management is optional: $managementInstalled guard via Schema::hasTable('management_tasks').
+ *   - Management is optional: $managementInstalled guard via Schema::hasTable('event_tasks').
  *   - No direct Eloquent imports from optional modules; DB::table() used for cross-module queries.
  *
  * Allowed sort fields (via ?sort=... | ?sort=-...):
@@ -55,7 +53,7 @@ class EventController extends Controller
             ->withQueryString();
 
         $teamsInstalled      = Schema::hasTable('teams');
-        $managementInstalled = Schema::hasTable('management_tasks');
+        $managementInstalled = Schema::hasTable('event_tasks');
 
         // DB::table() instead of Team::all() — no cross-module Eloquent import
         $teams = $teamsInstalled
@@ -97,12 +95,12 @@ class EventController extends Controller
             $allMembersJs[$m->id] = ['id' => $m->id, 'name' => $m->full_name];
         }
 
-        // Task progress counters — guarded: event_task only exists when Management is installed.
+        // Task progress counters — guarded: event_tasks only exists when Management is installed.
         $totalTasks = 0;
         $doneTasks  = 0;
-        if (Schema::hasTable('event_task')) {
-            $totalTasks = DB::table('event_task')->where('event_id', $event->id)->count();
-            $doneTasks  = DB::table('event_task')->where('event_id', $event->id)->where('completed', true)->count();
+        if (Schema::hasTable('event_tasks')) {
+            $totalTasks = DB::table('event_tasks')->where('event_id', $event->id)->count();
+            $doneTasks  = DB::table('event_tasks')->where('event_id', $event->id)->where('completed', true)->count();
         }
 
         // Custom fields: extract defs/values into named variables expected by the view.
@@ -145,77 +143,6 @@ class EventController extends Controller
         $event->delete();
 
         return redirect()->route('events.index')->with('success', 'Termin gelöscht.');
-    }
-
-    /**
-     * Toggle the completed state of a management task assigned to an event.
-     * Used by the AJAX progress bar in events-detail.js.
-     *
-     * @param  int $eventId
-     * @param  int $taskId
-     * @return JsonResponse
-     */
-    public function completeTask(int $eventId, int $taskId): JsonResponse
-    {
-        $pivot = DB::table('event_task')
-            ->where('event_id', $eventId)
-            ->where('task_id', $taskId)
-            ->first();
-
-        if (! $pivot) {
-            return response()->json(['error' => 'Not found'], 404);
-        }
-
-        DB::table('event_task')
-            ->where('event_id', $eventId)
-            ->where('task_id', $taskId)
-            ->update(['completed' => ! $pivot->completed]);
-
-        return response()->json(['completed' => ! $pivot->completed]);
-    }
-
-    /**
-     * Assign a management task to an event.
-     * Returns 409 if the task is already assigned.
-     *
-     * @param  StoreEventTaskRequest $request
-     * @param  Event                 $event
-     * @return JsonResponse
-     */
-    public function addTask(StoreEventTaskRequest $request, Event $event): JsonResponse
-    {
-        $taskId = $request->validated()['task_id'];
-
-        if (DB::table('event_task')->where('event_id', $event->id)->where('task_id', $taskId)->exists()) {
-            return response()->json(['error' => 'already_assigned'], 409);
-        }
-
-        DB::table('event_task')->insert([
-            'event_id'   => $event->id,
-            'task_id'    => $taskId,
-            'completed'  => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return response()->json(['success' => true]);
-    }
-
-    /**
-     * Remove a management task from an event.
-     *
-     * @param  Event $event
-     * @param  int   $taskId
-     * @return JsonResponse
-     */
-    public function removeTask(Event $event, int $taskId): JsonResponse
-    {
-        DB::table('event_task')
-            ->where('event_id', $event->id)
-            ->where('task_id', $taskId)
-            ->delete();
-
-        return response()->json(['success' => true]);
     }
 
     /**

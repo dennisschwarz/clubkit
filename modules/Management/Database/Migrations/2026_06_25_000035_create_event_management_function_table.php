@@ -38,6 +38,10 @@ return new class extends Migration
                   ->constrained('management_functions')
                   ->cascadeOnDelete();
 
+            // Nullable: function is assigned to an event first, member filled in later.
+            // No DB-level FK — Events module does not depend on Members at the schema level.
+            $table->unsignedBigInteger('member_id')->nullable();
+
             $table->primary(['event_id', 'management_function_id']);
             $table->timestamps();
         });

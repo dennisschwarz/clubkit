@@ -29,6 +29,7 @@ class ManagementTaskCategory extends Model
 
     protected $fillable = [
         'name',
+        'color',
         'created_by',
     ];
 

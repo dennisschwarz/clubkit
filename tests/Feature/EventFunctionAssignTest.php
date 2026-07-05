@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Modules\Events\Models\Event;
 
-uses(Tests\TestCase::class, Illuminate\Foundation\Testing\RefreshDatabase::class);
+// TestCase + RefreshDatabase are applied globally for Feature/ via tests/Pest.php.
+// No explicit uses() call needed here.
 
 beforeEach(function () {
     DB::table('installed_modules')->insertOrIgnore([
@@ -15,6 +15,9 @@ beforeEach(function () {
         ['slug' => 'events',     'is_active' => 1, 'installed_at' => now()],
         ['slug' => 'management', 'is_active' => 1, 'installed_at' => now()],
     ]);
+    // Flush Spatie's permission cache so module permissions registered in
+    // ServiceProvider::boot() are visible in the current test request.
+    seedPermissions();
 });
 
 /**
@@ -46,8 +49,8 @@ function createMember(string $first, string $last): int
 // ── Assign ────────────────────────────────────────────────────────────────────
 
 test('a member can be assigned to a management function on an event', function () {
-    $user = User::factory()->create();
-    $user->givePermissionTo('events.manage');
+    // createUserWithPermission() uses Permission::firstOrCreate() — safe when permission may not yet exist.
+    $user = createUserWithPermission('events.manage');
 
     $event      = Event::factory()->create();
     $functionId = createFunction('Kassier');
@@ -72,8 +75,7 @@ test('a member can be assigned to a management function on an event', function (
 // ── Upsert (re-assign) ────────────────────────────────────────────────────────
 
 test('re-assigning a function updates the existing record instead of creating a duplicate', function () {
-    $user = User::factory()->create();
-    $user->givePermissionTo('events.manage');
+    $user = createUserWithPermission('events.manage');
 
     $event      = Event::factory()->create();
     $functionId = createFunction('Ordner');
@@ -108,8 +110,7 @@ test('re-assigning a function updates the existing record instead of creating a 
 // ── Clear assignment ──────────────────────────────────────────────────────────
 
 test('passing null member_id clears the assignment', function () {
-    $user = User::factory()->create();
-    $user->givePermissionTo('events.manage');
+    $user = createUserWithPermission('events.manage');
 
     $event      = Event::factory()->create();
     $functionId = createFunction('Beisitzer');

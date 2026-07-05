@@ -6,27 +6,69 @@
   overflow: hidden;
 }
 
-/* Card header: no background of its own — stays white like the card body */
+/*
+ * Card header — visually unified with .ck-section-header (misc.css).
+ * Same background token, same padding, same font size.
+ * One visual language across all module pages.
+ */
 .ck-card__header {
-  display: flex;
-  align-items: center;
+  display:         flex;
+  align-items:     center;
   justify-content: space-between;
-  gap: var(--ck-space-4);
-  padding: var(--ck-space-4) var(--ck-space-5);
-  border-bottom: 1px solid var(--ck-border);
-  font-size: var(--ck-font-sm);
-  font-weight: 700;
-  color: var(--ck-text);
+  gap:             var(--ck-space-4);
+  padding:         10px var(--ck-space-4);              /* matches ck-section-header */
+  border-bottom:   1px solid var(--ck-border-light);    /* softer divider (same as section-header) */
+  background:      var(--ck-card-header-bg, var(--ck-bg-subtle));  /* unified token */
+  font-size:       var(--ck-font-md);                   /* 13px — same weight as section title */
+  font-weight:     700;
+  color:           var(--ck-text);
 }
 .ck-card__header-title  { flex: 1; }
 .ck-card__header-action { flex-shrink: 0; display: flex; align-items: center; gap: var(--ck-space-3); }
+
+/* ── Accent modifiers: colour-coded cards (accent prop on x-ck-card) ────────
+   Use: <x-ck-card accent="blue">  |  accent="green"  |  accent="gray"
+   Each variant: left border stripe (signals type at a glance) + tinted header.
+   Mirrors the ck-orga-section colour pattern from events.css.
+── */
+
+/* Blue: information / schedule */
+.ck-card--accent-blue {
+  border-left: 3px solid var(--ck-accent);
+}
+.ck-card--accent-blue .ck-card__header {
+  background:         var(--ck-blue-tint);
+  border-bottom-color: var(--ck-blue-section-border);
+  color:              var(--ck-accent-dark);
+}
+
+/* Green: teams / completion */
+.ck-card--accent-green {
+  border-left: 3px solid var(--ck-success);
+}
+.ck-card--accent-green .ck-card__header {
+  background:         var(--ck-success-bg);
+  border-bottom-color: var(--ck-success-border);
+  color:              var(--ck-success-text);
+}
+
+/* Gray: neutral / additional info */
+.ck-card--accent-gray {
+  border-left: 3px solid var(--ck-text-muted);
+}
+.ck-card--accent-gray .ck-card__header {
+  background:         var(--ck-border-light);
+  border-bottom-color: var(--ck-border-strong);
+  color:              var(--ck-text-secondary);
+}
 
 .ck-card__body   { padding: var(--ck-space-5); }
 .ck-card__footer {
   padding: var(--ck-space-3) var(--ck-space-5);
   border-top: 1px solid var(--ck-border-light);
 }
-.ck-card--dashed { border-style: dashed; }
+.ck-card--dashed  { border-style: dashed; }
+.ck-card--no-pad > .ck-card__body { padding: 0; }
 
 /* Stat tiles */
 .ck-stat-grid {

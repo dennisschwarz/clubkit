@@ -376,11 +376,22 @@ details[open] .ck-event-section__summary::before {
     border-bottom: none;
 }
 
+/* ── Page action bar spacing ─────────────────────────────────────────────── */
+
+/* Align actions div children next to each other with consistent gap */
+.ck-page-header__actions {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-3);
+    flex-wrap:   wrap;
+}
+
 /* ── KPI tiles (Übersicht-Tab) ────────────────────────────────────────────── */
 .ck-kpi-grid {
     display:               grid;
     grid-template-columns: repeat(4, 1fr);
     gap:                   var(--ck-space-4);
+    margin-top:            var(--ck-space-5);
     margin-bottom:         var(--ck-space-5);
 }
 
@@ -437,6 +448,141 @@ details[open] .ck-event-section__summary::before {
     border-radius:    3px;
     transition:       width 0.3s ease;
 }
+
+/* ── Overview: schedule (preparation tasks) ─────────────────────────────── */
+.ck-ov-prep-category {
+    margin-bottom: var(--ck-space-4);
+}
+
+.ck-ov-prep-category__name {
+    font-size:     var(--ck-font-sm);
+    font-weight:   700;
+    color:         var(--ck-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: var(--ck-space-2);
+}
+
+.ck-ov-prep-list {
+    list-style: none;
+    margin:     0;
+    padding:    0;
+}
+
+.ck-ov-prep-list__item {
+    display:         flex;
+    align-items:     center;
+    gap:             var(--ck-space-2);
+    padding:         var(--ck-space-1) 0;
+    border-bottom:   1px solid var(--ck-border);
+    font-size:       var(--ck-font-sm);
+}
+
+.ck-ov-prep-list__item:last-child { border-bottom: none; }
+
+.ck-ov-prep-list__item.is-done .ck-ov-prep-list__name {
+    text-decoration: line-through;
+    color:           var(--ck-text-muted);
+}
+
+.ck-ov-prep-list__check {
+    flex-shrink: 0;
+    color:       var(--ck-text-muted);
+    width:       1rem;
+    text-align:  center;
+}
+
+.ck-ov-prep-list__item.is-done .ck-ov-prep-list__check { color: var(--ck-success); }
+
+.ck-ov-prep-list__name     { flex: 1; }
+.ck-ov-prep-list__deadline { flex-shrink: 0; color: var(--ck-text-muted); font-size: var(--ck-font-xs); }
+
+/* ── Overview: staffing matrix (event-day tasks × hours) ────────────────── */
+.ck-ov-matrix-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ck-ov-matrix {
+    width:           100%;
+    border-collapse: collapse;
+    font-size:       var(--ck-font-sm);
+}
+
+.ck-ov-matrix th,
+.ck-ov-matrix td {
+    padding:       var(--ck-space-2) var(--ck-space-3);
+    border:        1px solid var(--ck-border);
+    vertical-align: top;
+}
+
+.ck-ov-matrix th {
+    background:  var(--ck-bg);
+    font-weight: 600;
+    white-space: nowrap;
+    color:       var(--ck-text-muted);
+    font-size:   var(--ck-font-xs);
+}
+
+.ck-ov-matrix__task-col { width: 180px; min-width: 140px; }
+.ck-ov-matrix__hour-col { min-width: 72px; text-align: center; }
+
+.ck-ov-matrix__task-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow:    hidden;
+    text-overflow: ellipsis;
+    max-width:   180px;
+}
+
+.ck-ov-matrix__row--done .ck-ov-matrix__task-name {
+    text-decoration: line-through;
+    color:           var(--ck-text-muted);
+}
+
+.ck-ov-matrix__cell {
+    text-align: center;
+}
+
+.ck-ov-matrix__member {
+    display:       block;
+    font-size:     var(--ck-font-xs);
+    color:         var(--ck-accent-dark);
+    white-space:   nowrap;
+}
+
+/* Tasks without slots (no hour grid, simple list) */
+.ck-ov-matrix-tasks { display: flex; flex-direction: column; gap: var(--ck-space-2); }
+
+.ck-ov-matrix-tasks__row {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    padding:         var(--ck-space-2) 0;
+    border-bottom:   1px solid var(--ck-border);
+    font-size:       var(--ck-font-sm);
+}
+
+.ck-ov-matrix-tasks__row:last-child { border-bottom: none; }
+
+/* ── Overview: management functions summary ──────────────────────────────── */
+.ck-overview-summary {
+    list-style: none;
+    margin:     0;
+    padding:    0;
+}
+
+.ck-overview-summary__item {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    gap:             var(--ck-space-3);
+    padding:         var(--ck-space-2) 0;
+    border-bottom:   1px solid var(--ck-border);
+    font-size:       var(--ck-font-sm);
+}
+
+.ck-overview-summary__item:last-child { border-bottom: none; }
 
 /* ── Function cards (Funktionen-Tab) ─────────────────────────────────────── */
 .ck-func-grid {
@@ -514,6 +660,628 @@ details[open] .ck-event-section__summary::before {
 }
 
 .ck-member-chip .ck-slot-remove-btn:hover { color: var(--ck-danger); }
+
+/* ── Event hero block (Termindetails card) ─────────────────────────────────── */
+
+.ck-event-info .ck-card__body { padding: var(--ck-space-5); }
+
+/* 50/50 grid: left = event info, right = reserved for Vereinsfunktionen */
+.ck-event-hero {
+    display:               grid;
+    grid-template-columns: 1fr 1fr;
+    gap:                   var(--ck-space-6);
+    padding:               var(--ck-space-4);
+    background:            var(--ck-bg-subtle);
+    border-radius:         var(--ck-radius);
+    border:                1px solid var(--ck-border-light);
+}
+
+/* Left column */
+.ck-event-hero__left {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-3);
+    min-width:      0;
+}
+
+/* Right column — reserved for Vereinsfunktionen (step 3) */
+.ck-event-hero__right {
+    border-left:  1px solid var(--ck-border-light);
+    padding-left: var(--ck-space-5);
+    min-height:   40px;
+}
+
+/* Date tile + meta in a single horizontal row at the top of the left column */
+.ck-event-hero__head {
+    display:     flex;
+    align-items: flex-start;
+    gap:         var(--ck-space-4);
+}
+
+/* Date tile */
+.ck-event-hero__date {
+    text-align:  center;
+    background:  var(--ck-white);
+    border:      1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
+    padding:     var(--ck-space-3) var(--ck-space-4);
+    min-width:   76px;
+    flex-shrink: 0;
+    box-shadow:  0 1px 3px rgba(0,0,0,.05);
+}
+
+.ck-event-hero__month {
+    display:        block;
+    font-size:      var(--ck-font-xs);
+    font-weight:    700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color:          var(--ck-text-muted);
+    margin-bottom:  var(--ck-space-1);
+}
+
+.ck-event-hero__day {
+    display:     block;
+    font-size:   2.25rem;
+    font-weight: 800;
+    color:       var(--ck-text);
+    line-height: 1;
+}
+
+.ck-event-hero__weekday {
+    display:    block;
+    font-size:  var(--ck-font-xs);
+    color:      var(--ck-text-muted);
+    margin-top: var(--ck-space-1);
+    font-weight: 600;
+}
+
+/* Meta items (time, location) — flex column inside the head row */
+.ck-event-hero__meta {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-2);
+    padding-top:    var(--ck-space-1);
+    justify-content: center;
+}
+
+/* Time and location: large, prominent, dark — these are the most important details */
+.ck-event-hero__meta-item {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-2);
+    font-size:   var(--ck-font-xl);
+    font-weight: 700;
+    color:       var(--ck-text);
+    line-height: 1.3;
+}
+
+/* Location: slightly smaller than time, secondary colour */
+.ck-event-hero__meta-item + .ck-event-hero__meta-item {
+    font-size:   var(--ck-font-lg);
+    font-weight: 600;
+    color:       var(--ck-text-secondary);
+}
+
+/* Description / Notes blocks */
+.ck-event-hero__body { /* no extra margin needed — parent gap handles spacing */ }
+
+.ck-event-hero__body-label {
+    font-size:      var(--ck-font-xs);
+    font-weight:    700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color:          var(--ck-text-muted);
+    margin-bottom:  var(--ck-space-1);
+}
+
+.ck-event-hero__body-text {
+    font-size:   var(--ck-font-base);
+    color:       var(--ck-text);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+/* Legacy: kept for backwards-compat, no longer rendered */
+.ck-event-hero__info { flex: 1; min-width: 0; }
+
+/* ── Page-header meta row ───────────────────────────────────────────────────── */
+
+.ck-event-header-meta {
+    display:    flex;
+    flex-wrap:  wrap;
+    gap:        var(--ck-space-4);
+    margin-top: var(--ck-space-1);
+}
+
+.ck-event-header-meta__item {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-1);
+    font-size:   var(--ck-font-sm);
+    color:       var(--ck-text-muted);
+}
+
+/* ── Avatar stack (overlapping circles) ────────────────────────────────────── */
+
+.ck-avatar-stack {
+    display:     flex;
+    align-items: center;
+    margin-top:  var(--ck-space-3);
+}
+
+.ck-avatar-stack__item {
+    margin-left:   -6px;
+    border:        2px solid var(--ck-white);
+    border-radius: var(--ck-radius-full);
+}
+
+.ck-avatar-stack__item:first-child { margin-left: 0; }
+
+.ck-avatar-stack__extra {
+    margin-left: var(--ck-space-2);
+    font-size:   var(--ck-font-sm);
+    color:       var(--ck-text-muted);
+}
+
+/* ── KPI tile colour modifiers ─────────────────────────────────────────────── */
+
+.ck-kpi-card--success .ck-kpi-card__value { color: var(--ck-success); }
+.ck-kpi-card--warning .ck-kpi-card__value { color: var(--ck-warning); }
+.ck-kpi-card--danger  .ck-kpi-card__value { color: var(--ck-danger); }
+
+/* ── Fortschritt: header-right (count + optional unstaffed warning) ─────────── */
+
+.ck-cat-progress__meta {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-3);
+}
+
+.ck-cat-progress__unstaffed {
+    font-size:   var(--ck-font-xs);
+    font-weight: 700;
+    color:       var(--ck-warning-text);
+}
+
+/* ── Zeitplan: hide KW nav when cat view is active (CSS-driven via data-view) ── */
+
+#ckZeitplanToolbar[data-view="cat"] .ck-kw-nav {
+    display: none !important;
+}
+
+/* ── Zeitplan toolbar (toggle + KW navigation) ─────────────────────────────── */
+
+.ck-zeitplan-toolbar {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    padding:         var(--ck-space-3) var(--ck-space-5);
+    border-bottom:   1px solid var(--ck-border);
+    background:      var(--ck-bg-subtle);
+    gap:             var(--ck-space-3);
+    flex-wrap:       wrap;
+}
+
+.ck-zeitplan-toggle {
+    display: flex;
+    gap:     var(--ck-space-1);
+}
+
+.ck-zeitplan-toggle__btn {
+    padding:       var(--ck-space-2) var(--ck-space-4);
+    border-radius: var(--ck-radius-sm);
+    font-size:     var(--ck-font-md);
+    font-weight:   600;
+    border:        1px solid var(--ck-border);
+    background:    var(--ck-white);
+    color:         var(--ck-text-muted);
+    cursor:        pointer;
+    transition:    background .15s, color .15s, border-color .15s;
+}
+
+.ck-zeitplan-toggle__btn--active {
+    background:   var(--ck-accent-dark);
+    color:        #fff;
+    border-color: var(--ck-accent-dark);
+}
+
+/* ── KW navigation ─────────────────────────────────────────────────────────── */
+
+.ck-kw-nav {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-3);
+}
+
+.ck-kw-nav__btn {
+    width:           32px;
+    height:          32px;
+    border-radius:   var(--ck-radius-sm);
+    border:          1px solid var(--ck-border);
+    background:      var(--ck-white);
+    cursor:          pointer;
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    font-size:       var(--ck-font-lg);
+    font-weight:     700;
+    color:           var(--ck-text);
+    line-height:     1;
+    transition:      opacity .15s;
+}
+
+.ck-kw-nav__btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.ck-kw-nav__info  { text-align: center; min-width: 140px; }
+.ck-kw-nav__label { display: block; font-size: var(--ck-font-base); font-weight: 700; color: var(--ck-text); }
+.ck-kw-nav__range { display: block; font-size: var(--ck-font-xs);   color: var(--ck-text-muted); }
+
+/* ── Wochenplan: pane visibility ───────────────────────────────────────────── */
+
+.ck-kw-pane         { display: none; }
+.ck-kw-pane--active { display: flex; min-height: 160px; }
+
+/* ── Wochenplan: column layout (33% member | 67% days) ─────────────────────── */
+
+.ck-kw-pane__members {
+    width:       33%;
+    min-width:   160px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--ck-border);
+}
+
+.ck-kw-pane__days {
+    flex:      1;
+    overflow-x: auto;
+    min-width:  0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ck-kw-col-header {
+    height:         56px;
+    padding:        0 var(--ck-space-4);
+    background:     var(--ck-bg-subtle);
+    border-bottom:  2px solid var(--ck-border);
+    display:        flex;
+    align-items:    center;
+    font-size:      var(--ck-font-xs);
+    font-weight:    700;
+    color:          var(--ck-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .6px;
+}
+
+.ck-kw-day-header {
+    display:       flex;
+    border-bottom: 2px solid var(--ck-border);
+    height:        56px;
+    min-width:     calc(7 * 110px);
+}
+
+.ck-kw-day {
+    flex:        1;
+    min-width:   110px;
+    padding:     var(--ck-space-2);
+    border-right: 1px solid var(--ck-border-light);
+    background:  var(--ck-bg-subtle);
+    text-align:  center;
+}
+
+.ck-kw-day:last-child { border-right: none; }
+.ck-kw-day--event     { background: #fff9eb; }
+
+.ck-kw-day__wd {
+    display:     block;
+    font-size:   var(--ck-font-base);
+    font-weight: 700;
+    color:       var(--ck-text);
+}
+
+.ck-kw-day--event .ck-kw-day__wd   { color: var(--ck-warning); }
+.ck-kw-day__date                    { display: block; font-size: var(--ck-font-xs); color: var(--ck-text-muted); }
+.ck-kw-day--event .ck-kw-day__date { color: var(--ck-warning-text); }
+
+/* ── Wochenplan member rows ─────────────────────────────────────────────────── */
+
+.ck-kw-member {
+    display:       flex;
+    align-items:   center;
+    gap:           var(--ck-space-3);
+    padding:       var(--ck-space-4);
+    min-height:    60px;
+    border-bottom: 1px solid var(--ck-border-light);
+}
+
+.ck-kw-member:last-child { border-bottom: none; }
+
+.ck-kw-member__name  { font-size: var(--ck-font-base); font-weight: 700; color: var(--ck-text);       line-height: 1.3; }
+.ck-kw-member__count { font-size: var(--ck-font-xs);   color: var(--ck-text-muted); }
+
+/* ── Wochenplan data rows ───────────────────────────────────────────────────── */
+
+.ck-kw-row {
+    display:       flex;
+    min-width:     calc(7 * 110px);
+    border-bottom: 1px solid var(--ck-border-light);
+    min-height:    60px;
+}
+
+.ck-kw-row:last-child { border-bottom: none; }
+
+.ck-kw-cell {
+    flex:           1;
+    min-width:      110px;
+    padding:        var(--ck-space-2);
+    border-right:   1px solid var(--ck-border-light);
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-1);
+}
+
+.ck-kw-cell:last-child { border-right: none; }
+.ck-kw-cell--event     { background: #fff9eb; }
+
+.ck-kw-task {
+    padding:       5px var(--ck-space-2);
+    border-radius: var(--ck-radius-sm);
+    background:    var(--ck-bg-subtle);
+    border:        1px solid var(--ck-border-light);
+    font-size:     var(--ck-font-md);
+    font-weight:   600;
+    color:         var(--ck-text-muted);
+    overflow:      hidden;
+    text-overflow: ellipsis;
+    white-space:   nowrap;
+}
+
+.ck-kw-task--done {
+    text-decoration: line-through;
+    color:           var(--ck-success-text);
+    background:      var(--ck-success-bg);
+    border-color:    var(--ck-success-border);
+}
+
+/* ── Zeitplan: Nach-Kategorie padded content area ───────────────────────────── */
+
+.ck-zeitplan-catview {
+    padding: var(--ck-space-5);
+}
+
+/* ── Zeitplan: Unbesetzt footer ─────────────────────────────────────────────── */
+
+.ck-zeitplan-unbesetzt {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-3);
+    flex-wrap:   wrap;
+    padding:     var(--ck-space-3) var(--ck-space-5);
+    border-top:  1px solid var(--ck-border);
+    background:  var(--ck-warning-bg);
+}
+
+.ck-zeitplan-unbesetzt__label {
+    font-size:   var(--ck-font-md);
+    font-weight: 700;
+    color:       var(--ck-warning-text);
+    flex-shrink: 0;
+}
+
+.ck-zeitplan-unbesetzt__tag {
+    font-size:     var(--ck-font-xs);
+    color:         var(--ck-warning-text);
+    background:    #fef3c7;
+    border:        1px solid var(--ck-warning-border);
+    border-radius: var(--ck-radius-full);
+    padding:       2px var(--ck-space-2);
+}
+
+/* ── Matrix: avatar cell ────────────────────────────────────────────────────── */
+
+.ck-ov-matrix__av-wrap {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    gap:             2px;
+    flex-wrap:       wrap;
+}
+
+/* ── Icon action buttons (category rename + delete in section summary) ──────── */
+
+.ck-icon-btn {
+    display:         inline-flex;
+    align-items:     center;
+    justify-content: center;
+    width:           28px;
+    height:          28px;
+    border:          1px solid transparent;
+    border-radius:   var(--ck-radius-sm);
+    background:      none;
+    cursor:          pointer;
+    font-size:       var(--ck-font-base);
+    line-height:     1;
+    flex-shrink:     0;
+    transition:      background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.ck-icon-btn:focus-visible {
+    outline:        2px solid var(--ck-accent);
+    outline-offset: 2px;
+}
+
+/* Rename button (✏) */
+.ck-icon-btn--secondary {
+    color:        var(--ck-text-secondary);
+    border-color: var(--ck-border);
+    background:   var(--ck-bg-subtle);
+}
+.ck-icon-btn--secondary:hover {
+    background:   var(--ck-border-light);
+    border-color: var(--ck-border-strong);
+}
+
+/* Delete button (🗑) */
+.ck-icon-btn--danger {
+    color:        var(--ck-danger-text);
+    border-color: var(--ck-danger-border);
+    background:   var(--ck-danger-bg);
+}
+.ck-icon-btn--danger:hover { opacity: 0.85; }
+
+/* ── Category section: colour swatch + action-button container ───────────── */
+
+/* Small colour dot before section title */
+.ck-event-section__swatch {
+    display:       inline-block;
+    width:         10px;
+    height:        10px;
+    border-radius: var(--ck-radius-full);
+    flex-shrink:   0;
+    margin-right:  var(--ck-space-2);
+}
+
+/* Swatch colour variants — one token per team-palette colour */
+.ck-swatch--blue   { background: var(--ck-team-blue); }
+.ck-swatch--navy   { background: var(--ck-team-navy); }
+.ck-swatch--green  { background: var(--ck-team-green); }
+.ck-swatch--teal   { background: var(--ck-team-teal); }
+.ck-swatch--red    { background: var(--ck-team-red); }
+.ck-swatch--orange { background: var(--ck-team-orange); }
+.ck-swatch--amber  { background: var(--ck-team-amber); }
+.ck-swatch--purple { background: var(--ck-team-purple-dot); }
+.ck-swatch--pink   { background: var(--ck-team-pink); }
+.ck-swatch--slate  { background: var(--ck-team-slate); }
+.ck-swatch--gray   { background: var(--ck-text-muted); }
+
+/* Action-button wrapper — right end of .ck-event-section__summary.
+   Buttons inside must call e.stopPropagation() so the <details> does not toggle. */
+.ck-event-section__actions {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-1);
+    flex-shrink: 0;
+    margin-left: var(--ck-space-2);
+}
+
+/* ── Section footer (quick-add link per category) ────────────────────────── */
+
+.ck-event-section__footer {
+    padding:    var(--ck-space-2) var(--ck-space-4);
+    border-top: 1px solid var(--ck-border-light);
+    background: var(--ck-bg-subtle);
+}
+
+.ck-event-section__add-task-btn {
+    border:      none;
+    background:  none;
+    padding:     0;
+    color:       var(--ck-accent-dark);
+    font-size:   var(--ck-font-sm);
+    font-weight: 500;
+    cursor:      pointer;
+}
+.ck-event-section__add-task-btn:hover { text-decoration: underline; }
+
+/* ── Drag-and-drop (SortableJS) ──────────────────────────────────────────── */
+
+/* Narrow drag-handle column — keeps the table layout stable */
+.ck-table__col--drag {
+    width:      32px;
+    padding:    var(--ck-space-2);
+    text-align: center;
+    color:      var(--ck-text-muted);
+}
+
+/* Draggable handle glyph (⠿) inside the column */
+.ck-task-drag-handle {
+    display:     inline-block;
+    cursor:      grab;
+    opacity:     0.45;
+    font-size:   var(--ck-font-lg);
+    line-height: 1;
+    user-select: none;
+    transition:  opacity 0.15s;
+}
+.ck-task-drag-handle:active { cursor: grabbing; }
+.ck-task-drag-handle:hover  { opacity: 0.75; }
+
+/* SortableJS: placeholder row shown at the drop target during dragging */
+.sortable-ghost {
+    opacity:        0.35;
+    background:     var(--ck-blue-tint);
+    outline:        2px dashed var(--ck-accent);
+    outline-offset: -2px;
+}
+
+/* SortableJS: the row that is actively being held */
+.sortable-chosen {
+    box-shadow: var(--ck-shadow);
+    opacity:    0.9;
+}
+
+/* ── Dual-listbox layout (taskAssignModal) ───────────────────────────────── */
+
+/* Three-column grid: available list | arrow controls | assigned list */
+.ck-assign-split {
+    display:               grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap:                   var(--ck-space-3);
+    align-items:           start;
+    margin:                var(--ck-space-4) 0;
+}
+
+.ck-assign-split__col {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-1);
+}
+
+.ck-assign-split__col-label {
+    font-size:   var(--ck-font-sm);
+    font-weight: 600;
+    color:       var(--ck-text-muted);
+}
+
+/* Native <select multiple> styled as a compact scrollable listbox */
+.ck-assign-split__list {
+    width:         100%;
+    min-height:    160px;
+    border:        1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
+    padding:       var(--ck-space-1);
+    font-size:     var(--ck-font-base);
+    background:    var(--ck-white);
+    color:         var(--ck-text);
+    overflow-y:    auto;
+}
+.ck-assign-split__list option { padding: var(--ck-space-1) var(--ck-space-2); }
+.ck-assign-split__list option:checked { background: var(--ck-blue-tint); }
+
+/* Arrow column: flex-column centred; top padding aligns with list (offsets label height) */
+.ck-assign-split__arrows {
+    display:         flex;
+    flex-direction:  column;
+    align-items:     center;
+    justify-content: center;
+    gap:             var(--ck-space-2);
+    padding-top:     var(--ck-space-5);
+}
+
+/* ── Task assign button (inline in task table row) ───────────────────────── */
+
+.ck-task-assign-btn {
+    border:        1px solid var(--ck-border);
+    border-radius: var(--ck-radius-sm);
+    background:    var(--ck-bg-subtle);
+    color:         var(--ck-text-secondary);
+    font-size:     var(--ck-font-sm);
+    font-weight:   500;
+    padding:       2px var(--ck-space-2);
+    cursor:        pointer;
+    white-space:   nowrap;
+    transition:    background 0.15s;
+}
+.ck-task-assign-btn:hover { background: var(--ck-border-light); }
 
 /* ── Print styles ─────────────────────────────────────────────────────────── */
 

@@ -28,8 +28,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * Priority values: 'normal' | 'important' | 'critical'
  * Validated by StoreTaskRequest / UpdateTaskRequest.
  *
- * Team and Event integration use string-based class names in the relation
- * definitions so they resolve at call-time rather than compile-time.
+ * Team integration uses string-based class names in the relation definitions
+ * so they resolve at call-time rather than compile-time.
  * The general() and forTeam() scopes may only be called when Teams is active.
  */
 class ManagementTask extends Model
@@ -89,24 +89,6 @@ class ManagementTask extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(ManagementTaskCategory::class, 'category_id');
-    }
-
-    /**
-     * Returns the events this task is assigned to via the event_task pivot.
-     *
-     * Uses a string class name so the Events module class is resolved at call-time.
-     * Only call this relation when the Events module is active.
-     *
-     * @return BelongsToMany
-     */
-    public function events(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            'Modules\\Events\\Models\\Event',
-            'event_task',
-            'task_id',
-            'event_id'
-        )->withPivot(['deadline_at', 'completed', 'notes'])->withTimestamps();
     }
 
     /**

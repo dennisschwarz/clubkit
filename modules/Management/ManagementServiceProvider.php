@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Modules\Management\Models\EventTask;
+use Modules\Management\Models\EventTaskCategory;
 use Modules\Management\Models\ManagementFunction;
 use Modules\Management\Models\ManagementTask;
 
@@ -29,7 +31,7 @@ use Modules\Management\Models\ManagementTask;
  *
  * → Events (show):
  *   events.show.tasks-panel      → Full task panel on the detail page
- *   events.show.page.scripts     → JS data for events-detail.js (CK_EventDetail.tasks)
+ *   events.show.page.scripts     → JS data for events-detail.js
  *
  * → Admin:
  *   admin.module-settings.sections → Category management in settings
@@ -38,6 +40,16 @@ use Modules\Management\Models\ManagementTask;
  *
  * All DB queries needed by event hook-views are handled through View Composers,
  * keeping the view files free of @php blocks and business logic.
+ *
+ * ── Schema mapping (after refactor) ──────────────────────────────────────────
+ *
+ * Old (Events module, deleted):        New (Management module):
+ *   event_task (pivot)              →    event_tasks (entity, id + data cols)
+ *   event_task_member (pivot)       →    event_task_members (entity, event_task_id FK)
+ *
+ * Event tasks are now owned by Management. All ViewComposers use:
+ *   EventTask::with('category') instead of ManagementTask via event_task pivot.
+ *   event_task_members.event_task_id instead of the old (event_id, task_id) composite.
  */
 class ManagementServiceProvider extends ServiceProvider
 {
@@ -79,22 +91,22 @@ class ManagementServiceProvider extends ServiceProvider
 
         // ── Extend Events ─────────────────────────────────────────────────────
 
-        // Assignment cell in the events list (functions and task badges)
+        // Assignment cell in the events list (functions + task name badges)
         $hooks->register('event.table.staffing.row', 'management::event-assignments-index-row', 10);
 
-        // Overview tab: KPI tiles + Fortschritt nach Kategorie
+        // Overview tab: KPI tiles + Wochenplan + staffing matrix + functions + teams
         $hooks->register('events.show.overview-panel', 'management::event-overview-panel', 10);
 
-        // Aufgaben tab: task sections by category + add-task select
+        // Tasks tab: task sections grouped by event_task_category + member assignments
         $hooks->register('events.show.tasks-panel', 'management::event-tasks-panel', 10);
 
-        // Slots tab: event-day tasks with time-slot ETMs + add-slot form
+        // Einsatzplan tab: event-day tasks with time-slot ETMs
         $hooks->register('events.show.slots-panel', 'management::event-slots-panel', 10);
 
-        // Funktionen tab: management functions with assigned members
+        // Functions tab: management functions with assigned members
         $hooks->register('events.show.functions-panel', 'management::event-functions-panel', 10);
 
-        // JS data for events-detail.js (available tasks + slot tasks for dropdowns)
+        // JS data bridge for events-detail.js
         $hooks->register('events.show.page.scripts', 'management::event-show-page-scripts', 10);
     }
 
@@ -122,7 +134,7 @@ class ManagementServiceProvider extends ServiceProvider
      *
      * Provides:
      *   $mgmtBesetzungFunctions  → Collection<ManagementFunction>
-     *   $mgmtBesetzungTasks      → Collection<ManagementTask>
+     *   $mgmtBesetzungTasks      → Collection (stdClass: id, name) from event_tasks
      *   $mgmtBesetzungHasAny     → bool
      *
      * @return void
@@ -136,35 +148,37 @@ class ManagementServiceProvider extends ServiceProvider
                 'mgmtBesetzungHasAny'    => false,
             ];
 
-            if (! Schema::hasTable('management_functions') || ! Schema::hasTable('event_management_function')) {
-                $view->with($empty);
-                return;
-            }
-
             $event = $view->getData()['event'] ?? null;
             if (! $event) {
                 $view->with($empty);
                 return;
             }
 
-            $fnIds = DB::table('event_management_function')
-                ->where('event_id', $event->id)
-                ->pluck('management_function_id')
-                ->toArray();
+            // Load event task names (regardless of template origin).
+            $eventTasks = collect();
+            if (Schema::hasTable('event_tasks')) {
+                $eventTasks = DB::table('event_tasks')
+                    ->where('event_id', $event->id)
+                    ->select('id', 'name')
+                    ->orderBy('name')
+                    ->get();
+            }
 
-            $taskIds = DB::table('event_task')
-                ->where('event_id', $event->id)
-                ->pluck('task_id')
-                ->toArray();
+            // Load functions assigned to this event.
+            $fnIds = [];
+            if (Schema::hasTable('management_functions') && Schema::hasTable('event_management_function')) {
+                $fnIds = DB::table('event_management_function')
+                    ->where('event_id', $event->id)
+                    ->pluck('management_function_id')
+                    ->toArray();
+            }
 
             $view->with([
                 'mgmtBesetzungFunctions' => ! empty($fnIds)
                     ? ManagementFunction::whereIn('id', $fnIds)->orderBy('name')->get()
                     : collect(),
-                'mgmtBesetzungTasks' => ! empty($taskIds)
-                    ? ManagementTask::whereIn('id', $taskIds)->orderBy('name')->get()
-                    : collect(),
-                'mgmtBesetzungHasAny' => ! empty($fnIds) || ! empty($taskIds),
+                'mgmtBesetzungTasks'  => $eventTasks,
+                'mgmtBesetzungHasAny' => ! empty($fnIds) || $eventTasks->isNotEmpty(),
             ]);
         });
     }
@@ -172,11 +186,12 @@ class ManagementServiceProvider extends ServiceProvider
     /**
      * View Composer: management::event-show-page-scripts
      *
-     * Provides:
-     *   $mgmtAvailableTasksJs       → array<int, array{id, name, category, priority}>
-     *   $mgmtCategoriesJs           → array<int, array{id, name}> for newTaskModal category dropdown
-     *   $mgmtEinsatzTasksJs         → array<int, array{id, name}> of event-day tasks for slotModal task dropdown
-     *   $mgmtAvailableFunctionsJs   → array<int, array{id, name}> für das "Funktion hinzufügen"-Modal
+     * Provides the JS data bridge consumed by events-detail.js:
+     *
+     *   $mgmtAvailableTasksJs     → global tasks not yet imported (for "import from library" dropdown)
+     *   $mgmtCategoriesJs         → event_task_categories for this event (category dropdown in task form)
+     *   $mgmtEinsatzTasksJs       → event-day tasks (for Einsatzplan slot-modal task dropdown)
+     *   $mgmtAvailableFunctionsJs → global functions not yet assigned (for add-function modal)
      *
      * @return void
      */
@@ -184,13 +199,13 @@ class ManagementServiceProvider extends ServiceProvider
     {
         View::composer('management::event-show-page-scripts', function ($view) {
             $empty = [
-                'mgmtAvailableTasksJs'      => [],
-                'mgmtCategoriesJs'          => [],
-                'mgmtEinsatzTasksJs'        => [],
-                'mgmtAvailableFunctionsJs'  => [],
+                'mgmtAvailableTasksJs'     => [],
+                'mgmtCategoriesJs'         => [],
+                'mgmtEinsatzTasksJs'       => [],
+                'mgmtAvailableFunctionsJs' => [],
             ];
 
-            if (! Schema::hasTable('management_tasks')) {
+            if (! Schema::hasTable('event_tasks')) {
                 $view->with($empty);
                 return;
             }
@@ -201,56 +216,67 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            // Available tasks (not yet assigned to this event) for the quick-add dropdown
-            $assignedIds = DB::table('event_task')
+            // Global tasks already imported to this event (by template_id).
+            // Used to exclude already-imported tasks from the "import from library" dropdown.
+            $importedTemplateIds = DB::table('event_tasks')
                 ->where('event_id', $event->id)
-                ->pluck('task_id')
+                ->whereNotNull('template_id')
+                ->pluck('template_id')
                 ->toArray();
 
-            $availableTasks = ManagementTask::with('category')
-                ->whereNotIn('id', $assignedIds)
+            // Global tasks available for import (not yet imported to this event).
+            $mgmtAvailableTasksJs = [];
+            if (Schema::hasTable('management_tasks')) {
+                $availableTasks = ManagementTask::with('category')
+                    ->whereNotIn('id', $importedTemplateIds)
+                    ->orderBy('name')
+                    ->get();
+
+                foreach ($availableTasks as $task) {
+                    $mgmtAvailableTasksJs[$task->id] = [
+                        'id'       => $task->id,
+                        'name'     => $task->name,
+                        'category' => $task->category?->name ?? '',
+                        'priority' => $task->priority ?? 'normal',
+                    ];
+                }
+            }
+
+            // Event-specific categories for the task form category dropdown.
+            $mgmtCategoriesJs = [];
+            if (Schema::hasTable('event_task_categories')) {
+                foreach (DB::table('event_task_categories')
+                    ->where('event_id', $event->id)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get() as $cat) {
+                    $mgmtCategoriesJs[$cat->id] = [
+                        'id'    => $cat->id,
+                        'name'  => $cat->name,
+                        'color' => $cat->color ?? null,
+                    ];
+                }
+            }
+
+            // Event-day tasks for the Einsatzplan slot-modal task dropdown.
+            // Event-day task = deadline_at IS NULL or deadline_at date = event start date.
+            $mgmtEinsatzTasksJs = [];
+            $eventDate          = $event->starts_at->toDateString();
+            $einsatzRows        = DB::table('event_tasks')
+                ->where('event_id', $event->id)
+                ->where(function ($q) use ($eventDate) {
+                    $q->whereNull('deadline_at')
+                      ->orWhereDate('deadline_at', '=', $eventDate);
+                })
                 ->orderBy('name')
+                ->select('id', 'name')
                 ->get();
 
-            $mgmtAvailableTasksJs = [];
-            foreach ($availableTasks as $task) {
-                $mgmtAvailableTasksJs[$task->id] = [
-                    'id'       => $task->id,
-                    'name'     => $task->name,
-                    'category' => $task->category?->name ?? 'Allgemein',
-                    'priority' => $task->priority ?? 'normal',
-                ];
+            foreach ($einsatzRows as $row) {
+                $mgmtEinsatzTasksJs[$row->id] = ['id' => $row->id, 'name' => $row->name];
             }
 
-            // All categories for the newTaskModal category dropdown
-            $mgmtCategoriesJs = [];
-            if (Schema::hasTable('management_task_categories')) {
-                foreach (DB::table('management_task_categories')->orderBy('name')->get() as $cat) {
-                    $mgmtCategoriesJs[$cat->id] = ['id' => $cat->id, 'name' => $cat->name];
-                }
-            }
-
-            // Event-day tasks (assigned to this event) for the slotModal task dropdown
-            $mgmtEinsatzTasksJs = [];
-            if (Schema::hasTable('event_task')) {
-                $eventDate    = $event->starts_at->toDateString();
-                $einsatzPivots = DB::table('event_task')
-                    ->where('event_id', $event->id)
-                    ->where(function ($q) use ($eventDate) {
-                        $q->whereNull('deadline_at')
-                          ->orWhereDate('deadline_at', '=', $eventDate);
-                    })
-                    ->pluck('task_id')
-                    ->toArray();
-
-                if (! empty($einsatzPivots)) {
-                    foreach (ManagementTask::whereIn('id', $einsatzPivots)->orderBy('name')->get() as $task) {
-                        $mgmtEinsatzTasksJs[$task->id] = ['id' => $task->id, 'name' => $task->name];
-                    }
-                }
-            }
-
-            // Available functions not yet assigned to this event (for the add-function modal)
+            // Global functions not yet assigned to this event.
             $mgmtAvailableFunctionsJs = [];
             if (Schema::hasTable('management_functions') && Schema::hasTable('event_management_function')) {
                 $assignedFnIds = DB::table('event_management_function')
@@ -277,14 +303,24 @@ class ManagementServiceProvider extends ServiceProvider
     /**
      * View Composer: management::event-overview-panel
      *
-     * Provides data for the Übersicht tab: 4 KPI tiles + progress per category.
+     * Provides data for the Übersicht tab: KPI tiles, category progress bars,
+     * prep task Wochenplan, event-day staffing matrix, functions and teams.
      *
      * Provides:
-     *   $mgmtOverviewByCategory → array<string, array{secDone, secTotal}> (same structure as tasks panel)
-     *   $mgmtKpiTotalTasks      → int
-     *   $mgmtKpiDoneTasks       → int
-     *   $mgmtKpiPeopleCount     → int (distinct members, time_from IS NULL)
-     *   $mgmtKpiSlotsCount      → int (ETMs with time_from IS NOT NULL)
+     *   $mgmtKpiTotalTasks          → int
+     *   $mgmtKpiDoneTasks           → int
+     *   $mgmtKpiOpenTasks           → int
+     *   $mgmtKpiUnstaffedPrep       → int
+     *   $mgmtOverviewByCategory     → array<string, array{secDone, secTotal, unstaffedCount}>
+     *   $mgmtOvFunctions            → array<array{name, member_name}>
+     *   $mgmtOvTeams                → Collection (stdClass: id, name, color)
+     *   $mgmtOvPrepByCategory       → array<string, list<array{name, deadline, priority, completed}>>
+     *   $mgmtOvDayTasks             → list<array{id, name, completed}>
+     *   $mgmtOvDayMatrix            → array<event_task_id, array<hour, list<array{name, initials}>>>
+     *   $mgmtOvHours                → list<string>  (e.g. ["09:00", "10:00"])
+     *   $mgmtOvWeekData             → list<array{label, range, days, members}>
+     *   $mgmtOvActiveKwIdx          → int
+     *   $mgmtOvUnstaffedPrepTasks   → list<string>
      *
      * @return void
      */
@@ -292,16 +328,23 @@ class ManagementServiceProvider extends ServiceProvider
     {
         View::composer('management::event-overview-panel', function ($view) {
             $empty = [
-                'mgmtOverviewByCategory' => [],
-                'mgmtKpiTotalTasks'      => 0,
-                'mgmtKpiDoneTasks'       => 0,
-                'mgmtKpiPeopleCount'     => 0,
-                'mgmtKpiSlotsCount'      => 0,
-                'mgmtOvFunctions'        => [],
-                'mgmtOvTeams'            => collect(),
+                'mgmtKpiTotalTasks'          => 0,
+                'mgmtKpiDoneTasks'           => 0,
+                'mgmtKpiOpenTasks'           => 0,
+                'mgmtKpiUnstaffedPrep'       => 0,
+                'mgmtOverviewByCategory'     => [],
+                'mgmtOvFunctions'            => [],
+                'mgmtOvTeams'                => collect(),
+                'mgmtOvPrepByCategory'       => [],
+                'mgmtOvDayTasks'             => [],
+                'mgmtOvDayMatrix'            => [],
+                'mgmtOvHours'                => [],
+                'mgmtOvWeekData'             => [],
+                'mgmtOvActiveKwIdx'          => 0,
+                'mgmtOvUnstaffedPrepTasks'   => [],
             ];
 
-            if (! Schema::hasTable('management_tasks') || ! Schema::hasTable('event_task')) {
+            if (! Schema::hasTable('event_tasks')) {
                 $view->with($empty);
                 return;
             }
@@ -312,27 +355,34 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            // Load assigned tasks with category and completion state
-            $pivots = DB::table('event_task')
+            // Load all event tasks with their category relation.
+            // No pivot: completed, deadline_at and notes are columns on event_tasks itself.
+            $assignedTasks = EventTask::with('category')
                 ->where('event_id', $event->id)
-                ->get()
-                ->keyBy('task_id');
-
-            $assignedIds = $pivots->keys()->toArray();
-
-            // Do not bail early when the assigned task list is empty —
-            // KPI tiles must remain visible even with 0 assigned tasks.
-
-            $assignedTasks = ManagementTask::with('category')
-                ->whereIn('id', $assignedIds)
                 ->orderBy('name')
                 ->get();
 
-            foreach ($assignedTasks as $task) {
-                $task->ev_completed = (bool) ($pivots[$task->id]?->completed ?? false);
+            $assignedIds = $assignedTasks->pluck('id')->toArray();
+
+            // KPI counts — derived from loaded tasks (no extra query).
+            $mgmtKpiTotalTasks = count($assignedIds);
+            $mgmtKpiDoneTasks  = (int) $assignedTasks->where('completed', true)->count();
+
+            // ETM count per event_task_id — used for unstaffed detection.
+            $etmCountByTask = [];
+            if (Schema::hasTable('event_task_members') && ! empty($assignedIds)) {
+                foreach (
+                    DB::table('event_task_members')
+                        ->whereIn('event_task_id', $assignedIds)
+                        ->select('event_task_id')
+                        ->get()
+                    as $er
+                ) {
+                    $etmCountByTask[$er->event_task_id] = ($etmCountByTask[$er->event_task_id] ?? 0) + 1;
+                }
             }
 
-            // Group by category for progress bars
+            // Group by category for the progress bar section (with unstaffed count).
             $rawByCategory = [];
             foreach ($assignedTasks as $task) {
                 $key = $task->category ? $task->category->name : 'Allgemein';
@@ -342,38 +392,19 @@ class ManagementServiceProvider extends ServiceProvider
 
             $byCategory = [];
             foreach ($rawByCategory as $catName => $catTasks) {
-                $done  = (int) collect($catTasks)->where('ev_completed', true)->count();
-                $total = count($catTasks);
+                $done      = (int) collect($catTasks)->where('completed', true)->count();
+                $total     = count($catTasks);
+                $unstaffed = (int) collect($catTasks)
+                    ->filter(fn ($t) => ! $t->completed && ! isset($etmCountByTask[$t->id]))
+                    ->count();
                 $byCategory[$catName] = [
-                    'secDone'  => $done,
-                    'secTotal' => $total,
+                    'secDone'        => $done,
+                    'secTotal'       => $total,
+                    'unstaffedCount' => $unstaffed,
                 ];
             }
 
-            // KPI counts
-            $totalTasks = count($assignedIds);
-            $doneTasks  = (int) DB::table('event_task')
-                ->where('event_id', $event->id)
-                ->where('completed', true)
-                ->count();
-
-            $peopleCount = 0;
-            $slotsCount  = 0;
-
-            if (Schema::hasTable('event_task_member')) {
-                $peopleCount = (int) DB::table('event_task_member')
-                    ->where('event_id', $event->id)
-                    ->whereNull('time_from')
-                    ->distinct('member_id')
-                    ->count('member_id');
-
-                $slotsCount = (int) DB::table('event_task_member')
-                    ->where('event_id', $event->id)
-                    ->whereNotNull('time_from')
-                    ->count();
-            }
-
-            // Functions assigned to this event: name + staffing status
+            // Functions assigned to this event: name + staffing status.
             $mgmtOvFunctions = [];
             if (Schema::hasTable('management_functions') && Schema::hasTable('event_management_function')) {
                 $funcRows = DB::table('event_management_function')
@@ -405,7 +436,7 @@ class ManagementServiceProvider extends ServiceProvider
                 }
             }
 
-            // Teams assigned to this event (Schema-guarded — Teams module is optional)
+            // Teams assigned to this event (Schema-guarded — Teams module is optional).
             $mgmtOvTeams = collect();
             if (Schema::hasTable('event_team') && Schema::hasTable('teams')) {
                 $teamIds = DB::table('event_team')
@@ -421,14 +452,263 @@ class ManagementServiceProvider extends ServiceProvider
                 }
             }
 
+            // Separate prep tasks (deadline before event date) from event-day tasks.
+            $mgmtOvPrepByCategory = [];
+            $mgmtOvDayTasks       = [];
+            $mgmtOvDayMatrix      = [];
+            $mgmtOvHours          = [];
+            $prepTaskList         = [];
+            $eventDateStr         = $event->starts_at->toDateString();
+
+            foreach ($assignedTasks as $task) {
+                // deadline_at is cast to Carbon on EventTask — no Carbon::parse() needed.
+                $deadlineAt = $task->deadline_at;
+
+                $isPrep = $deadlineAt !== null
+                    && $deadlineAt->toDateString() < $eventDateStr;
+
+                if ($isPrep) {
+                    $catName = $task->category ? $task->category->name : 'Allgemein';
+                    $mgmtOvPrepByCategory[$catName][] = [
+                        'name'      => $task->name,
+                        'deadline'  => $deadlineAt->format('d.m.'),
+                        'priority'  => $task->priority ?? 'normal',
+                        'completed' => $task->completed,
+                    ];
+                    $prepTaskList[] = [
+                        'id'        => $task->id,
+                        'name'      => $task->name,
+                        'completed' => $task->completed,
+                        'priority'  => $task->priority ?? 'normal',
+                        'deadline'  => $deadlineAt->toDateString(),
+                    ];
+                } else {
+                    $mgmtOvDayTasks[] = [
+                        'id'        => $task->id,
+                        'name'      => $task->name,
+                        'completed' => $task->completed,
+                    ];
+                }
+            }
+
+            ksort($mgmtOvPrepByCategory);
+
+            // Unstaffed prep task names (for the Zeitplan footer warning).
+            $mgmtOvUnstaffedPrepTasks = [];
+            foreach ($prepTaskList as $pt) {
+                if (! isset($etmCountByTask[$pt['id']])) {
+                    $mgmtOvUnstaffedPrepTasks[] = $pt['name'];
+                }
+            }
+
+            $mgmtKpiUnstaffedPrep = count($mgmtOvUnstaffedPrepTasks);
+
+            // ── Wochenplan: build week × member × day grid ────────────────────────────
+            $mgmtOvWeekData    = [];
+            $mgmtOvActiveKwIdx = 0;
+
+            if (! empty($prepTaskList) && Schema::hasTable('event_task_members')) {
+                $prepTaskIds = array_column($prepTaskList, 'id');
+
+                // ETMs for prep tasks (no time_from = task-tab assignment, not timed slot).
+                $prepEtms = DB::table('event_task_members')
+                    ->join('members', 'members.id', '=', 'event_task_members.member_id')
+                    ->whereIn('event_task_members.event_task_id', $prepTaskIds)
+                    ->whereNull('event_task_members.time_from')
+                    ->select(
+                        'event_task_members.event_task_id',
+                        'event_task_members.member_id',
+                        'members.last_name',
+                        'members.first_name',
+                        'members.profile_image'
+                    )
+                    ->get();
+
+                // Group prep tasks by ISO week key (YYYY-WW).
+                $byWeek = [];
+                foreach ($prepTaskList as $pt) {
+                    $date    = Carbon::parse($pt['deadline']);
+                    $weekKey = $date->isoWeekYear() . '-' . str_pad((string) $date->isoWeek(), 2, '0', STR_PAD_LEFT);
+                    $byWeek[$weekKey][] = $pt;
+                }
+                ksort($byWeek);
+
+                $dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+                $kwIndex  = 0;
+                foreach ($byWeek as $weekKey => $weekTasks) {
+                    $monday = Carbon::parse($weekTasks[0]['deadline'])->startOfWeek(Carbon::MONDAY);
+
+                    $days = [];
+                    for ($i = 0; $i < 7; $i++) {
+                        $d      = $monday->copy()->addDays($i);
+                        $days[] = [
+                            'wd'      => $dayNames[$i],
+                            'short'   => $d->format('j.n.'),
+                            'date'    => $d->toDateString(),
+                            'isEvent' => $d->toDateString() === $eventDateStr,
+                        ];
+                    }
+
+                    $weekTaskIds = array_column($weekTasks, 'id');
+                    $weekEtms    = $prepEtms->filter(fn ($e) => in_array($e->event_task_id, $weekTaskIds, true));
+
+                    $memberMap = [];
+                    foreach ($weekEtms as $etm) {
+                        if (! isset($memberMap[$etm->member_id])) {
+                            $memberMap[$etm->member_id] = [
+                                'initials' => strtoupper(substr($etm->last_name, 0, 1))
+                                            . strtoupper(substr($etm->first_name, 0, 1)),
+                                'name'     => $etm->last_name,
+                                'photo'    => $etm->profile_image,
+                                'done'     => 0,
+                                'total'    => 0,
+                                'byDate'   => [],
+                            ];
+                        }
+                        foreach ($weekTasks as $wt) {
+                            if ($wt['id'] === $etm->event_task_id) {
+                                $memberMap[$etm->member_id]['byDate'][$wt['deadline']][] = $wt;
+                                $memberMap[$etm->member_id]['total']++;
+                                if ($wt['completed']) {
+                                    $memberMap[$etm->member_id]['done']++;
+                                }
+                            }
+                        }
+                    }
+
+                    $kwNum  = (int) substr($weekKey, 5);
+                    $endSun = $monday->copy()->addDays(6);
+
+                    $mgmtOvWeekData[] = [
+                        'label'   => 'KW' . $kwNum,
+                        'range'   => $monday->format('j.n.') . ' – ' . $endSun->format('j.n.'),
+                        'days'    => $days,
+                        'members' => array_values($memberMap),
+                    ];
+                    $kwIndex++;
+                }
+
+                $mgmtOvActiveKwIdx = max(0, count($mgmtOvWeekData) - 1);
+            }
+
+            // If no prep tasks produced week entries, generate stub weeks so the
+            // Wochenplan grid is always rendered with an empty but visible structure.
+            if (empty($mgmtOvWeekData)) {
+                $stubDayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+                $eventMon     = Carbon::parse($eventDateStr)->startOfWeek(Carbon::MONDAY);
+                $startMon     = Carbon::now()->startOfWeek(Carbon::MONDAY);
+
+                if ($startMon->gt($eventMon)) {
+                    $startMon = $eventMon->copy();
+                } elseif ($startMon->diffInWeeks($eventMon) > 4) {
+                    $startMon = $eventMon->copy()->subWeeks(4);
+                }
+
+                $cur = $startMon->copy();
+                while ($cur->lte($eventMon)) {
+                    $stubDays = [];
+                    for ($i = 0; $i < 7; $i++) {
+                        $d          = $cur->copy()->addDays($i);
+                        $stubDays[] = [
+                            'wd'      => $stubDayNames[$i],
+                            'short'   => $d->format('j.n.'),
+                            'date'    => $d->toDateString(),
+                            'isEvent' => $d->toDateString() === $eventDateStr,
+                        ];
+                    }
+                    $endSun           = $cur->copy()->addDays(6);
+                    $mgmtOvWeekData[] = [
+                        'label'   => 'KW' . $cur->isoWeek(),
+                        'range'   => $cur->format('j.n.') . ' – ' . $endSun->format('j.n.'),
+                        'days'    => $stubDays,
+                        'members' => [],
+                    ];
+                    $cur->addWeek();
+                }
+
+                $mgmtOvActiveKwIdx = max(0, count($mgmtOvWeekData) - 1);
+            }
+
+            // ── Staffing matrix: event-day tasks × hour columns ───────────────────────
+            if (! empty($mgmtOvDayTasks) && Schema::hasTable('event_task_members')) {
+                $dayTaskIds = array_column($mgmtOvDayTasks, 'id');
+
+                $daySlots = DB::table('event_task_members')
+                    ->join('members', 'members.id', '=', 'event_task_members.member_id')
+                    ->whereIn('event_task_members.event_task_id', $dayTaskIds)
+                    ->whereNotNull('event_task_members.time_from')
+                    ->select(
+                        'event_task_members.event_task_id',
+                        'event_task_members.time_from',
+                        'event_task_members.time_to',
+                        'members.last_name',
+                        'members.first_name'
+                    )
+                    ->orderBy('event_task_members.time_from')
+                    ->get();
+
+                if ($daySlots->isNotEmpty()) {
+                    $minH = (int) Carbon::parse($daySlots->min('time_from'))->format('H');
+                    $maxH = (int) Carbon::parse($daySlots->max('time_to'))->format('H');
+
+                    for ($h = $minH; $h <= $maxH; $h++) {
+                        $mgmtOvHours[] = str_pad((string) $h, 2, '0', STR_PAD_LEFT) . ':00';
+                    }
+
+                    foreach ($mgmtOvDayTasks as $dt) {
+                        $mgmtOvDayMatrix[$dt['id']] = array_fill_keys($mgmtOvHours, []);
+                    }
+
+                    foreach ($daySlots as $slot) {
+                        $hFrom    = (int) Carbon::parse($slot->time_from)->format('H');
+                        $hTo      = (int) Carbon::parse($slot->time_to)->format('H');
+                        $initials = strtoupper(substr($slot->last_name, 0, 1))
+                                  . strtoupper(substr($slot->first_name, 0, 1));
+                        for ($h = $hFrom; $h < $hTo; $h++) {
+                            $hKey = str_pad((string) $h, 2, '0', STR_PAD_LEFT) . ':00';
+                            if (isset($mgmtOvDayMatrix[$slot->event_task_id][$hKey])) {
+                                $mgmtOvDayMatrix[$slot->event_task_id][$hKey][] = [
+                                    'name'     => $slot->last_name . ', ' . $slot->first_name,
+                                    'initials' => $initials,
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback: if day tasks exist but no ETM slots were found, use event start/end
+            // hours so the matrix always renders with a visible column structure.
+            if (! empty($mgmtOvDayTasks) && empty($mgmtOvHours)
+                && $event->starts_at && $event->ends_at
+            ) {
+                $startH = (int) $event->starts_at->format('H');
+                $endH   = (int) $event->ends_at->format('H');
+
+                for ($h = $startH; $h <= $endH; $h++) {
+                    $mgmtOvHours[] = str_pad((string) $h, 2, '0', STR_PAD_LEFT) . ':00';
+                }
+
+                foreach ($mgmtOvDayTasks as $dt) {
+                    $mgmtOvDayMatrix[$dt['id']] = array_fill_keys($mgmtOvHours, []);
+                }
+            }
+
             $view->with([
-                'mgmtOverviewByCategory' => $byCategory,
-                'mgmtKpiTotalTasks'      => $totalTasks,
-                'mgmtKpiDoneTasks'       => $doneTasks,
-                'mgmtKpiPeopleCount'     => $peopleCount,
-                'mgmtKpiSlotsCount'      => $slotsCount,
-                'mgmtOvFunctions'        => $mgmtOvFunctions,
-                'mgmtOvTeams'            => $mgmtOvTeams,
+                'mgmtKpiTotalTasks'          => $mgmtKpiTotalTasks,
+                'mgmtKpiDoneTasks'           => $mgmtKpiDoneTasks,
+                'mgmtKpiOpenTasks'           => $mgmtKpiTotalTasks - $mgmtKpiDoneTasks,
+                'mgmtKpiUnstaffedPrep'       => $mgmtKpiUnstaffedPrep,
+                'mgmtOverviewByCategory'     => $byCategory,
+                'mgmtOvFunctions'            => $mgmtOvFunctions,
+                'mgmtOvTeams'                => $mgmtOvTeams,
+                'mgmtOvPrepByCategory'       => $mgmtOvPrepByCategory,
+                'mgmtOvDayTasks'             => $mgmtOvDayTasks,
+                'mgmtOvDayMatrix'            => $mgmtOvDayMatrix,
+                'mgmtOvHours'                => $mgmtOvHours,
+                'mgmtOvWeekData'             => $mgmtOvWeekData,
+                'mgmtOvActiveKwIdx'          => $mgmtOvActiveKwIdx,
+                'mgmtOvUnstaffedPrepTasks'   => $mgmtOvUnstaffedPrepTasks,
             ]);
         });
     }
@@ -436,14 +716,17 @@ class ManagementServiceProvider extends ServiceProvider
     /**
      * View Composer: management::event-tasks-panel
      *
-     * Provides all data needed for the full task panel on the event detail page:
+     * Provides all data needed for the tasks tab on the event detail page.
      *
-     *   $mgmtByCategory             → array<string, array{tasks, secDone, secTotal, secColor}>
-     *   $mgmtGroupedAvailableTasks  → Collection (grouped by category for <optgroup>)
-     *   $mgmtMemberMap              → array<int, list<array{id, member_id, name, time_from, time_to}>>
-     *   $mgmtFunctions              → Collection<ManagementFunction>
-     *   $mgmtPriorityColors         → array<string, string>
-     *   $mgmtPriorityLabels         → array<string, string>
+     * Provides:
+     *   $mgmtByCategory          → array<int|'allgemein', array{category, tasks, secDone, secTotal, secColor}>
+     *                               key is category_id (int) or 'allgemein' for uncategorised tasks
+     *   $mgmtEventCategories     → Collection<EventTaskCategory> for this event
+     *   $mgmtMemberMap           → array<event_task_id, list<array{id, member_id, name}>>
+     *                               task-tab assignments only (time_from IS NULL)
+     *   $mgmtAvailableGlobalTasks → Collection<ManagementTask> not yet imported to this event
+     *   $mgmtPriorityColors      → array<string, string>
+     *   $mgmtPriorityLabels      → array<string, string>
      *
      * @return void
      */
@@ -454,15 +737,15 @@ class ManagementServiceProvider extends ServiceProvider
             $priorityLabels = ['normal' => 'Normal', 'important' => 'Wichtig', 'critical' => 'Kritisch'];
 
             $empty = [
-                'mgmtByCategory'            => [],
-                'mgmtGroupedAvailableTasks' => collect(),
-                'mgmtMemberMap'             => [],
-                'mgmtFunctions'             => collect(),
-                'mgmtPriorityColors'        => $priorityColors,
-                'mgmtPriorityLabels'        => $priorityLabels,
+                'mgmtByCategory'           => [],
+                'mgmtEventCategories'      => collect(),
+                'mgmtMemberMap'            => [],
+                'mgmtAvailableGlobalTasks' => collect(),
+                'mgmtPriorityColors'       => $priorityColors,
+                'mgmtPriorityLabels'       => $priorityLabels,
             ];
 
-            if (! Schema::hasTable('management_tasks') || ! Schema::hasTable('event_task')) {
+            if (! Schema::hasTable('event_tasks')) {
                 $view->with($empty);
                 return;
             }
@@ -473,111 +756,113 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            // ── Assigned tasks ─────────────────────────────────────────────────
-            $pivots = DB::table('event_task')
+            // Load all event tasks with their event-local category, sorted by sort_order.
+            $eventTasks = EventTask::with('category')
                 ->where('event_id', $event->id)
-                ->get()
-                ->keyBy('task_id');
-
-            $assignedIds = $pivots->keys()->toArray();
-
-            $assignedTasks = ManagementTask::with('category')
-                ->whereIn('id', $assignedIds)
-                ->orderBy('name')
+                ->orderBy('sort_order')
                 ->get();
 
-            // Attach pivot data to each task as dynamic properties (no Eloquent relation)
-            foreach ($assignedTasks as $task) {
-                $pivotRow          = $pivots[$task->id] ?? null;
-                $task->ev_completed = (bool) ($pivotRow?->completed ?? false);
-                $task->ev_notes    = $pivotRow?->notes ?? '';
-                $task->ev_deadline = $pivotRow?->deadline_at ?? null;
-            }
-
-            // ── Group by category with pre-computed section stats ──────────────
-            $rawByCategory  = [];
-            $uncategorized  = [];
-            foreach ($assignedTasks as $task) {
+            // Group tasks into category sections; "allgemein" receives uncategorised tasks.
+            $rawByCategory = [];
+            $uncategorized = [];
+            foreach ($eventTasks as $task) {
                 if ($task->category) {
-                    $rawByCategory[$task->category->name][] = $task;
+                    $catKey = $task->category_id;
+                    if (! isset($rawByCategory[$catKey])) {
+                        $rawByCategory[$catKey] = ['category' => $task->category, 'tasks' => []];
+                    }
+                    $rawByCategory[$catKey]['tasks'][] = $task;
                 } else {
                     $uncategorized[] = $task;
                 }
             }
-            ksort($rawByCategory);
-            if (! empty($uncategorized)) {
-                $rawByCategory['Allgemein'] = $uncategorized;
-            }
+
+            // Sort category sections by their user-defined sort_order.
+            usort($rawByCategory, fn ($a, $b) => $a['category']->sort_order <=> $b['category']->sort_order);
 
             $byCategory = [];
-            foreach ($rawByCategory as $catName => $catTasks) {
-                $done  = (int) collect($catTasks)->where('ev_completed', true)->count();
-                $total = count($catTasks);
-                $byCategory[$catName] = [
-                    'tasks'    => $catTasks,
+            foreach ($rawByCategory as $catData) {
+                $cat   = $catData['category'];
+                $tasks = $catData['tasks'];
+                $done  = (int) collect($tasks)->where('completed', true)->count();
+                $total = count($tasks);
+                $byCategory[$cat->id] = [
+                    'category' => $cat,
+                    'tasks'    => $tasks,
                     'secDone'  => $done,
                     'secTotal' => $total,
-                    'secColor' => $done === $total ? 'green' : ($done > 0 ? 'orange' : 'gray'),
+                    'secColor' => $done === $total && $total > 0 ? 'green' : ($done > 0 ? 'orange' : 'gray'),
                 ];
             }
 
-            // ── Member assignments per task (event_task_member) ────────────────
-            $memberMap = [];
-            if (! empty($assignedIds) && Schema::hasTable('event_task_member')) {
-                $etmRows = DB::table('event_task_member')
-                    ->join('members', 'members.id', '=', 'event_task_member.member_id')
-                    ->whereIn('event_task_member.task_id', $assignedIds)
-                    ->where('event_task_member.event_id', $event->id)
+            // Uncategorised tasks appear in the "Allgemein" section (always last).
+            if (! empty($uncategorized)) {
+                $done  = (int) collect($uncategorized)->where('completed', true)->count();
+                $total = count($uncategorized);
+                $byCategory['allgemein'] = [
+                    'category' => null,
+                    'tasks'    => $uncategorized,
+                    'secDone'  => $done,
+                    'secTotal' => $total,
+                    'secColor' => $done === $total && $total > 0 ? 'green' : ($done > 0 ? 'orange' : 'gray'),
+                ];
+            }
+
+            // Member assignments per task (task-tab: no time window — time_from IS NULL).
+            $memberMap  = [];
+            $taskIds    = $eventTasks->pluck('id')->toArray();
+
+            if (! empty($taskIds) && Schema::hasTable('event_task_members')) {
+                $etmRows = DB::table('event_task_members')
+                    ->join('members', 'members.id', '=', 'event_task_members.member_id')
+                    ->whereIn('event_task_members.event_task_id', $taskIds)
+                    ->whereNull('event_task_members.time_from')
                     ->select(
-                        'event_task_member.id',
-                        'event_task_member.task_id',
-                        'event_task_member.member_id',
-                        'event_task_member.time_from',
-                        'event_task_member.time_to',
+                        'event_task_members.id',
+                        'event_task_members.event_task_id',
+                        'event_task_members.member_id',
                         DB::raw("CONCAT(members.last_name, ', ', members.first_name) AS member_name")
                     )
                     ->get();
 
                 foreach ($etmRows as $etm) {
-                    $memberMap[$etm->task_id][] = [
+                    $memberMap[$etm->event_task_id][] = [
                         'id'        => $etm->id,
                         'member_id' => $etm->member_id,
                         'name'      => $etm->member_name,
-                        'time_from' => $etm->time_from ? Carbon::parse($etm->time_from)->format('H:i') : null,
-                        'time_to'   => $etm->time_to   ? Carbon::parse($etm->time_to)->format('H:i')   : null,
                     ];
                 }
             }
 
-            // ── Available tasks for the add-task dropdown ──────────────────────
-            $availableTasks = ManagementTask::with('category')
-                ->whereNotIn('id', $assignedIds)
-                ->orderBy('name')
-                ->get();
-
-            $groupedAvailableTasks = $availableTasks->groupBy(function ($t) {
-                return $t->category ? $t->category->name : 'Allgemein';
-            });
-
-            // ── Management functions assigned to this event ────────────────────
-            $functionIds = Schema::hasTable('event_management_function')
-                ? DB::table('event_management_function')
-                    ->where('event_id', $event->id)
-                    ->pluck('management_function_id')
-                    ->toArray()
-                : [];
-
-            $functions = ! empty($functionIds)
-                ? ManagementFunction::whereIn('id', $functionIds)->orderBy('name')->get()
+            // Event task categories for the "add category" and task-move context.
+            $eventCategories = Schema::hasTable('event_task_categories')
+                ? EventTaskCategory::where('event_id', $event->id)->orderBy('sort_order')->get()
                 : collect();
 
+            // Global tasks not yet imported to this event (for "import from library" dropdown).
+            $availableGlobalTasks = collect();
+            if (Schema::hasTable('management_tasks')) {
+                $importedTemplateIds = ! empty($taskIds)
+                    ? DB::table('event_tasks')
+                        ->where('event_id', $event->id)
+                        ->whereNotNull('template_id')
+                        ->pluck('template_id')
+                        ->toArray()
+                    : [];
+
+                $availableGlobalTasks = ManagementTask::with('category')
+                    ->whereNotIn('id', $importedTemplateIds)
+                    ->orderBy('name')
+                    ->get();
+            }
+
             $view->with([
-                'mgmtByCategory'            => $byCategory,
-                'mgmtGroupedAvailableTasks' => $groupedAvailableTasks,
-                'mgmtMemberMap'             => $memberMap,
-                'mgmtFunctions'             => $functions,
-                'mgmtPriorityColors'        => $priorityColors,
-                'mgmtPriorityLabels'        => $priorityLabels,
+                'mgmtByCategory'           => $byCategory,
+                'mgmtEventCategories'      => $eventCategories,
+                'mgmtMemberMap'            => $memberMap,
+                'mgmtAvailableGlobalTasks' => $availableGlobalTasks,
+                'mgmtPriorityColors'       => $priorityColors,
+                'mgmtPriorityLabels'       => $priorityLabels,
             ]);
         });
     }
@@ -585,12 +870,12 @@ class ManagementServiceProvider extends ServiceProvider
     /**
      * View Composer: management::event-slots-panel
      *
-     * Provides data for the Einsatzplan tab (event-day tasks with time-slot ETMs).
+     * Provides data for the Einsatzplan tab (event-day tasks with timed member slots).
      *
      * Provides:
-     *   $mgmtEinsatzTasks        → ManagementTask[] (event-day tasks assigned to this event)
-     *   $mgmtEinsatzSlotMap      → array<task_id, list<array{id, member_id, name, time_from, time_to}>>
-     *   $mgmtEinsatzMembersJs    → array<id, array{id, name}> for member select
+     *   $mgmtEinsatzTasks          → Collection<EventTask> (event-day tasks only)
+     *   $mgmtEinsatzSlotMap        → array<event_task_id, list<array{id, member_id, name, time_from, time_to}>>
+     *   $mgmtEinsatzMembersJs      → array<id, array{id, name}> for the member select
      *   $mgmtEinsatzPriorityColors → array<string, string>
      *   $mgmtEinsatzPriorityLabels → array<string, string>
      *
@@ -603,14 +888,14 @@ class ManagementServiceProvider extends ServiceProvider
             $priorityLabels = ['normal' => 'Normal', 'important' => 'Wichtig', 'critical' => 'Kritisch'];
 
             $empty = [
-                'mgmtEinsatzTasks'         => collect(),
-                'mgmtEinsatzSlotMap'       => [],
-                'mgmtEinsatzMembersJs'     => [],
+                'mgmtEinsatzTasks'          => collect(),
+                'mgmtEinsatzSlotMap'        => [],
+                'mgmtEinsatzMembersJs'      => [],
                 'mgmtEinsatzPriorityColors' => $priorityColors,
                 'mgmtEinsatzPriorityLabels' => $priorityLabels,
             ];
 
-            if (! Schema::hasTable('management_tasks') || ! Schema::hasTable('event_task')) {
+            if (! Schema::hasTable('event_tasks')) {
                 $view->with($empty);
                 return;
             }
@@ -621,55 +906,40 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            $eventDate  = $event->starts_at->toDateString();
+            $eventDate = $event->starts_at->toDateString();
 
-            // Event-day tasks: deadline IS NULL or deadline date = event date
-            $einsatzPivots = DB::table('event_task')
+            // Event-day tasks: deadline_at IS NULL or deadline_at date = event start date.
+            $einsatzTasks = EventTask::with('category')
                 ->where('event_id', $event->id)
                 ->where(function ($q) use ($eventDate) {
                     $q->whereNull('deadline_at')
                       ->orWhereDate('deadline_at', '=', $eventDate);
                 })
-                ->get()
-                ->keyBy('task_id');
+                ->orderBy('name')
+                ->get();
 
-            $einsatzIds = $einsatzPivots->keys()->toArray();
-
-            $einsatzTasks = ! empty($einsatzIds)
-                ? ManagementTask::with('category')
-                    ->whereIn('id', $einsatzIds)
-                    ->orderBy('name')
-                    ->get()
-                : collect();
-
-            // Attach pivot data (completed, notes) to each task
-            foreach ($einsatzTasks as $task) {
-                $pivotRow          = $einsatzPivots[$task->id] ?? null;
-                $task->ev_completed = (bool) ($pivotRow?->completed ?? false);
-                $task->ev_notes    = $pivotRow?->notes ?? '';
-            }
-
-            // Time-slot ETMs (time_from IS NOT NULL) for these tasks
+            // Timed member assignments (time_from IS NOT NULL) for these tasks.
             $slotMap = [];
-            if (! empty($einsatzIds) && Schema::hasTable('event_task_member')) {
-                $slotRows = DB::table('event_task_member')
-                    ->join('members', 'members.id', '=', 'event_task_member.member_id')
-                    ->where('event_task_member.event_id', $event->id)
-                    ->whereIn('event_task_member.task_id', $einsatzIds)
-                    ->whereNotNull('event_task_member.time_from')
-                    ->orderBy('event_task_member.time_from')
+            if ($einsatzTasks->isNotEmpty() && Schema::hasTable('event_task_members')) {
+                $einsatzIds = $einsatzTasks->pluck('id')->toArray();
+
+                $slotRows = DB::table('event_task_members')
+                    ->join('members', 'members.id', '=', 'event_task_members.member_id')
+                    ->whereIn('event_task_members.event_task_id', $einsatzIds)
+                    ->whereNotNull('event_task_members.time_from')
+                    ->orderBy('event_task_members.time_from')
                     ->select(
-                        'event_task_member.id',
-                        'event_task_member.task_id',
-                        'event_task_member.member_id',
-                        'event_task_member.time_from',
-                        'event_task_member.time_to',
+                        'event_task_members.id',
+                        'event_task_members.event_task_id',
+                        'event_task_members.member_id',
+                        'event_task_members.time_from',
+                        'event_task_members.time_to',
                         DB::raw("CONCAT(members.last_name, ', ', members.first_name) AS member_name")
                     )
                     ->get();
 
                 foreach ($slotRows as $slot) {
-                    $slotMap[$slot->task_id][] = [
+                    $slotMap[$slot->event_task_id][] = [
                         'id'        => $slot->id,
                         'member_id' => $slot->member_id,
                         'name'      => $slot->member_name,
@@ -679,7 +949,7 @@ class ManagementServiceProvider extends ServiceProvider
                 }
             }
 
-            // Members for the add-slot form select
+            // Active members for the add-slot form select.
             $membersJs = [];
             if (Schema::hasTable('members')) {
                 foreach (DB::table('members')
@@ -706,16 +976,18 @@ class ManagementServiceProvider extends ServiceProvider
      * View Composer: management::event-functions-panel
      *
      * Provides data for the Funktionen tab (management functions with assigned members).
+     * Unchanged by the task refactor — functions use their own tables.
      *
      * Provides:
-     *   $mgmtFuncItems    → array<array{function: ManagementFunction, member: ?object}>
+     *   $mgmtFuncItems             → array<array{function, member, member_id}>
+     *   $mgmtAvailableFunctionsJs  → array<id, array{id, name}>
      *
      * @return void
      */
     private function composeEventFunctionsPanel(): void
     {
         View::composer('management::event-functions-panel', function ($view) {
-            $empty = ['mgmtFuncItems' => []];
+            $empty = ['mgmtFuncItems' => [], 'mgmtAvailableFunctionsJs' => []];
 
             if (! Schema::hasTable('management_functions')) {
                 $view->with($empty);
@@ -728,8 +1000,7 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            // Load only the functions explicitly assigned to this event.
-            // Each assignment = one row in event_management_function.
+            // Functions explicitly assigned to this event.
             $eventRows = [];
             if (Schema::hasTable('event_management_function')) {
                 foreach (DB::table('event_management_function')
@@ -739,7 +1010,7 @@ class ManagementServiceProvider extends ServiceProvider
                 }
             }
 
-            // All global functions for the "add function" modal (not yet assigned to this event)
+            // All global functions for the "add function" modal (unassigned ones only).
             $allFunctions = ManagementFunction::orderBy('name')->get();
             $availableJs  = [];
             foreach ($allFunctions as $fn) {
@@ -753,14 +1024,12 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            // Load the assigned functions in a single query
             $assignedFunctionIds = array_keys($eventRows);
             $assignedFunctions   = ManagementFunction::whereIn('id', $assignedFunctionIds)
                 ->orderBy('name')
                 ->get();
 
-            // Load members for the person-assignment lookup in a single query
-            $allMemberIds = array_filter(array_values($eventRows));
+            $allMemberIds  = array_filter(array_values($eventRows));
             $memberRecords = [];
             if (! empty($allMemberIds) && Schema::hasTable('members')) {
                 foreach (DB::table('members')
@@ -777,7 +1046,7 @@ class ManagementServiceProvider extends ServiceProvider
                 $items[] = [
                     'function'  => $fn,
                     'member'    => $memberId ? ($memberRecords[$memberId] ?? null) : null,
-                    'member_id' => $memberId, // raw ID for JS pre-select
+                    'member_id' => $memberId,
                 ];
             }
 

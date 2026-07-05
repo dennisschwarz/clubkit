@@ -6,9 +6,7 @@
     "requires": ["core", "members"],
     "tables": [
         "events",
-        "event_team",
-        "event_task",
-        "event_task_member"
+        "event_team"
     ],
     "provides": {
         "migrations": true,
