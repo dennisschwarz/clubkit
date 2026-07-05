@@ -29,17 +29,16 @@ use Spatie\Activitylog\Support\LogOptions;
  *   TeamsServiceProvider      → hooks into event.table.teams.*,
  *                               events.show.teams-panel
  *
- * The pivot tables event_task and event_team are owned by Events (module.json → tables[]).
- * AJAX operations (completeTask, addTask, removeTask) use DB::table() to avoid
- * importing optional module models in the controller layer.
+ * The event_team pivot is owned by Events (module.json → tables[]).
  *
- * The tasks() and teams() Eloquent relations below use string-based class names so
- * they do not cause autoload failures if the Management or Teams module is not
- * installed. They may only be called when the respective module is active.
+ * The teams() Eloquent relation uses a string-based class name so it does not
+ * cause autoload failures if the Teams module is not installed.
+ * It may only be called from contexts where Teams is active.
  *
- * Helper methods hasTaskAssigned() and hasEventDayTaskAssigned() are kept for
- * EventSlotController / EventTaskMemberController, which must NOT import
- * ManagementTask directly.
+ * Event-specific tasks (event_tasks, event_task_categories, event_task_members)
+ * are owned by the Management module. All task AJAX operations and task-related
+ * controllers live in Management. The event_tasks guard in show() uses
+ * Schema::hasTable('event_tasks') to detect Management presence.
  */
 class Event extends Model
 {
@@ -55,11 +54,20 @@ class Event extends Model
         'location',
         'notes',
         'created_by',
+        // Per-event feature flags (added in migration 2026_07_05_000001).
+        // All default to true so existing events are unaffected after the migration.
+        'tasks_enabled',
+        'functions_enabled',
+        'slots_enabled',
     ];
 
     protected $casts = [
-        'starts_at' => 'datetime',
-        'ends_at'   => 'datetime',
+        'starts_at'         => 'datetime',
+        'ends_at'           => 'datetime',
+        // Feature flags: cast to bool so Blade @if($event->tasks_enabled) works naturally.
+        'tasks_enabled'     => 'boolean',
+        'functions_enabled' => 'boolean',
+        'slots_enabled'     => 'boolean',
     ];
 
     /**
@@ -106,28 +114,6 @@ class Event extends Model
     }
 
     /**
-     * Returns the management tasks assigned to this event via the event_task pivot.
-     *
-     * Uses a string class name so the class is resolved at call-time, not at
-     * compile-time. Calling this relation when the Management module is not active
-     * will fail at runtime — only call it from contexts where Management is installed.
-     *
-     * For controller-layer guards that must avoid importing ManagementTask, use
-     * hasTaskAssigned() / hasEventDayTaskAssigned() instead.
-     *
-     * @return BelongsToMany
-     */
-    public function tasks(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            'Modules\\Management\\Models\\ManagementTask',
-            'event_task',
-            'event_id',
-            'task_id'
-        )->withPivot(['deadline_at', 'completed', 'notes'])->withTimestamps();
-    }
-
-    /**
      * Returns the teams assigned to this event via the event_team pivot.
      *
      * Uses a string class name (runtime resolution). Only call when Teams is active.
@@ -168,47 +154,4 @@ class Event extends Model
         return $query->where('starts_at', '<', now());
     }
 
-    // ── Task membership helpers ───────────────────────────────────────────────
-    //
-    // These methods query the event_task table (owned by Events) via raw DB::table()
-    // so they can be called safely from EventSlotController and EventTaskMemberController
-    // without any PHP import of ManagementTask.
-
-    /**
-     * Returns whether the given task is currently assigned to this event.
-     *
-     * Used by EventTaskMemberController to guard assignment creation.
-     *
-     * @param  int  $taskId  The management_tasks.id to check.
-     * @return bool
-     */
-    public function hasTaskAssigned(int $taskId): bool
-    {
-        return DB::table('event_task')
-            ->where('event_id', $this->id)
-            ->where('task_id', $taskId)
-            ->exists();
-    }
-
-    /**
-     * Returns whether the given task is assigned to this event AND qualifies
-     * as an event-day task (no deadline, or deadline matches the event date).
-     *
-     * Used by EventSlotController to guard time-slot creation.
-     *
-     * @param  int    $taskId     The management_tasks.id to check.
-     * @param  string $eventDate  The event start date in Y-m-d format.
-     * @return bool
-     */
-    public function hasEventDayTaskAssigned(int $taskId, string $eventDate): bool
-    {
-        return DB::table('event_task')
-            ->where('event_id', $this->id)
-            ->where('task_id', $taskId)
-            ->where(function ($q) use ($eventDate): void {
-                $q->whereNull('deadline_at')
-                  ->orWhereDate('deadline_at', '=', $eventDate);
-            })
-            ->exists();
-    }
 }

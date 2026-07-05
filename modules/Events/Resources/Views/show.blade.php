@@ -1,9 +1,25 @@
 @extends('core::admin.layout')
 @section('title', $event->title)
 @section('content')
-{{-- Event detail page – 4 tabs: Übersicht | Aufgaben | Einsatzplan | Funktionen --}}
+
+@php
+    /**
+     * Determine which management sub-tabs are visible.
+     *
+     * A tab is shown only when BOTH conditions are true:
+     *   1. The Management module is installed ($managementInstalled)
+     *   2. The per-event flag is enabled on this event
+     *
+     * This means: if Management is not installed, no management tabs appear
+     * regardless of the flag values. If Management is installed but the user
+     * disabled the feature for this event, the tab is hidden.
+     */
+    $showTasks     = $managementInstalled && $event->tasks_enabled;
+    $showSlots     = $managementInstalled && $event->slots_enabled;
+    $showFunctions = $managementInstalled && $event->functions_enabled;
+@endphp
+
 {{-- ── Page action bar ─────────────────────────────────────────────────────── --}}
-{{-- Title and event metadata live inside the Termindetails card below. --}}
 <div class="ck-page-header">
     <div class="ck-page-header__left">
         <a href="{{ route('events.index') }}" class="ck-btn ck-btn--warning">
@@ -15,7 +31,7 @@
             🖨 {{ __('Print') }}
         </x-ck-button>
         <x-ck-button variant="danger"
-            :confirm="'Termin \'' . $event->title . '\' wirklich löschen?'"
+            :confirm="'Delete event \'' . $event->title . '\'?'"
             :form="'deleteEventForm'">
             {{ __('Delete') }}
         </x-ck-button>
@@ -26,21 +42,49 @@
     @csrf
     @method('DELETE')
 </form>
+
 @if(session('success'))
 <div class="ck-alert ck-alert--success">{{ session('success') }}</div>
 @endif
-{{-- ── Tab bar ──────────────────────────────────────────────────────────────── --}}
+
+{{-- ── Tab bar (pill-style, Design System v2) ──────────────────────────────── --}}
 {{--
-4 tabs: Übersicht | Aufgaben | Einsatzplan | Funktionen
-Tab switching: ckEvtTab(id, btn) in events-detail.js (global, outside IIFE).
-Content of tabs 2–4 is provided by ManagementServiceProvider hooks.
-Without Management: tabs 2–4 show an empty-state card.
+    Tabs are rendered conditionally:
+    - Overview: always visible
+    - Tasks / Slots / Functions: only when Management is installed AND the
+      per-event flag ($event->tasks_enabled etc.) is true.
+    Tab switching is handled by ckEvtTab() in events-detail.js.
 --}}
 <div class="ck-local-tabs">
-    <button class="ck-local-tab ck-local-tab--active" type="button" onclick="ckEvtTab('overview', this)">📊 {{ __('events.tab.overview') }}</button>
-    <button class="ck-local-tab ck-local-tab--blue" type="button" onclick="ckEvtTab('tasks', this)">📋 {{ __('events.tab.tasks') }}</button>
-    <button class="ck-local-tab ck-local-tab--amber" type="button" onclick="ckEvtTab('slots', this)">🗓️ {{ __('events.tab.slots') }}</button>
-    <button class="ck-local-tab ck-local-tab--purple" type="button" onclick="ckEvtTab('functions', this)">⚙️ {{ __('events.tab.functions') }}</button>
+    <button class="ck-local-tab ck-local-tab--active" type="button"
+            onclick="ckEvtTab('overview', this)">
+        <span class="ck-local-tab__dot ck-local-tab__dot--blue"></span>
+        📊 {{ __('events.tab.overview') }}
+    </button>
+
+    @if($showTasks)
+    <button class="ck-local-tab" type="button"
+            onclick="ckEvtTab('tasks', this)">
+        <span class="ck-local-tab__dot ck-local-tab__dot--teal"></span>
+        📋 {{ __('events.tab.tasks') }}
+    </button>
+    @endif
+
+    @if($showSlots)
+    <button class="ck-local-tab" type="button"
+            onclick="ckEvtTab('slots', this)">
+        <span class="ck-local-tab__dot ck-local-tab__dot--amber"></span>
+        🗓️ {{ __('events.tab.slots') }}
+    </button>
+    @endif
+
+    @if($showFunctions)
+    <button class="ck-local-tab" type="button"
+            onclick="ckEvtTab('functions', this)">
+        <span class="ck-local-tab__dot ck-local-tab__dot--purple"></span>
+        ⚙️ {{ __('events.tab.functions') }}
+    </button>
+    @endif
 </div>
 {{-- ── Pane: Übersicht ─────────────────────────────────────────────────────── --}}
 <div class="ck-local-section ck-local-section--active" id="ckEvtPane-overview">
@@ -150,28 +194,69 @@ Renders: management-functions cards with assigned members.
     slotModal       — POST   /events/{event}/slots          (AJAX, wired in events-detail.js)
     newFuncModal    — POST   /events/{event}/functions      (AJAX, assigns existing function to event)
 --}}
-<x-ck-modal id="editEventModal" title="Termin bearbeiten" size="md">
+<x-ck-modal id="editEventModal" title="{{ __('events.modal.edit_title') }}" size="md">
 <form method="POST" action="{{ route('events.update', $event) }}">
 @csrf
 @method('PATCH')
-<x-ck-field label="Bezeichnung" name="title"
-         :value="old('title', $event->title)" :required="true" />
-<x-ck-field type="text" label="Beginn" name="starts_at"
-         :value="old('starts_at', $event->starts_at->format('Y-m-d H:i'))"
-         :required="true" data-ck-datetime="1" />
-<x-ck-field type="text" label="Ende" name="ends_at"
-         :value="old('ends_at', $event->ends_at?->format('Y-m-d H:i'))"
-         data-ck-datetime="1" />
-<x-ck-field label="Ort" name="location"
-         :value="old('location', $event->location)" />
-<x-ck-field type="textarea" label="Beschreibung" name="description"
-         :value="old('description', $event->description)" />
-<x-ck-field type="textarea" label="Notizen" name="notes"
-         :value="old('notes', $event->notes)" />
+
+<x-ck-field label="{{ __('events.field.title') }}" name="title"
+    :value="old('title', $event->title)" :required="true" />
+
+<div class="ck-form-grid ck-form-grid--2 ck-mt-4">
+    <x-ck-field type="text" label="{{ __('events.field.starts_at') }}" name="starts_at"
+        :value="old('starts_at', $event->starts_at->format('Y-m-d H:i'))"
+        :required="true" data-ck-datetime="1" />
+    <x-ck-field type="text" label="{{ __('events.field.ends_at') }}" name="ends_at"
+        :value="old('ends_at', $event->ends_at?->format('Y-m-d H:i'))"
+        data-ck-datetime="1" />
+</div>
+
+<x-ck-field label="{{ __('events.field.location') }}" name="location"
+    class="ck-mt-4"
+    :value="old('location', $event->location)" />
+
+<x-ck-field type="textarea" label="{{ __('events.field.description') }}" name="description"
+    class="ck-mt-4" rows="2"
+    :value="old('description', $event->description)" />
+
+<details class="ck-mt-3"{{ old('notes', $event->notes) ? ' open' : '' }}>
+    <summary class="ck-text-muted" style="cursor:pointer;font-size:var(--ck-font-sm);user-select:none;">
+        {{ __('events.field.notes_toggle') }}
+    </summary>
+    <div class="ck-mt-2">
+        <x-ck-field type="textarea" label="{{ __('events.field.notes') }}" name="notes"
+            rows="2" :value="old('notes', $event->notes)" />
+    </div>
+</details>
+
+{{-- Feature flags — only rendered when Management is installed --}}
+@if($managementInstalled)
+<div class="ck-event-flags-section">
+    <div class="ck-event-flags-section__label">{{ __('events.field.active_features') }}</div>
+    <div class="ck-form-grid ck-form-grid--3">
+        <label class="ck-field__checkbox">
+            <input type="checkbox" name="tasks_enabled" value="1"
+                   {{ old('tasks_enabled', $event->tasks_enabled) ? 'checked' : '' }}>
+            📋 {{ __('events.feature.tasks') }}
+        </label>
+        <label class="ck-field__checkbox">
+            <input type="checkbox" name="functions_enabled" value="1"
+                   {{ old('functions_enabled', $event->functions_enabled) ? 'checked' : '' }}>
+            ⚙️ {{ __('events.feature.functions') }}
+        </label>
+        <label class="ck-field__checkbox">
+            <input type="checkbox" name="slots_enabled" value="1"
+                   {{ old('slots_enabled', $event->slots_enabled) ? 'checked' : '' }}>
+            🗓️ {{ __('events.feature.slots') }}
+        </label>
+    </div>
+</div>
+@endif
+
 <div class="ck-form-actions">
-<x-ck-button variant="primary" type="submit">{{ __('Save') }}</x-ck-button>
-<x-ck-button variant="secondary" type="button"
-             onclick="ckModalClose(null, 'editEventModal')">{{ __('Cancel') }}</x-ck-button>
+    <x-ck-button variant="primary" type="submit">{{ __('Save') }}</x-ck-button>
+    <x-ck-button variant="secondary" type="button"
+                 onclick="ckModalClose(null, 'editEventModal')">{{ __('Cancel') }}</x-ck-button>
 </div>
 </form>
 </x-ck-modal>

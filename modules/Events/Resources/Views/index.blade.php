@@ -120,39 +120,65 @@
 @endif
 
 {{-- ══ Quick-Create Modal ══════════════════════════════════════════════════════ --}}
-<x-ck-modal id="evtModal" title="Termin anlegen" size="md">
+{{-- Compact layout: no section-header wrappers, feature-flag toggles at bottom. --}}
+<x-ck-modal id="evtModal" title="{{ __('events.modal.create_title') }}" size="md">
 
     <form id="evtForm" method="POST" action="{{ route('events.store') }}">
         @csrf
 
-        <div class="ck-orga-section ck-orga-section--blue">
-            <div class="ck-orga-section__head">📌 Wann &amp; Wo</div>
-            <div class="ck-orga-section__body">
-                <x-ck-field label="Bezeichnung" name="title" id="evtTitle" :required="true" />
-                <div class="ck-form-grid ck-form-grid--2">
-                    <x-ck-field type="text" label="Beginn" name="starts_at"
-                        id="evtStartsAt" :required="true" data-ck-datetime="1" />
-                    <x-ck-field type="text" label="Ende (optional)" name="ends_at"
-                        id="evtEndsAt" data-ck-datetime="1" />
-                </div>
-                <x-ck-field label="Ort" name="location" id="evtLocation"
-                    placeholder="z.B. Vereinsheim, Sportplatz" />
-            </div>
+        {{-- Core fields — no decorative section headers, just clean spacing --}}
+        <x-ck-field label="{{ __('events.field.title') }}" name="title"
+            id="evtTitle" :required="true" />
+
+        <div class="ck-form-grid ck-form-grid--2 ck-mt-4">
+            <x-ck-field type="text" label="{{ __('events.field.starts_at') }}" name="starts_at"
+                id="evtStartsAt" :required="true" data-ck-datetime="1" />
+            <x-ck-field type="text" label="{{ __('events.field.ends_at') }}" name="ends_at"
+                id="evtEndsAt" data-ck-datetime="1" />
         </div>
 
-        <div class="ck-orga-section ck-orga-section--neutral ck-mt-4">
-            <div class="ck-orga-section__head">📝 Beschreibung &amp; Notizen</div>
-            <div class="ck-orga-section__body">
-                <x-ck-field type="textarea" label="Beschreibung (optional)"
-                    name="description" id="evtDescription"
-                    placeholder="Kurze Beschreibung des Termins." />
-                <x-ck-field type="textarea" label="Interne Notizen"
-                    name="notes" id="evtNotes"
-                    placeholder="Nur für Administratoren sichtbar." />
+        <x-ck-field label="{{ __('events.field.location') }}" name="location"
+            id="evtLocation" class="ck-mt-4"
+            placeholder="{{ __('events.field.location_placeholder') }}" />
+
+        <x-ck-field type="textarea" label="{{ __('events.field.description') }}"
+            name="description" id="evtDescription" class="ck-mt-4" rows="2"
+            placeholder="{{ __('events.field.description_placeholder') }}" />
+
+        {{-- Internal notes hidden by default behind a <details> toggle --}}
+        <details class="ck-mt-3">
+            <summary class="ck-text-muted" style="cursor:pointer;font-size:var(--ck-font-sm);user-select:none;">
+                {{ __('events.field.notes_toggle') }}
+            </summary>
+            <div class="ck-mt-2">
+                <x-ck-field type="textarea" label="{{ __('events.field.notes') }}"
+                    name="notes" id="evtNotes" rows="2"
+                    placeholder="{{ __('events.field.notes_placeholder') }}" />
             </div>
-        </div>
+        </details>
 
         @ckHook('event.modal.sections')
+
+        {{-- Feature flags — only shown when Management module is installed --}}
+        @if($managementInstalled)
+        <div class="ck-event-flags-section">
+            <div class="ck-event-flags-section__label">{{ __('events.field.active_features') }}</div>
+            <div class="ck-form-grid ck-form-grid--3">
+                <label class="ck-field__checkbox">
+                    <input type="checkbox" name="tasks_enabled" value="1" checked>
+                    📋 {{ __('events.feature.tasks') }}
+                </label>
+                <label class="ck-field__checkbox">
+                    <input type="checkbox" name="functions_enabled" value="1" checked>
+                    ⚙️ {{ __('events.feature.functions') }}
+                </label>
+                <label class="ck-field__checkbox">
+                    <input type="checkbox" name="slots_enabled" value="1" checked>
+                    🗓️ {{ __('events.feature.slots') }}
+                </label>
+            </div>
+        </div>
+        @endif
 
         <div class="ck-form-actions">
             <x-ck-button type="submit" variant="primary">{{ __('Create') }}</x-ck-button>

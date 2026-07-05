@@ -661,91 +661,86 @@ details[open] .ck-event-section__summary::before {
 
 .ck-member-chip .ck-slot-remove-btn:hover { color: var(--ck-danger); }
 
-/* ── Event hero block (Termindetails card) ─────────────────────────────────── */
+/* ── Event hero block (Termindetails card — Design System v2) ───────────────── */
 
-.ck-event-info .ck-card__body { padding: var(--ck-space-5); }
+/* Remove extra body padding: the hero grid manages its own spacing */
+.ck-event-info .ck-card__body { padding: 0; }
 
-/* 50/50 grid: left = event info, right = reserved for Vereinsfunktionen */
+/* 50/50 grid: left = event info, right = Vereinsfunktionen (injected by Management) */
 .ck-event-hero {
     display:               grid;
     grid-template-columns: 1fr 1fr;
-    gap:                   var(--ck-space-6);
-    padding:               var(--ck-space-4);
-    background:            var(--ck-bg-subtle);
-    border-radius:         var(--ck-radius);
-    border:                1px solid var(--ck-border-light);
 }
 
 /* Left column */
 .ck-event-hero__left {
     display:        flex;
     flex-direction: column;
-    gap:            var(--ck-space-3);
+    gap:            var(--ck-space-4);
+    padding:        var(--ck-space-5);
     min-width:      0;
 }
 
-/* Right column — reserved for Vereinsfunktionen (step 3) */
+/* Right column — Vereinsfunktionen (injected by Management hook) */
 .ck-event-hero__right {
-    border-left:  1px solid var(--ck-border-light);
-    padding-left: var(--ck-space-5);
-    min-height:   40px;
+    padding:     var(--ck-space-5);
+    border-left: 1px solid var(--ck-border-light);
+    min-height:  40px;
 }
 
-/* Date tile + meta in a single horizontal row at the top of the left column */
+/* Date tile + meta in a horizontal row */
 .ck-event-hero__head {
     display:     flex;
     align-items: flex-start;
     gap:         var(--ck-space-4);
 }
 
-/* Date tile */
+/* Date tile — prominent blue tile (Design System v2) */
 .ck-event-hero__date {
-    text-align:  center;
-    background:  var(--ck-white);
-    border:      1px solid var(--ck-border);
+    text-align:    center;
+    background:    var(--ck-team-blue-bg);         /* #dbeafe */
+    border:        2px solid var(--ck-team-blue);  /* #3b82f6 */
     border-radius: var(--ck-radius);
-    padding:     var(--ck-space-3) var(--ck-space-4);
-    min-width:   76px;
-    flex-shrink: 0;
-    box-shadow:  0 1px 3px rgba(0,0,0,.05);
+    padding:       var(--ck-space-3) var(--ck-space-4);
+    min-width:     76px;
+    flex-shrink:   0;
 }
 
 .ck-event-hero__month {
     display:        block;
     font-size:      var(--ck-font-xs);
-    font-weight:    700;
+    font-weight:    800;
     text-transform: uppercase;
-    letter-spacing: .8px;
-    color:          var(--ck-text-muted);
-    margin-bottom:  var(--ck-space-1);
+    letter-spacing: 1.2px;
+    color:          var(--ck-card-accent-blue);    /* #1d4ed8 */
+    margin-bottom:  2px;
 }
 
 .ck-event-hero__day {
     display:     block;
-    font-size:   2.25rem;
-    font-weight: 800;
-    color:       var(--ck-text);
+    font-size:   2.5rem;
+    font-weight: 900;
+    color:       var(--ck-team-navy);              /* #1e3a8a */
     line-height: 1;
 }
 
 .ck-event-hero__weekday {
-    display:    block;
-    font-size:  var(--ck-font-xs);
-    color:      var(--ck-text-muted);
-    margin-top: var(--ck-space-1);
+    display:     block;
+    font-size:   var(--ck-font-xs);
     font-weight: 600;
+    color:       var(--ck-text-muted);
+    margin-top:  var(--ck-space-1);
 }
 
-/* Meta items (time, location) — flex column inside the head row */
+/* Meta items (time, location) */
 .ck-event-hero__meta {
-    display:        flex;
-    flex-direction: column;
-    gap:            var(--ck-space-2);
-    padding-top:    var(--ck-space-1);
+    display:         flex;
+    flex-direction:  column;
+    gap:             var(--ck-space-2);
+    padding-top:     var(--ck-space-1);
     justify-content: center;
 }
 
-/* Time and location: large, prominent, dark — these are the most important details */
 .ck-event-hero__meta-item {
     display:     flex;
     align-items: center;
@@ -756,15 +751,18 @@ details[open] .ck-event-section__summary::before {
     line-height: 1.3;
 }
 
-/* Location: slightly smaller than time, secondary colour */
+/* Location slightly smaller */
 .ck-event-hero__meta-item + .ck-event-hero__meta-item {
-    font-size:   var(--ck-font-lg);
+    font-size:  var(--ck-font-lg);
     font-weight: 600;
-    color:       var(--ck-text-secondary);
+    color:      var(--ck-text-secondary);
 }
 
 /* Description / Notes blocks */
-.ck-event-hero__body { /* no extra margin needed — parent gap handles spacing */ }
+.ck-event-hero__body {
+    padding-top:  var(--ck-space-4);
+    border-top:   1px solid var(--ck-border-light);
+}
 
 .ck-event-hero__body-label {
     font-size:      var(--ck-font-xs);
@@ -782,8 +780,25 @@ details[open] .ck-event-section__summary::before {
     white-space: pre-wrap;
 }
 
-/* Legacy: kept for backwards-compat, no longer rendered */
+/* Legacy alias — kept for backwards-compat */
 .ck-event-hero__info { flex: 1; min-width: 0; }
+
+/* ── Feature-flags section (modal) ──────────────────────────────────────────── */
+
+.ck-event-flags-section {
+    margin-top:   var(--ck-space-5);
+    padding-top:  var(--ck-space-4);
+    border-top:   1px solid var(--ck-border);
+}
+
+.ck-event-flags-section__label {
+    font-size:      var(--ck-font-sm);
+    font-weight:    700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color:          var(--ck-text-muted);
+    margin-bottom:  var(--ck-space-3);
+}
 
 /* ── Page-header meta row ───────────────────────────────────────────────────── */
 

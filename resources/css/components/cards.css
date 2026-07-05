@@ -26,41 +26,54 @@
 .ck-card__header-title  { flex: 1; }
 .ck-card__header-action { flex-shrink: 0; display: flex; align-items: center; gap: var(--ck-space-3); }
 
-/* ── Accent modifiers: colour-coded cards (accent prop on x-ck-card) ────────
-   Use: <x-ck-card accent="blue">  |  accent="green"  |  accent="gray"
-   Each variant: left border stripe (signals type at a glance) + tinted header.
-   Mirrors the ck-orga-section colour pattern from events.css.
+/* ── Accent modifiers: colour-coded cards (Design System v2) ─────────────
+   Use: <x-ck-card accent="blue|green|amber|purple|teal|gray">
+   Each variant: 5px left border + solid-colour header (white text).
+   This replaces the old tinted-header pattern for maximum contrast.
+
+   All colour values come from --ck-card-accent-* tokens defined in base.css.
+   No hardcoded hex values here — change the palette in one place only.
+
+   Header border-bottom uses rgba(0,0,0,0.18): a universal darkening overlay
+   that produces a subtle divider on any solid background without needing
+   per-colour border tokens.
 ── */
 
-/* Blue: information / schedule */
-.ck-card--accent-blue {
-  border-left: 3px solid var(--ck-accent);
+/* Shared: stronger left border + solid header base + white text */
+[class*="ck-card--accent-"] {
+  border-left-width: 5px;
+  border-left-style: solid;
 }
-.ck-card--accent-blue .ck-card__header {
-  background:         var(--ck-blue-tint);
-  border-bottom-color: var(--ck-blue-section-border);
-  color:              var(--ck-accent-dark);
+[class*="ck-card--accent-"] .ck-card__header {
+  font-size:           var(--ck-font-md);
+  font-weight:         700;
+  color:               var(--ck-text-white);
+  border-bottom-color: rgba(0, 0, 0, 0.18);
 }
+
+/* Blue: event details / schedule */
+.ck-card--accent-blue  { border-left-color: var(--ck-card-accent-blue); }
+.ck-card--accent-blue  .ck-card__header { background: var(--ck-card-accent-blue); }
 
 /* Green: teams / completion */
-.ck-card--accent-green {
-  border-left: 3px solid var(--ck-success);
-}
-.ck-card--accent-green .ck-card__header {
-  background:         var(--ck-success-bg);
-  border-bottom-color: var(--ck-success-border);
-  color:              var(--ck-success-text);
-}
+.ck-card--accent-green { border-left-color: var(--ck-card-accent-green); }
+.ck-card--accent-green .ck-card__header { background: var(--ck-card-accent-green); }
+
+/* Amber: schedule / Einsatzplan */
+.ck-card--accent-amber { border-left-color: var(--ck-card-accent-amber); }
+.ck-card--accent-amber .ck-card__header { background: var(--ck-card-accent-amber); }
+
+/* Purple: functions / Vereinsfunktionen */
+.ck-card--accent-purple { border-left-color: var(--ck-card-accent-purple); }
+.ck-card--accent-purple .ck-card__header { background: var(--ck-card-accent-purple); }
+
+/* Teal: tasks / Aufgaben */
+.ck-card--accent-teal  { border-left-color: var(--ck-card-accent-teal); }
+.ck-card--accent-teal  .ck-card__header { background: var(--ck-card-accent-teal); }
 
 /* Gray: neutral / additional info */
-.ck-card--accent-gray {
-  border-left: 3px solid var(--ck-text-muted);
-}
-.ck-card--accent-gray .ck-card__header {
-  background:         var(--ck-border-light);
-  border-bottom-color: var(--ck-border-strong);
-  color:              var(--ck-text-secondary);
-}
+.ck-card--accent-gray  { border-left-color: var(--ck-card-accent-gray); }
+.ck-card--accent-gray  .ck-card__header { background: var(--ck-card-accent-gray); }
 
 .ck-card__body   { padding: var(--ck-space-5); }
 .ck-card__footer {

@@ -95,10 +95,14 @@ class EventController extends Controller
             $allMembersJs[$m->id] = ['id' => $m->id, 'name' => $m->full_name];
         }
 
-        // Task progress counters — guarded: event_tasks only exists when Management is installed.
+        // Detect optional modules once; pass flags to view for conditional tab rendering.
+        $managementInstalled = Schema::hasTable('event_tasks');
+        $teamsInstalled      = Schema::hasTable('teams');
+
+        // Task progress counters — only available when Management is installed.
         $totalTasks = 0;
         $doneTasks  = 0;
-        if (Schema::hasTable('event_tasks')) {
+        if ($managementInstalled) {
             $totalTasks = DB::table('event_tasks')->where('event_id', $event->id)->count();
             $doneTasks  = DB::table('event_tasks')->where('event_id', $event->id)->where('completed', true)->count();
         }
@@ -113,6 +117,8 @@ class EventController extends Controller
             'allMembersJs',
             'totalTasks',
             'doneTasks',
+            'managementInstalled',
+            'teamsInstalled',
             'eventCfDefs',
             'eventCfValues',
         ));

@@ -142,6 +142,27 @@
   --ck-checkbox-hover-bg:      #edf2f7;   /* checkbox row hover background */
   --ck-white:            #ffffff;
 
+  /* ══ Card accent header colours (Design System v2) ══════════════════════
+     Used exclusively by cards.css (.ck-card--accent-{name}).
+     All values are dark enough to carry white (#ffffff) text at WCAG AA
+     contrast ratio ≥ 4.5:1.
+
+     Where an equivalent palette token already exists, we alias it so the
+     single source-of-truth stays in the design token (DRY).
+     The two exceptions (amber, purple) have no existing token at exactly
+     the required luminance, so they get dedicated values here.
+
+     NOTE: border-bottom inside accent headers uses rgba(0,0,0,0.18),
+     which creates a subtle darker shade on any solid colour without
+     requiring a separate per-colour border token.
+  ════════════════════════════════════════════════════════════════════════ */
+  --ck-card-accent-blue:   var(--ck-team-blue-text);   /* #1d4ed8 — aliases --ck-team-blue-text */
+  --ck-card-accent-green:  var(--ck-success-text);     /* #166534 — aliases --ck-success-text   */
+  --ck-card-accent-amber:  #b45309;                    /* no existing token at this warmth       */
+  --ck-card-accent-purple: #6d28d9;                    /* darker than --ck-purple (#7c3aed)      */
+  --ck-card-accent-teal:   var(--ck-team-teal-text);   /* #0f766e — aliases --ck-team-teal-text  */
+  --ck-card-accent-gray:   var(--ck-nav-bar-bg);       /* #132238 — aliases --ck-nav-bar-bg      */
+
   /* Radii */
   --ck-radius-sm:        6px;
   --ck-radius:           8px;

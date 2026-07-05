@@ -151,28 +151,76 @@ select.ck-field__input {
 .ck-multiselect-search { margin-bottom: var(--ck-space-2); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Local sub-tabs
+   Local sub-tabs — pill-style (Design System v2)
+   Replaces the old underline-tab pattern throughout the app.
+   Each tab may optionally contain a .ck-local-tab__dot coloured circle
+   to visually distinguish sections (see events/show.blade.php).
 ══════════════════════════════════════════════════════════════════════ */
 .ck-local-tabs {
   display: flex;
-  gap: 0;
-  border-bottom: 2px solid var(--ck-border);
+  gap: 3px;
+  background: var(--ck-white);
+  border: 1px solid var(--ck-border-strong);
+  border-radius: var(--ck-radius-lg);
+  padding: 6px;
+  margin-bottom: var(--ck-space-6);
+  box-shadow: var(--ck-shadow-sm);
 }
 .ck-local-tab {
-  padding: 10px var(--ck-space-4);
+  flex: 1;
+  padding: 9px var(--ck-space-3);
+  border: none;
+  background: transparent;
+  border-radius: var(--ck-radius);
   font-size: var(--ck-font-md);
   font-weight: 600;
-  cursor: pointer;
-  background: none; border: none;
   color: var(--ck-text-secondary);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  font-family: var(--ck-font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   white-space: nowrap;
-  transition: color 0.15s;
+  font-family: var(--ck-font);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
-.ck-local-tab:hover   { color: var(--ck-text); }
-.ck-local-tab--active { color: var(--ck-brand-bar-bg); border-bottom-color: var(--ck-brand-bar-bg); }
+.ck-local-tab:hover {
+  background: var(--ck-bg-subtle);
+  color: var(--ck-text);
+}
+.ck-local-tab--active {
+  background: var(--ck-white);
+  color: var(--ck-text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12), 0 0 0 1.5px var(--ck-border-strong);
+}
+
+/* Coloured dot inside a tab button — colour set via inline CSS variable
+   or Blade class: .ck-local-tab__dot--blue / --green / --amber / --purple */
+.ck-local-tab__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+/* Dot colours share the card accent token set — one palette, zero duplication */
+.ck-local-tab__dot--blue   { background: var(--ck-card-accent-blue); }
+.ck-local-tab__dot--green  { background: var(--ck-card-accent-green); }
+.ck-local-tab__dot--amber  { background: var(--ck-card-accent-amber); }
+.ck-local-tab__dot--purple { background: var(--ck-card-accent-purple); }
+.ck-local-tab__dot--teal   { background: var(--ck-card-accent-teal); }
+
+/* Badge inside a tab (e.g. "3 open") — danger tones for urgency */
+.ck-local-tab__badge {
+  padding:       1px 7px;
+  border-radius: var(--ck-radius-full);
+  font-size:     10px;
+  font-weight:   700;
+  background:    var(--ck-danger-bg);
+  color:         var(--ck-danger-text);
+  border:        1px solid var(--ck-danger-border);
+  line-height:   1.5;
+}
 
 .ck-local-section         { display: none; }
 .ck-local-section--active { display: block; }
