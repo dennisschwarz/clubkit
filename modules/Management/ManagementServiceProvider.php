@@ -853,18 +853,17 @@ class ManagementServiceProvider extends ServiceProvider
                 ];
             }
 
-            // Uncategorised tasks appear in the "Allgemein" section (always last).
-            if (! empty($uncategorized)) {
-                $done  = (int) collect($uncategorized)->where('completed', true)->count();
-                $total = count($uncategorized);
-                $byCategory['allgemein'] = [
-                    'category' => null,
-                    'tasks'    => $uncategorized,
-                    'secDone'  => $done,
-                    'secTotal' => $total,
-                    'secColor' => $done === $total && $total > 0 ? 'green' : ($done > 0 ? 'orange' : 'gray'),
-                ];
-            }
+            // "Allgemein" section always appears last — even when empty — so users
+            // can always add uncategorised tasks without needing a named category first.
+            $done  = (int) collect($uncategorized)->where('completed', true)->count();
+            $total = count($uncategorized);
+            $byCategory['allgemein'] = [
+                'category' => null,
+                'tasks'    => $uncategorized,
+                'secDone'  => $done,
+                'secTotal' => $total,
+                'secColor' => $done === $total && $total > 0 ? 'green' : ($done > 0 ? 'orange' : 'gray'),
+            ];
 
             // Member assignments per task (task-tab: no time window — time_from IS NULL).
             $memberMap  = [];

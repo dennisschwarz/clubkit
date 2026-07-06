@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Management\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Modules\Events\Models\Event;
 use Modules\Management\Http\Requests\MoveEventTaskRequest;
@@ -151,6 +152,49 @@ class EventTaskController extends Controller
      *
      * The DB CASCADE on event_task_members.event_task_id handles
      * assignment cleanup automatically.
+     *
+     * @param  Event $event
+     * @param  int   $taskId
+     * @return JsonResponse
+     */
+    /**
+     * Updates an existing event task's editable fields.
+     *
+     * Accepts: name (required), priority, deadline_at, notes, category_id.
+     * Returns the updated task on success.
+     *
+     * @param  Request $request
+     * @param  Event   $event
+     * @param  int     $taskId
+     * @return JsonResponse
+     */
+    public function update(Request $request, Event $event, int $taskId): JsonResponse
+    {
+        $task = EventTask::where('event_id', $event->id)->findOrFail($taskId);
+
+        $validated = $request->validate([
+            'name'        => ['required', 'string', 'max:255'],
+            'priority'    => ['nullable', 'string', 'in:normal,important,critical'],
+            'deadline_at' => ['nullable', 'date'],
+            'notes'       => ['nullable', 'string', 'max:2000'],
+            'category_id' => ['nullable', 'integer'],
+        ]);
+
+        $task->update([
+            'name'        => $validated['name'],
+            'priority'    => $validated['priority']    ?? $task->priority,
+            'deadline_at' => $validated['deadline_at'] ?? null,
+            'notes'       => $validated['notes']       ?? null,
+            'category_id' => array_key_exists('category_id', $validated)
+                ? $validated['category_id']
+                : $task->category_id,
+        ]);
+
+        return response()->json(['success' => true, 'task' => $task->fresh()]);
+    }
+
+    /**
+     * Deletes an event task permanently.
      *
      * @param  Event $event
      * @param  int   $taskId

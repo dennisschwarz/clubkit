@@ -330,17 +330,82 @@ window.ckEvtTab = function (tabId, btn) {
         });
     }
 
-    // ── Category quick-add footer: pre-select category before opening newTaskModal ──
-    // The onclick on .ck-event-section__add-task-btn already calls ckModalOpen().
-    // This delegated handler fires after the modal opens and pre-selects the category.
+    // ── Task modal mode tracking ─────────────────────────────────────────────
+    // null = create mode (POST to tasksBase), string = edit mode (PATCH to tasksBase/id)
+
+    var _taskEditId         = null;
+    var _taskModalOrigTitle = null;
+
+    (function () {
+        var modal = document.getElementById('newTaskModal');
+        if (! modal) { return; }
+        var titleEl = modal.querySelector('.ck-modal__title');
+        if (titleEl) { _taskModalOrigTitle = titleEl.textContent; }
+
+        // Reset to create mode whenever the modal closes.
+        new MutationObserver(function (mutations) {
+            mutations.forEach(function (m) {
+                if (m.attributeName !== 'class') { return; }
+                if (modal.classList.contains('ck-modal--open')) { return; }
+                _taskEditId = null;
+                var t = modal.querySelector('.ck-modal__title');
+                if (t && _taskModalOrigTitle) { t.textContent = _taskModalOrigTitle; }
+                var nameInput = document.getElementById('newTaskName');
+                if (nameInput) { nameInput.value = ''; }
+                var deadlineInput = document.getElementById('newTaskDeadline');
+                if (deadlineInput) { deadlineInput.value = ''; }
+            });
+        }).observe(modal, { attributes: true });
+    }());
+
+    // ── Section "+" button: open newTaskModal in CREATE mode ─────────────────
+    // stopPropagation prevents the <details> element from toggling.
 
     document.addEventListener('click', function (e) {
         var btn = closest(e.target, '.ck-event-section__add-task-btn');
         if (! btn) { return; }
 
-        var defaultCatId = btn.dataset.defaultCatId;
-        var catSel       = document.getElementById('newTaskCategoryId');
-        if (defaultCatId && catSel) { catSel.value = defaultCatId; }
+        e.stopPropagation();
+        e.preventDefault();
+
+        _taskEditId = null;
+        var modal = document.getElementById('newTaskModal');
+        if (modal) {
+            var t = modal.querySelector('.ck-modal__title');
+            if (t && _taskModalOrigTitle) { t.textContent = _taskModalOrigTitle; }
+        }
+
+        var catSel = document.getElementById('newTaskCategoryId');
+        if (catSel) { catSel.value = btn.dataset.defaultCatId || ''; }
+
+        ckModalOpen('newTaskModal');
+    });
+
+    // ── Edit task: pre-fill newTaskModal in EDIT mode ────────────────────────
+
+    document.addEventListener('click', function (e) {
+        var btn = closest(e.target, '.ck-task-edit-btn');
+        if (! btn) { return; }
+
+        _taskEditId = btn.dataset.taskId;
+
+        var nameInput     = document.getElementById('newTaskName');
+        var catSelect     = document.getElementById('newTaskCategoryId');
+        var prioSelect    = document.getElementById('newTaskPriority');
+        var deadlineInput = document.getElementById('newTaskDeadline');
+
+        if (nameInput)     { nameInput.value     = btn.dataset.taskName     || ''; }
+        if (prioSelect)    { prioSelect.value    = btn.dataset.taskPriority || 'normal'; }
+        if (deadlineInput) { deadlineInput.value = btn.dataset.taskDeadline || ''; }
+        if (catSelect)     { catSelect.value     = btn.dataset.taskCatId    || ''; }
+
+        var modal = document.getElementById('newTaskModal');
+        if (modal) {
+            var t = modal.querySelector('.ck-modal__title');
+            if (t) { t.textContent = 'Aufgabe bearbeiten'; }
+        }
+
+        ckModalOpen('newTaskModal');
     });
 
     // ── Remove Task ───────────────────────────────────────────────────────────
@@ -497,8 +562,12 @@ window.ckEvtTab = function (tabId, btn) {
             if (prioSelect   && prioSelect.value)    { body.priority    = prioSelect.value; }
             if (deadlineInput && deadlineInput.value) { body.deadline_at = deadlineInput.value; }
 
-            fetch(cfg.routes.tasksBase, {
-                method:  'POST',
+            // Edit mode: PATCH to tasksBase/{id}; create mode: POST to tasksBase.
+            var taskUrl    = _taskEditId ? (cfg.routes.tasksBase + '/' + _taskEditId) : cfg.routes.tasksBase;
+            var taskMethod = _taskEditId ? 'PATCH' : 'POST';
+
+            fetch(taskUrl, {
+                method:  taskMethod,
                 headers: {
                     'Content-Type':     'application/json',
                     'X-CSRF-TOKEN':     csrf,
@@ -510,10 +579,12 @@ window.ckEvtTab = function (tabId, btn) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (! data.success) {
-                    ckNotify('error', data.message || 'Fehler beim Anlegen der Aufgabe.');
+                    ckNotify('error', data.message || 'Fehler beim Speichern der Aufgabe.');
                     newTaskBtn.disabled = false;
                     return;
                 }
+
+                _taskEditId = null; // Reset after successful save.
 
                 // Optional: assign the selected member immediately (event_task_id required!)
                 if (memberSelect && memberSelect.value) {

@@ -26,6 +26,23 @@
 .ck-card__header-title  { flex: 1; font-size: var(--ck-font-base); }
 .ck-card__header-action { flex-shrink: 0; display: flex; align-items: center; gap: var(--ck-space-3); }
 
+/* Collapsible header — cursor hint only; background stays as defined by accent modifier */
+.ck-card__header--collapsible {
+    cursor:      pointer;
+    user-select: none;
+}
+
+/* Chevron shared between ck-card collapsible and ck-section-header accordion */
+.ck-accordion-chevron {
+    display:    inline-flex;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    transform:  rotate(-90deg); /* collapsed: points right */
+}
+.ck-accordion-chevron--open {
+    transform: rotate(0deg);   /* expanded: points down */
+}
+
 /* ── Accent modifiers: colour-coded cards (Design System v2) ─────────────
    Use: <x-ck-card accent="blue|green|amber|purple|teal|gray">
    Each variant: 5px left border + solid-colour header (white text).

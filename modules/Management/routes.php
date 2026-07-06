@@ -92,6 +92,10 @@ Route::middleware(['auth'])->prefix('events/{event}')->name('events.management.'
         ->name('tasks.store')
         ->middleware('permission:events.manage');
 
+    Route::patch('/tasks/{taskId}', [EventTaskController::class, 'update'])
+        ->name('tasks.update')
+        ->middleware('permission:events.manage');
+
     Route::patch('/tasks/{taskId}/complete', [EventTaskController::class, 'complete'])
         ->name('tasks.complete')
         ->middleware('permission:events.manage');

@@ -110,6 +110,12 @@
         </div>
         @endif
 
+        <button type="button"
+            class="ck-icon-btn ck-icon-btn--success ck-event-section__add-task-btn ck-no-details-toggle"
+            data-default-cat-id="{{ $mgmtCatId ?? '' }}"
+            title="{{ __('events.task.add_task') }}"
+            aria-label="{{ __('events.task.add_task') }}">+</button>
+
     </summary>
 
     <div class="ck-event-section__body">
@@ -129,6 +135,14 @@
             </thead>
             <tbody class="ck-task-sortable"
                    data-cat-id="{{ $mgmtCatId ?? 'allgemein' }}">
+
+                @if(empty($mgmtCatSection['tasks']))
+                <tr class="ck-task-row--empty">
+                    <td colspan="8" class="ck-table__empty-cell">
+                        {{ __('events.task.section_empty') }}
+                    </td>
+                </tr>
+                @endif
 
                 @foreach($mgmtCatSection['tasks'] as $mgmtTask)
                 <tr class="ck-task-row{{ $mgmtTask->completed ? ' ck-task-row--done' : '' }}"
@@ -171,6 +185,7 @@
 
                     <td class="ck-task-row__notes">{{ $mgmtTask->notes ?: '–' }}</td>
 
+                    <!-- assigned members -->
                     <td class="ck-task-row__members">
                         @foreach($mgmtMemberMap[$mgmtTask->id] ?? [] as $mgmtEtm)
                         <span class="ck-task-member">
@@ -185,22 +200,30 @@
                         @endforeach
 
                         <button type="button"
-                            class="ck-task-assign-btn"
+                            class="ck-btn ck-btn--secondary ck-btn--sm ck-task-assign-btn"
                             data-task-id="{{ $mgmtTask->id }}"
-                            data-task-name="{{ $mgmtTask->name }}"
-                            title="{{ __('events.task.assign_member') }}"
-                            aria-label="{{ __('events.task.assign_member') }}">
+                            data-task-name="{{ $mgmtTask->name }}">
                             {{ __('events.task.assign_member_short') }}
                         </button>
                     </td>
 
+                    <!-- row actions -->
                     <td class="ck-table__col--actions">
                         <button type="button"
-                            class="ck-btn ck-btn--danger ck-btn--sm ck-task-remove-btn"
+                            class="ck-icon-btn ck-icon-btn--secondary ck-task-edit-btn"
                             data-task-id="{{ $mgmtTask->id }}"
-                            data-ck-confirm="{{ __('events.task.confirm_delete', ['name' => $mgmtTask->name]) }}">
-                            ×
-                        </button>
+                            data-task-name="{{ $mgmtTask->name }}"
+                            data-task-priority="{{ $mgmtTask->priority ?? 'normal' }}"
+                            data-task-deadline="{{ $mgmtTask->deadline_at ? $mgmtTask->deadline_at->format('Y-m-d H:i') : '' }}"
+                            data-task-cat-id="{{ $mgmtTask->category_id ?? '' }}"
+                            title="{{ __('Edit') }}"
+                            aria-label="{{ __('Edit') }}">✏</button>
+                        <button type="button"
+                            class="ck-icon-btn ck-icon-btn--danger ck-task-remove-btn"
+                            data-task-id="{{ $mgmtTask->id }}"
+                            data-ck-confirm="{{ __('events.task.confirm_delete', ['name' => $mgmtTask->name]) }}"
+                            title="{{ __('Delete') }}"
+                            aria-label="{{ __('Delete') }}">🗑</button>
                     </td>
                 </tr>
                 @endforeach
@@ -208,23 +231,19 @@
             </tbody>
         </table>
 
-        @if($mgmtCat)
-        <div class="ck-event-section__footer">
-            <button type="button"
-                class="ck-event-section__add-task-btn"
-                data-default-cat-id="{{ $mgmtCat->id }}"
-                onclick="ckModalOpen('newTaskModal')">
-                + {{ __('events.task.add_to_category') }}
-            </button>
-        </div>
-        @endif
-
     </div>
 </details>
 
 @endforeach
 
-{{-- ── Empty state ──────────────────────────────────────────────────────────── --}}
+{{-- ── Add section button — always below Allgemein ─────────────────────────── --}}
+<button type="button"
+    class="ck-btn ck-btn--secondary ck-btn--sm ck-add-section-btn"
+    onclick="ckModalOpen('newCatModal')">
+    + {{ __('events.cat.add_section') }}
+</button>
+
+{{-- ── Empty state (no categories at all — should not occur after Allgemein fix) --}}
 @if(count($mgmtByCategory) === 0)
 <div class="ck-card">
     <p class="ck-text-muted">{{ __('events.task.empty') }}</p>

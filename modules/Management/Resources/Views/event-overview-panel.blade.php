@@ -102,7 +102,7 @@
     Progress bars: 14px height (see event-detail.css .ck-cat-progress__bar).
     Bar fill uses CSS custom property --progress set by events-detail.js.
 --}}
-<x-ck-card accent="teal">
+<x-ck-card accent="teal" :collapsible="true">
     <x-slot:header>
         <span class="ck-card__header-title">📊 {{ __('events.overview.progress_title') }}</span>
     </x-slot:header>
@@ -147,12 +147,12 @@
 
 {{-- ── 3. Schedule / Zeitplan (Vorbereitungsaufgaben) ─────────────────────── --}}
 {{--
-    Accent "amber" matches the Einsatzplan tab dot colour (Design System v2).
+    Accent "blue" — calendar/timeline concept, differentiates from Einsatzmatrix (amber).
     Two views toggled by ckZeitplanView() in events-detail.js:
       "week" → Wochenplan (KW grid)
       "cat"  → Nach Kategorie (prep task list)
 --}}
-<x-ck-card accent="amber">
+<x-ck-card accent="blue" :collapsible="true">
     <x-slot:header>
         <span class="ck-card__header-title">📅 {{ __('events.overview.zeitplan_title') }}</span>
     </x-slot:header>
@@ -325,11 +325,11 @@
 
 {{-- ── 4. Staffing matrix (event-day tasks × hour grid) ───────────────────── --}}
 {{--
-    Also amber — part of the same Einsatzplan feature as the Zeitplan above.
+    Amber — Einsatzplan/staffing operations (distinct from Zeitplan which is now blue).
     Shows event-day tasks (those without a prep deadline) mapped across
     hour columns, with member avatars in each cell.
 --}}
-<x-ck-card accent="amber">
+<x-ck-card accent="amber" :collapsible="true">
     <x-slot:header>
         <span class="ck-card__header-title">🗓️ {{ __('events.overview.matrix_title') }}</span>
     </x-slot:header>
@@ -399,7 +399,7 @@
 
 {{-- ── 6. Teams assigned to this event ────────────────────────────────────── --}}
 {{-- Accent "green" matches the Teams concept colour (Design System v2). --}}
-<x-ck-card accent="green">
+<x-ck-card accent="green" :collapsible="true">
     <x-slot:header>
         <span class="ck-card__header-title">👥 {{ __('events.overview.teams_title') }}</span>
     </x-slot:header>

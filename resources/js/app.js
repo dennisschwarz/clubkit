@@ -547,3 +547,27 @@ window.ckTabEnable = function (tabBtnId, hintId, enabled) {
 window.ckEmit = function (event, detail) {
     document.dispatchEvent(new CustomEvent('ck:' + event, { detail: detail || {} }));
 };
+
+// ── Section / card accordion ─────────────────────────────────────────────────
+// Shared toggle used by Teams accordion (ckSectionToggle) and collapsible
+// x-ck-card components (delegated click on .ck-card__header--collapsible).
+
+window.ckSectionToggle = function (bodyId, chevronId) {
+    var body    = document.getElementById(bodyId);
+    var chevron = document.getElementById(chevronId);
+    if (body)    body.classList.toggle('is-hidden');
+    if (chevron) chevron.classList.toggle('ck-accordion-chevron--open');
+};
+
+// Delegated handler for collapsible x-ck-card headers.
+// The header carries data-body and data-chevron set by the Blade component.
+document.addEventListener('click', function (e) {
+    var header = e.target.closest('.ck-card__header--collapsible');
+    if (! header) return;
+    var bodyId    = header.dataset.body;
+    var chevronId = header.dataset.chevron;
+    var body      = bodyId    ? document.getElementById(bodyId)    : null;
+    var chevron   = chevronId ? document.getElementById(chevronId) : null;
+    if (body)    body.classList.toggle('is-hidden');
+    if (chevron) chevron.classList.toggle('ck-accordion-chevron--open');
+});

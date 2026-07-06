@@ -88,14 +88,13 @@
 </div>
 {{-- ── Pane: Übersicht ─────────────────────────────────────────────────────── --}}
 <div class="ck-local-section ck-local-section--active" id="ckEvtPane-overview">
-<x-ck-card class="ck-event-info ck-no-print" accent="blue">
-    <x-slot:header>
+{{-- Plain div — <x-ck-card> here wraps @ckHook (→ foreach) + nested <x-ck-button>, triggering --}}
+{{-- Blade 13.17 compiler bug: anonymous component + foreach inside = extra endforeach token. --}}
+<div class="ck-card ck-card--accent-blue ck-event-info ck-no-print">
+    <div class="ck-card__header">
         <span class="ck-card__header-title">📅 {{ __('events.detail.event_details') }}</span>
-        <button type="button" class="ck-btn ck-btn--secondary ck-btn--sm"
-                onclick="ckModalOpen('editEventModal')">
-            ✏ {{ __('Edit') }}
-        </button>
-    </x-slot:header>
+    </div>
+    <div class="ck-card__body">
 
     {{-- Hero grid: split when functions are enabled, single column otherwise --}}
     <div class="ck-event-hero {{ $showFunctions ? 'ck-event-hero--split' : 'ck-event-hero--full' }}">
@@ -103,7 +102,6 @@
         {{-- Left column: date tile + time / location / description --}}
         <div class="ck-event-hero__left">
 
-            {{-- Date tile + time/location in a horizontal row --}}
             <div class="ck-event-hero__head">
                 <div class="ck-event-hero__date">
                     <span class="ck-event-hero__month">{{ $event->starts_at->translatedFormat('M') }}</span>
@@ -118,6 +116,15 @@
                     <span class="ck-event-hero__meta-item">📍 {{ $event->location }}</span>
                     @endif
                 </div>
+                {{-- Last child of __head — absolute top:0; right:0 via .ck-event-hero__edit-icon --}}
+                <x-ck-button variant="warning" size="icon"
+                             class="ck-event-hero__edit-icon"
+                             onclick="ckModalOpen('editEventModal')"
+                             title="{{ __('Edit') }}">
+                    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+                    </svg>
+                </x-ck-button>
             </div>
 
             @if($event->description)
@@ -144,7 +151,8 @@
         @endif
 
     </div>
-</x-ck-card>
+    </div>{{-- /.ck-card__body --}}
+</div>{{-- /.ck-card ck-event-info --}}
 
 {{--
     Extension point: events.show.overview-panel
@@ -155,17 +163,23 @@
 
 {{-- Custom fields (CustomFields module) --}}
 @if(!empty($eventCfDefs))
-<x-ck-card accent="gray">
-    <x-slot:header><span class="ck-card__header-title">{{ __('events.detail.further_info') }}</span></x-slot:header>
-    <dl class="ck-event-meta">
-        @foreach($eventCfDefs as $def)
-        <div class="ck-event-meta__row">
-            <dt>{{ $def->label }}</dt>
-            <dd>{{ $eventCfValues[$def->id] ?? '–' }}</dd>
-        </div>
-        @endforeach
-    </dl>
-</x-ck-card>
+{{-- Plain div instead of <x-ck-card> — avoids Blade compiler bug: @foreach inside anonymous component --}}
+{{-- triggers extra endforeach tokens in compiled PHP when ck-card.blade.php contains a @php block. --}}
+<div class="ck-card ck-card--accent-gray">
+    <div class="ck-card__header">
+        <span class="ck-card__header-title">{{ __('events.detail.further_info') }}</span>
+    </div>
+    <div class="ck-card__body">
+        <dl class="ck-event-meta">
+            @foreach($eventCfDefs as $def)
+            <div class="ck-event-meta__row">
+                <dt>{{ $def->label }}</dt>
+                <dd>{{ $eventCfValues[$def->id] ?? '–' }}</dd>
+            </div>
+            @endforeach
+        </dl>
+    </div>
+</div>
 @endif
 </div>
 {{-- ── Pane: Aufgaben ───────────────────────────────────────────────────────── --}}
