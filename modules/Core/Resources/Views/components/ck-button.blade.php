@@ -21,8 +21,7 @@
 --}}
 <button
     type="{{ $confirm ? 'button' : $type }}"
-    class="{{ $classes }}"
     @if($confirm) data-ck-confirm="{{ $confirm }}" @endif
-    {{ $attributes }}
+    {{ $attributes->merge(['class' => $classes]) }}
 >{{ $slot }}</button>
 @endif

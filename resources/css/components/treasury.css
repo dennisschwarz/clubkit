@@ -20,34 +20,6 @@
     flex-wrap: wrap;
 }
 
-.ck-stat-card {
-    flex: 1 1 160px;
-    min-width: 160px;
-    padding: var(--ck-space-4) var(--ck-space-5);
-    border-radius: var(--ck-radius);
-    border: 1px solid var(--ck-border);
-    background: var(--ck-surface);
-}
-
-.ck-stat-card__label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ck-text-muted);
-    margin-bottom: var(--ck-space-1);
-}
-
-.ck-stat-card__value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--ck-text);
-}
-
-.ck-stat-card--green  { border-left: 4px solid var(--ck-success); }
-.ck-stat-card--red    { border-left: 4px solid var(--ck-danger);  }
-.ck-stat-card--blue   { border-left: 4px solid var(--ck-info);    }
-.ck-stat-card--orange { border-left: 4px solid var(--ck-warning); }
 
 /* ── Zusammenfassung: account selector ────────────────────────────────────── */
 

@@ -246,6 +246,12 @@ body {
 .ck-mt-4 { margin-top: var(--ck-space-4); }
 .ck-mt-5 { margin-top: var(--ck-space-5); }
 .ck-mt-6 { margin-top: var(--ck-space-6); }
+.ck-flex         { display: flex; }
+.ck-justify-end  { justify-content: flex-end; }
+.ck-justify-start{ justify-content: flex-start; }
+.ck-items-center { align-items: center; }
+.ck-gap-2        { gap: var(--ck-space-2); }
+.ck-gap-3        { gap: var(--ck-space-3); }
 
 /* Margin-Bottom */
 .ck-mb-1 { margin-bottom: var(--ck-space-1); }

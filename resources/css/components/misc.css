@@ -13,15 +13,6 @@
 .ck-avatar--sm   { width: 28px; height: 28px; font-size: 9px; }
 .ck-avatar--lg   { width: 56px; height: 56px; font-size: var(--ck-font-md); }
 
-/* ── Empty state ─────────────────────────────────────── */
-.ck-empty-state {
-  text-align: center;
-  padding: var(--ck-space-6) var(--ck-space-5);
-  color: var(--ck-text-muted);
-  font-size: var(--ck-font-md);
-}
-.ck-empty-state a { color: var(--ck-accent-dark); text-decoration: underline; }
-
 /* ── Thumbnail in table row ──────────────────────────── */
 .ck-table-thumb {
   width: 32px; height: 32px;
@@ -114,8 +105,20 @@
   min-width: 0;
 }
 
+.ck-section-header__title-row {
+  display:     flex;
+  align-items: center;
+  gap:         var(--ck-space-2);
+  min-width:   0;
+}
+.ck-section-header__title-row .ck-section-header__title {
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+}
+
 .ck-section-header__title {
-  font-size: var(--ck-font-md);
+  font-size: var(--ck-font-base);
   font-weight: 700;
   color: var(--ck-text);
   letter-spacing: 0;
@@ -263,9 +266,7 @@
 .ck-family-item__label { font-size: var(--ck-font-xs); font-weight: 700; color: var(--ck-text-muted); width: 130px; flex-shrink: 0; }
 .ck-family-item__name  { flex: 1; font-size: var(--ck-font-base); color: var(--ck-text); }
 
-/* Local page tab styles (.ck-local-tabs, .ck-local-tab, .ck-local-section)
-   have been moved to forms.css (Design System v2 — pill-style tabs).
-   Removed from here to prevent cascade override. */
+
 
 /* ══════════════════════════════════════════════════════════════════════
    Module card (Admin > Modules)
@@ -399,9 +400,6 @@
 /* Table column for label (fixed width) */
 .ck-table__label-col { width: 40%; }
 
-/* Stat card: large version number / value */
-.ck-stat-card__value--lg { font-size: 20px; }
-
 /* ══════════════════════════════════════════════════════════════════════
    Utility classes (global)
 ══════════════════════════════════════════════════════════════════════ */
@@ -500,4 +498,45 @@
 
 @media (max-width: 480px) {
   #ck-toast-container { right: 12px; bottom: 12px; }
+}
+
+
+/* ── Avatar stack (overlapping round images/initials) ───────────────────── */
+.ck-avatar-stack       { display: flex; align-items: center; margin-top: var(--ck-space-3); }
+.ck-avatar-stack__item { margin-left: -6px; border: 2px solid var(--ck-white); border-radius: var(--ck-radius-full); }
+.ck-avatar-stack__item:first-child { margin-left: 0; }
+.ck-avatar-stack__extra { margin-left: var(--ck-space-2); font-size: var(--ck-font-sm); color: var(--ck-text-muted); }
+
+/* ── Pane footer (bottom spacing wrapper inside tab panes) ──────────────── */
+.ck-pane-footer { padding-top: var(--ck-space-3); }
+
+/* ── Pane action bar (top of tab pane — right-aligned button row) ───────── */
+.ck-pane-actions {
+    display:         flex;
+    justify-content: flex-end;
+    gap:             var(--ck-space-2);
+    margin-bottom:   var(--ck-space-5);
+}
+
+/* ── Tag list (horizontal flex wrap for tag/badge chips) ────────────────── */
+.ck-tag-list {
+    display:    flex;
+    flex-wrap:  wrap;
+    gap:        var(--ck-space-2);
+    list-style: none;
+    margin:     0;
+    padding:    0;
+}
+
+/* ── Slot badge (time/count indicator in Einsatzplan) ───────────────────── */
+.ck-slot-badge {
+    display:              inline-block;
+    background:           var(--ck-bg-subtle);
+    border:               1px solid var(--ck-border);
+    border-radius:        var(--ck-radius-sm);
+    padding:              2px var(--ck-space-2);
+    font-size:            var(--ck-font-xs);
+    font-variant-numeric: tabular-nums;
+    margin:               2px 2px 2px 0;
+    white-space:          nowrap;
 }

@@ -86,7 +86,6 @@ select.ck-field__input {
   gap: var(--ck-space-3);
   align-items: end;
 }
-.ck-btn--stretch { height: 42px; align-self: stretch; width: 100%; }
 
 @media (max-width: 900px) { .ck-add-field-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .ck-add-field-grid { grid-template-columns: 1fr; } }
@@ -151,53 +150,49 @@ select.ck-field__input {
 .ck-multiselect-search { margin-bottom: var(--ck-space-2); }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Local sub-tabs — pill-style (Design System v2)
+   Local sub-tabs — flat underline style (matches ck-subtabbar; used by all module pages)
    Replaces the old underline-tab pattern throughout the app.
    Each tab may optionally contain a .ck-local-tab__dot coloured circle
    to visually distinguish sections (see events/show.blade.php).
 ══════════════════════════════════════════════════════════════════════ */
+/* ── Base: flat underline tabs — used by Treasury, Management (matches ck-subtab style) */
 .ck-local-tabs {
-  display: flex;
-  gap: 3px;
-  background: var(--ck-white);
-  border: 1px solid var(--ck-border-strong);
-  border-radius: var(--ck-radius-lg);
-  padding: 6px;
+  display:       flex;
+  gap:           0;
+  border-bottom: 2px solid var(--ck-border);
   margin-bottom: var(--ck-space-6);
-  box-shadow: var(--ck-shadow-sm);
 }
 .ck-local-tab {
-  flex: 1;
-  padding: 9px var(--ck-space-3);
-  border: none;
-  background: transparent;
-  border-radius: var(--ck-radius);
-  font-size: var(--ck-font-md);
-  font-weight: 600;
-  color: var(--ck-text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  white-space: nowrap;
-  font-family: var(--ck-font);
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  flex-shrink:   0;
+  padding:       var(--ck-space-2) var(--ck-space-4);
+  border:        none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  background:    transparent;
+  font-size:     var(--ck-subtab-font-size, var(--ck-font-base));
+  font-weight:   600;
+  color:         var(--ck-subtab-text);
+  cursor:        pointer;
+  display:       flex;
+  align-items:   center;
+  gap:           6px;
+  white-space:   nowrap;
+  font-family:   var(--ck-font);
+  transition:    color 0.15s, border-color 0.15s;
 }
 .ck-local-tab:hover {
-  background: var(--ck-bg-subtle);
-  color: var(--ck-text);
+  color: var(--ck-subtab-hover);
 }
 .ck-local-tab:focus,
 .ck-local-tab:focus-visible {
-  outline: none;  /* browser native ring removed — visual state is the box-shadow ring below */
+  outline: none;
 }
 .ck-local-tab--active {
-  background: var(--ck-white);
-  color:      var(--ck-text);
-  /* drop shadow + 1.5px border ring — matches EventOverview_v2 mockup exactly */
-  box-shadow: 0 1px 4px rgba(0,0,0,0.12), 0 0 0 1.5px var(--ck-border-strong);
+  color:              var(--ck-subtab-hover);
+  border-bottom-color: var(--ck-subtab-active-bar);
+  background:         transparent;
 }
+
 
 /* Coloured dot inside a tab button — colour set via inline CSS variable
    or Blade class: .ck-local-tab__dot--blue / --green / --amber / --purple */

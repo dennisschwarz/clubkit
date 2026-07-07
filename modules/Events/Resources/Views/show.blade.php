@@ -47,7 +47,7 @@
 <div class="ck-alert ck-alert--success">{{ session('success') }}</div>
 @endif
 
-{{-- ── Tab bar (pill-style, Design System v2) ──────────────────────────────── --}}
+{{-- ── Tab bar ────────────────────────────────────────────────────────────── --}}
 {{--
     Tabs are rendered conditionally:
     - Overview: always visible
@@ -86,7 +86,7 @@
     </button>
     @endif
 </div>
-{{-- ── Pane: Übersicht ─────────────────────────────────────────────────────── --}}
+{{-- ── Pane: Overview ──────────────────────────────────────────────────────── --}}
 <div class="ck-local-section ck-local-section--active" id="ckEvtPane-overview">
 {{-- Plain div — <x-ck-card> here wraps @ckHook (→ foreach) + nested <x-ck-button>, triggering --}}
 {{-- Blade 13.17 compiler bug: anonymous component + foreach inside = extra endforeach token. --}}
@@ -287,29 +287,39 @@ Renders: management-functions cards with assigned members.
     Categories injected via ManagementServiceProvider → events.show.page.scripts hook.
 --}}
 <x-ck-modal id="newTaskModal" :title="__('events.task.modal_title')" size="md">
-    <x-ck-field
-        :label="__('events.task.field_name')"
-        name="new_task_name"
-        id="newTaskName"
-        :required="true" />
+
+    {{-- Source: pick an existing ManagementTask from the library, or create a new one.
+         Options are injected by events-detail.js from CK_EventDetail.globalTasks.
+         The first option is always "Neue Aufgabe erstellen" (value="new"). --}}
     <x-ck-field
         type="select"
-        :label="__('events.task.field_category')"
-        name="new_task_category_id"
-        id="newTaskCategoryId"
-        :options="[]" />
-    {{-- Note: options populated from CK_EventDetail.categories by events-detail.js --}}
-    <div class="ck-form-grid ck-form-grid--2">
+        :label="__('events.task.field_source')"
+        name="new_task_source"
+        id="newTaskSource"
+        :options="['new' => __('events.task.source_new')]" />
+
+    {{-- Name field: only visible when source = "new" --}}
+    <div id="newTaskNameGroup">
         <x-ck-field
-            type="select"
-            :label="__('events.task.field_priority')"
-            name="new_task_priority"
-            id="newTaskPriority"
-            :options="[
-                'normal'    => __('management.priority.normal'),
-                'important' => __('management.priority.important'),
-                'critical'  => __('management.priority.critical'),
-            ]" />
+            :label="__('events.task.field_name')"
+            name="new_task_name"
+            id="newTaskName" />
+    </div>
+
+    {{-- Priority + Deadline: priority only for new tasks; deadline always settable --}}
+    <div class="ck-form-grid ck-form-grid--2">
+        <div id="newTaskPriorityGroup">
+            <x-ck-field
+                type="select"
+                :label="__('events.task.field_priority')"
+                name="new_task_priority"
+                id="newTaskPriority"
+                :options="[
+                    'normal'    => __('management.priority.normal'),
+                    'important' => __('management.priority.important'),
+                    'critical'  => __('management.priority.critical'),
+                ]" />
+        </div>
         <x-ck-field
             type="text"
             :label="__('events.task.field_deadline')"
@@ -317,13 +327,15 @@ Renders: management-functions cards with assigned members.
             id="newTaskDeadline"
             data-ck-datetime="1" />
     </div>
+
+    {{-- Responsible member: always shown, options injected by events-detail.js --}}
     <x-ck-field
         type="select"
         :label="__('events.task.field_responsible')"
         name="new_task_member_id"
         id="newTaskMemberId"
         :options="[]" />
-    {{-- Note: options populated from CK_EventDetail.members by events-detail.js --}}
+
     <div class="ck-form-actions">
         <x-ck-button variant="primary" type="button" id="newTaskSubmitBtn">
             {{ __('Save') }}
@@ -342,6 +354,18 @@ Renders: management-functions cards with assigned members.
         name="new_cat_name"
         id="newCatName"
         :required="true" />
+    <div class="ck-field__group ck-mt-3">
+        <label class="ck-field__label">{{ __('events.cat.field_color') }}</label>
+        <div class="ck-color-picker" id="newCatColorPicker">
+            @foreach(['' => 'Standard', 'blue' => 'Blau', 'navy' => 'Navy', 'green' => 'Grün', 'teal' => 'Teal', 'red' => 'Rot', 'orange' => 'Orange', 'amber' => 'Gelb', 'purple' => 'Lila', 'pink' => 'Pink', 'slate' => 'Grau'] as $ckColorKey => $ckColorLabel)
+            <label class="ck-color-swatch{{ $ckColorKey === '' ? ' ck-color-swatch--selected' : '' }}" title="{{ $ckColorLabel }}">
+                <input type="radio" name="new_cat_color" id="newCatColor"
+                       value="{{ $ckColorKey }}" {{ $ckColorKey === '' ? 'checked' : '' }}>
+                <span class="ck-color-swatch__dot ck-color-swatch__dot--{{ $ckColorKey ?: 'default' }}"></span>
+            </label>
+            @endforeach
+        </div>
+    </div>
     <div class="ck-form-actions">
         <x-ck-button variant="primary" type="button" id="newCatSubmitBtn">
             {{ __('Save') }}
@@ -433,25 +457,28 @@ Renders: management-functions cards with assigned members.
     Submit: batch POST /members (add) + DELETE /members/{id} (remove).
     CSS layout (.ck-assign-split) is added in Step 8.
 --}}
-<x-ck-modal id="taskAssignModal" :title="__('events.task.assign_member')" size="md">
-    <p id="taskAssignLabel" class="ck-text-muted"></p>
-    <div class="ck-assign-split">
-        <div class="ck-assign-split__col">
-            <div class="ck-assign-split__col-label">{{ __('events.assign.available') }}</div>
+<x-ck-modal id="taskAssignModal" :title="__('events.task.assign_member')" size="lg">
+    <p id="taskAssignLabel" class="ck-text-muted ck-mb-4"></p>
+    <p class="ck-text-muted ck-font-sm ck-mb-4">
+        Ctrl+Klick (Mehrfachauswahl) → dann mit den Pfeilen verschieben.
+    </p>
+    <div class="ck-dual-listbox">
+        <div class="ck-dual-listbox__col">
+            <span class="ck-dual-listbox__label">{{ __('events.assign.available') }}</span>
             <select id="taskAssignAvailableList"
-                    class="ck-assign-split__list ck-form-select"
+                    class="ck-dual-listbox__list"
                     multiple
                     size="8">
             </select>
         </div>
-        <div class="ck-assign-split__arrows">
-            <x-ck-button variant="primary" size="sm" type="button" id="taskAssignAddBtn">→</x-ck-button>
-            <x-ck-button variant="secondary" size="sm" type="button" id="taskAssignRemoveBtn">←</x-ck-button>
+        <div class="ck-dual-listbox__controls">
+            <x-ck-button variant="secondary" type="button" id="taskAssignAddBtn">→</x-ck-button>
+            <x-ck-button variant="secondary" type="button" id="taskAssignRemoveBtn">←</x-ck-button>
         </div>
-        <div class="ck-assign-split__col">
-            <div class="ck-assign-split__col-label">{{ __('events.assign.assigned') }}</div>
+        <div class="ck-dual-listbox__col">
+            <span class="ck-dual-listbox__label">{{ __('events.assign.assigned') }}</span>
             <select id="taskAssignAssignedList"
-                    class="ck-assign-split__list ck-form-select"
+                    class="ck-dual-listbox__list"
                     multiple
                     size="8">
             </select>
@@ -468,7 +495,7 @@ Renders: management-functions cards with assigned members.
     </div>
 </x-ck-modal>
 
-{{-- ── Rename category modal (Tab 2: Aufgaben → ✏ button) ─────────────────────── --}}
+{{-- ── Rename category modal (tasks tab: ✏ button per section header) ────────── --}}
 {{--
     Opened by .ck-cat-rename-btn click in events-detail.js.
     Submit: AJAX PATCH /events/{event}/task-categories/{id} { name }.
@@ -480,6 +507,18 @@ Renders: management-functions cards with assigned members.
         name="rename_cat_name"
         id="renameCatName"
         :required="true" />
+    <div class="ck-field__group ck-mt-3">
+        <label class="ck-field__label">{{ __('events.cat.field_color') }}</label>
+        <div class="ck-color-picker" id="renameCatColorPicker">
+            @foreach(['' => 'Standard', 'blue' => 'Blau', 'navy' => 'Navy', 'green' => 'Grün', 'teal' => 'Teal', 'red' => 'Rot', 'orange' => 'Orange', 'amber' => 'Gelb', 'purple' => 'Lila', 'pink' => 'Pink', 'slate' => 'Grau'] as $ckRnColorKey => $ckRnColorLabel)
+            <label class="ck-color-swatch{{ $ckRnColorKey === '' ? ' ck-color-swatch--selected' : '' }}" title="{{ $ckRnColorLabel }}">
+                <input type="radio" name="rename_cat_color"
+                       value="{{ $ckRnColorKey }}" {{ $ckRnColorKey === '' ? 'checked' : '' }}>
+                <span class="ck-color-swatch__dot ck-color-swatch__dot--{{ $ckRnColorKey ?: 'default' }}"></span>
+            </label>
+            @endforeach
+        </div>
+    </div>
     <div class="ck-form-actions">
         <x-ck-button variant="primary" type="button" id="renameCatSubmitBtn">
             {{ __('Save') }}

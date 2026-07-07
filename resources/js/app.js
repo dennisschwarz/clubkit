@@ -32,7 +32,7 @@ window.flatpickr = flatpickr;
 // ── Global confirm modal state ─────────────────────────────────────────────
 // Shared callback reference: set before opening the confirm modal,
 // cleared after the user confirms or cancels.
-let _ckConfirmCallback = null;
+window.window._ckConfirmCallback = null;  // window-scoped so ckConfirmCancel() can clear it
 
 /**
  * Open the global confirm modal with a message and execute a callback on confirm.
@@ -47,7 +47,7 @@ let _ckConfirmCallback = null;
 window.ckConfirm = function (message, callback) {
     const textEl = document.getElementById('ck-confirm-text');
     if (textEl) textEl.textContent = message;
-    _ckConfirmCallback = callback;
+    window._ckConfirmCallback = callback;
     ckModalOpen('ck-confirm-overlay');
 };
 
@@ -426,9 +426,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (confirmOkBtn) {
         confirmOkBtn.addEventListener('click', function () {
             ckModalClose(null, 'ck-confirm-overlay');
-            if (typeof _ckConfirmCallback === 'function') {
-                const fn = _ckConfirmCallback;
-                _ckConfirmCallback = null;
+            if (typeof window._ckConfirmCallback === 'function') {
+                const fn = window._ckConfirmCallback;
+                window._ckConfirmCallback = null;
                 fn();
             }
         });
@@ -487,7 +487,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 
+// ── Color picker: sync ck-color-swatch--selected when radio changes ─────────
+// Handles all .ck-color-picker instances globally (newCatModal, renameCatModal, etc.)
+document.addEventListener('change', function (e) {
+    if (! e.target.matches('.ck-color-picker input[type="radio"]')) { return; }
+    var picker = e.target.closest('.ck-color-picker');
+    if (! picker) { return; }
+    picker.querySelectorAll('.ck-color-swatch').forEach(function (swatch) {
+        swatch.classList.remove('ck-color-swatch--selected');
+    });
+    var activeSwatch = e.target.closest('.ck-color-swatch');
+    if (activeSwatch) { activeSwatch.classList.add('ck-color-swatch--selected'); }
+});
+
 // ── Modal helpers ──────────────────────────────────────────────────────────
+/**
+ * Cancel the global confirm modal without executing the callback.
+ * Call this from cancel buttons and backdrop clicks on the confirm modal.
+ * Clearing _ckConfirmCallback prevents the callback from firing later.
+ */
+window.ckConfirmCancel = function () {
+    window._ckConfirmCallback = null;
+    ckModalClose(null, 'ck-confirm-overlay');
+};
+
 
 window.ckModalOpen = function (id) {
     const modal = document.getElementById(id);

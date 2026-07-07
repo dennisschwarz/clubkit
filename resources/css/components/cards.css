@@ -126,3 +126,36 @@
 .ck-stat-card--ok     .ck-stat-card__value { color: var(--ck-success); }
 .ck-stat-card--warn   .ck-stat-card__value { color: var(--ck-warning); }
 .ck-stat-card--danger .ck-stat-card__value { color: var(--ck-danger); }
+
+
+/* ── KPI tile grid (4-column overview cards) ────────────────────────────── */
+.ck-kpi-grid {
+    display:               grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap:                   var(--ck-space-4);
+}
+
+/* ── KPI card — split design (solid-colour top / tint bottom) ───────────── */
+.ck-kpi-card               { border-radius: var(--ck-radius-lg); overflow: hidden; box-shadow: var(--ck-shadow); border: 1px solid rgba(0,0,0,0.08); }
+.ck-kpi-card__top          { padding: var(--ck-space-5) var(--ck-space-4) var(--ck-space-4); display: flex; flex-direction: column; align-items: center; gap: var(--ck-space-1); text-align: center; }
+.ck-kpi-card__bottom       { padding: var(--ck-space-3) var(--ck-space-4); text-align: center; }
+.ck-kpi-card__icon         { font-size: 1.5rem; line-height: 1; display: block; margin-bottom: var(--ck-space-1); }
+.ck-kpi-card__value        { display: block; font-size: 2.5rem; font-weight: 900; color: var(--ck-text-white); line-height: 1; }
+.ck-kpi-card__label        { display: block; font-size: var(--ck-font-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; }
+
+/* Colour variants */
+.ck-kpi-card             .ck-kpi-card__top    { background: var(--ck-card-accent-blue); }
+.ck-kpi-card             .ck-kpi-card__bottom { background: var(--ck-team-blue-bg); }
+.ck-kpi-card             .ck-kpi-card__label  { color: var(--ck-card-accent-blue); }
+.ck-kpi-card--success    .ck-kpi-card__top    { background: var(--ck-card-accent-green); }
+.ck-kpi-card--success    .ck-kpi-card__bottom { background: var(--ck-success-bg); }
+.ck-kpi-card--success    .ck-kpi-card__label  { color: var(--ck-card-accent-green); }
+.ck-kpi-card--warning    .ck-kpi-card__top    { background: var(--ck-card-accent-amber); }
+.ck-kpi-card--warning    .ck-kpi-card__bottom { background: var(--ck-warning-bg); }
+.ck-kpi-card--warning    .ck-kpi-card__label  { color: var(--ck-card-accent-amber); }
+.ck-kpi-card--danger     .ck-kpi-card__top    { background: var(--ck-danger); }
+.ck-kpi-card--danger     .ck-kpi-card__bottom { background: var(--ck-danger-bg); }
+.ck-kpi-card--danger     .ck-kpi-card__label  { color: var(--ck-danger-text); }
+
+/* Large value variant (System overview page) */
+.ck-stat-card__value--lg { font-size: 20px; }

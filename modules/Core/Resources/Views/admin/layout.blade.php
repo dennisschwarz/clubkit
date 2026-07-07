@@ -236,12 +236,12 @@ window.CK_Lang = {
      JS: app.js → ckConfirm() / [data-ck-confirm] handler
      CSS: resources/css/components/modals.css → .ck-modal__footer
 ══════════════════════════════════════════════════════════════ --}}
-<div id="ck-confirm-overlay" class="ck-modal-overlay" onclick="ckModalClose(event, 'ck-confirm-overlay')">
+<div id="ck-confirm-overlay" class="ck-modal-overlay" onclick="if(event.target===this){ ckConfirmCancel(); }">
     <div class="ck-modal-content ck-modal-content--sm" onclick="event.stopPropagation()">
 
         <div class="ck-modal__header">
             <h2 class="ck-modal__title">🗑 Löschen bestätigen</h2>
-            <button type="button" class="ck-modal__close" onclick="ckModalClose(null, 'ck-confirm-overlay')">&times;</button>
+            <button type="button" class="ck-modal__close" onclick="ckConfirmCancel()">&times;</button>
         </div>
 
         <div class="ck-modal__body">
@@ -256,7 +256,7 @@ window.CK_Lang = {
                 Ja, löschen
             </button>
             <button type="button" class="ck-btn ck-btn--secondary"
-                onclick="ckModalClose(null, 'ck-confirm-overlay')">
+                onclick="ckConfirmCancel()">
                 Abbrechen
             </button>
         </div>

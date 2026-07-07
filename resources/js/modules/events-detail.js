@@ -123,6 +123,151 @@ window.ckEvtTab = function (tabId, btn) {
     if (pane)   { pane.classList.add('ck-local-section--active'); }
     if (btn)    { btn.classList.add('ck-local-tab--active'); }
     if (action) { action.classList.add('ck-event-tab-action--active'); }
+
+    // Re-initialise SortableJS on any .ck-task-sortable tbody that has not yet been
+    // set up (possible if the tasks tab was hidden when events-detail.js first ran).
+    if (pane) {
+        pane.querySelectorAll('.ck-task-sortable:not([data-sortable-init])').forEach(function (tbody) {
+            tbody.setAttribute('data-sortable-init', '1');
+            if (typeof Sortable !== 'undefined') {
+                Sortable.create(tbody, window._ckSortableOptions || {});
+            }
+        });
+    }
+};
+
+/**
+ * Open the new-task modal in CREATE mode, pre-selecting a category.
+ * Uses direct onclick (not document delegation) because the section header
+ * actions div has onclick="event.stopPropagation()" which blocks bubbling.
+ *
+ * @param {string} catId - Category id to pre-select, or '' for General.
+ */
+window.ckOpenNewTask = function (catId) {
+    // Store the target section so the submit handler can pass it to the server.
+    window._ckNewTaskCatId = catId || '';
+
+    // Populate the source dropdown with the Management task library.
+    // The first option is always "Neue Aufgabe erstellen" (value="new").
+    var srcSel = document.getElementById('newTaskSource');
+    if (srcSel) {
+        srcSel.innerHTML = '';
+        var newOpt = document.createElement('option');
+        newOpt.value       = 'new';
+        newOpt.textContent = (cfg.i18n && cfg.i18n.sourceNew) ? cfg.i18n.sourceNew : 'Neue Aufgabe erstellen';
+        srcSel.appendChild(newOpt);
+
+        var tasks = (window.CK_EventDetail && window.CK_EventDetail.globalTasks) || [];
+        tasks.forEach(function (t) {
+            var opt        = document.createElement('option');
+            opt.value      = t.id;
+            opt.textContent = t.name;
+            srcSel.appendChild(opt);
+        });
+    }
+
+    // Reset modal fields to create-mode defaults.
+    ckNewTaskToggleSource('new');
+    ckModalOpen('newTaskModal');
+};
+
+/**
+ * Show or hide the name/priority fields depending on the selected source.
+ * Called on modal open and on source dropdown change.
+ *
+ * @param {string} sourceValue - "new" or a ManagementTask id string.
+ */
+function ckNewTaskToggleSource(sourceValue) {
+    var isNew   = (sourceValue === 'new');
+    var nameGrp = document.getElementById('newTaskNameGroup');
+    var prioGrp = document.getElementById('newTaskPriorityGroup');
+    if (nameGrp) { nameGrp.classList.toggle('is-hidden', ! isNew); }
+    if (prioGrp) { prioGrp.classList.toggle('is-hidden', ! isNew); }
+    // Clear name field when switching to template so stale text does not confuse validation
+    if (! isNew) {
+        var nameInput = document.getElementById('newTaskName');
+        if (nameInput) { nameInput.value = ''; nameInput.classList.remove('ck-input--error'); }
+    }
+}
+
+/**
+ * Open the rename-category modal pre-filled with the given category data.
+ * Uses direct onclick for the same stopPropagation reason as ckOpenNewTask.
+ *
+ * @param {string} catId   - Category id.
+ * @param {string} catName - Current category name.
+ */
+window.ckOpenCatRename = function (catId, catName, catColor) {
+    window._ckRenameCatId = catId;
+    var nameInput = document.getElementById('renameCatName');
+    if (nameInput) { nameInput.value = catName || ''; }
+    // Pre-select the current color in the color picker
+    var picker = document.getElementById('renameCatColorPicker');
+    if (picker) {
+        var radios = picker.querySelectorAll('input[type=radio]');
+        radios.forEach(function (r) {
+            r.checked = (r.value === (catColor || ''));
+            r.closest('.ck-color-swatch').classList.toggle('ck-color-swatch--selected', r.checked);
+        });
+    }
+    ckModalOpen('renameCatModal');
+};
+
+/**
+ * Client-side column sort for all .ck-task-sortable tbodies on the page.
+ * No page reload — manipulates DOM rows directly within each section independently.
+ * Sort state is toggled: first click ASC, second click DESC, same order persists across sections.
+ *
+ * @param {string}      column - 'name' | 'priority' | 'deadline'
+ * @param {HTMLElement} btn    - The clicked sort button (for visual state update).
+ */
+/**
+ * Per-section client-side column sort.
+ * Only the section that owns the clicked button is sorted and updated visually.
+ * Other sections are unaffected.
+ *
+ * @param {string}      column - 'name' | 'priority' | 'deadline'
+ * @param {HTMLElement} btn    - The clicked sort <button> inside a section thead.
+ */
+window.ckTaskSortBy = function (column, btn) {
+    // Find the tbody belonging to the same section as the clicked header.
+    // Use native Element.closest() — no IIFE-scoped helper needed.
+    var thead  = btn.closest('thead');
+    var table  = thead ? thead.parentElement : null;
+    var tbody  = table ? table.querySelector('.ck-task-sortable') : null;
+    if (! tbody) { return; }
+
+    // Toggle direction within this section: track per-thead state via data attribute.
+    var prevCol = thead.dataset.sortCol  || '';
+    var prevDir = thead.dataset.sortDir  || 'asc';
+    var newDir  = (prevCol === column && prevDir === 'asc') ? 'desc' : 'asc';
+    thead.dataset.sortCol = column;
+    thead.dataset.sortDir = newDir;
+
+    // Update visual state — only this section's header buttons.
+    thead.querySelectorAll('.ck-task-sort-btn').forEach(function (b) {
+        b.classList.remove('ck-sort-link--active');
+        b.querySelector('.ck-sort-icon').textContent = '⇅';
+    });
+    btn.classList.add('ck-sort-link--active');
+    btn.querySelector('.ck-sort-icon').textContent = newDir === 'asc' ? '↑' : '↓';
+
+    // Build sort key from dataset attribute name: 'name' → 'sortName', etc.
+    var dataKey = 'sort' + column.charAt(0).toUpperCase() + column.slice(1);
+
+    var realRows = Array.prototype.slice.call(
+        tbody.querySelectorAll('.ck-task-row:not(.ck-task-row--empty)')
+    );
+
+    realRows.sort(function (a, b) {
+        var aVal = a.dataset[dataKey] || '';
+        var bVal = b.dataset[dataKey] || '';
+        if (aVal < bVal) { return newDir === 'asc' ? -1 :  1; }
+        if (aVal > bVal) { return newDir === 'asc' ?  1 : -1; }
+        return 0;
+    });
+
+    realRows.forEach(function (row) { tbody.appendChild(row); });
 };
 
 (function () {
@@ -528,7 +673,7 @@ window.ckEvtTab = function (tabId, btn) {
 
     updateGlobalProgress();
 
-    // ── Category progress bars (Übersicht-Tab) ────────────────────────────────
+    // ── Category progress bars (overview tab) ──────────────────────────────────
     // CSS custom property --progress: only permitted el.style.* usage.
 
     document.querySelectorAll('.ck-cat-progress__fill').forEach(function (fill) {
@@ -539,30 +684,56 @@ window.ckEvtTab = function (tabId, btn) {
     // Single-step: POST directly to tasksBase (EventTaskController).
     // EventTask is fully self-contained — no separate ManagementTask creation needed.
 
+    // ── New-task source dropdown: show/hide name + priority fields ─────────
+    var newTaskSrcSel = document.getElementById('newTaskSource');
+    if (newTaskSrcSel) {
+        newTaskSrcSel.addEventListener('change', function () {
+            ckNewTaskToggleSource(this.value);
+        });
+    }
+
     var newTaskBtn = document.getElementById('newTaskSubmitBtn');
 
     if (newTaskBtn) {
         newTaskBtn.addEventListener('click', function () {
+            var srcSel        = document.getElementById('newTaskSource');
             var nameInput     = document.getElementById('newTaskName');
-            var catSelect     = document.getElementById('newTaskCategoryId');
             var prioSelect    = document.getElementById('newTaskPriority');
             var deadlineInput = document.getElementById('newTaskDeadline');
             var memberSelect  = document.getElementById('newTaskMemberId');
 
-            var name = nameInput ? nameInput.value.trim() : '';
-            if (! name) {
-                if (nameInput) { nameInput.classList.add('ck-input--error'); }
-                return;
-            }
-            if (nameInput) { nameInput.classList.remove('ck-input--error'); }
-            newTaskBtn.disabled = true;
+            var sourceVal  = srcSel ? srcSel.value : 'new';
+            var isNew      = (sourceVal === 'new');
 
-            var body = { name: name };
-            if (catSelect    && catSelect.value)     { body.category_id = parseInt(catSelect.value, 10); }
-            if (prioSelect   && prioSelect.value)    { body.priority    = prioSelect.value; }
+            // Build request body based on source selection.
+            var body = {};
+
+            if (isNew) {
+                // Creating a new task: name + priority are required.
+                var name = nameInput ? nameInput.value.trim() : '';
+                if (! name) {
+                    if (nameInput) { nameInput.classList.add('ck-input--error'); }
+                    return;
+                }
+                if (nameInput) { nameInput.classList.remove('ck-input--error'); }
+                body.name     = name;
+                body.priority = (prioSelect && prioSelect.value) ? prioSelect.value : 'normal';
+            } else {
+                // Importing from Management task library: pass the template id.
+                body.template_id = parseInt(sourceVal, 10);
+            }
+
+            // Category: determined by which section "+" was clicked (stored in window._ckNewTaskCatId).
+            var catId = window._ckNewTaskCatId || '';
+            if (catId !== '' && catId !== 'allgemein') {
+                body.category_id = parseInt(catId, 10);
+            }
+
             if (deadlineInput && deadlineInput.value) { body.deadline_at = deadlineInput.value; }
 
-            // Edit mode: PATCH to tasksBase/{id}; create mode: POST to tasksBase.
+            newTaskBtn.disabled = true;
+
+            // Edit mode (name/priority update): PATCH; create mode: POST.
             var taskUrl    = _taskEditId ? (cfg.routes.tasksBase + '/' + _taskEditId) : cfg.routes.tasksBase;
             var taskMethod = _taskEditId ? 'PATCH' : 'POST';
 
@@ -624,6 +795,8 @@ window.ckEvtTab = function (tabId, btn) {
         newCatBtn.addEventListener('click', function () {
             var nameInput = document.getElementById('newCatName');
             var name      = nameInput ? nameInput.value.trim() : '';
+            var colorInput = document.querySelector('#newCatColorPicker input[type=radio]:checked');
+            var color = colorInput ? colorInput.value : '';
             if (! name) {
                 if (nameInput) { nameInput.classList.add('ck-input--error'); }
                 return;
@@ -639,28 +812,13 @@ window.ckEvtTab = function (tabId, btn) {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept':           'application/json',
                 },
-                body: JSON.stringify({ name: name }),
+                body: JSON.stringify({ name: name, color: color }),
             })
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.success) {
-                    // Inject new category into the newTaskModal dropdown
-                    var catSel = document.getElementById('newTaskCategoryId');
-                    if (catSel) {
-                        var opt         = document.createElement('option');
-                        opt.value       = data.category.id;
-                        opt.textContent = data.category.name;
-                        catSel.appendChild(opt);
-                        catSel.value    = data.category.id;
-                    }
-                    // Update local cache so future populateSelect calls include it
-                    if (cfg.categories) {
-                        cfg.categories[data.category.id] = { id: data.category.id, name: data.category.name };
-                    }
                     ckModalClose(null, 'newCatModal');
-                    ckNotify('success', 'Kategorie „' + data.category.name + '" angelegt.');
-                    newCatBtn.disabled = false;
-                    if (nameInput) { nameInput.value = ''; }
+                    reloadKeepingTab();
                 } else {
                     ckNotify('error', data.message || 'Fehler beim Anlegen der Kategorie.');
                     newCatBtn.disabled = false;
@@ -675,18 +833,14 @@ window.ckEvtTab = function (tabId, btn) {
 
     // ── Rename Category ───────────────────────────────────────────────────────
 
-    // Module-level state: which category is currently being renamed
-    var _renameCatId = null;
+    // Module-level state: which category is currently being renamed.
+    // Stored on window so ckOpenCatRename() (defined outside IIFE) can share the same slot.
 
-    // Open renameCatModal and populate the name field from the button's data attributes
+    // Keep supporting the document-level delegation for any other rename triggers.
     document.addEventListener('click', function (e) {
         var btn = closest(e.target, '.ck-cat-rename-btn');
         if (! btn) { return; }
-
-        _renameCatId = btn.dataset.catId;
-        var nameInput = document.getElementById('renameCatName');
-        if (nameInput) { nameInput.value = btn.dataset.catName || ''; }
-        ckModalOpen('renameCatModal');
+        window.ckOpenCatRename(btn.dataset.catId, btn.dataset.catName);
     });
 
     // Submit rename: PATCH categoriesBase/{id} { name }
@@ -694,10 +848,12 @@ window.ckEvtTab = function (tabId, btn) {
 
     if (renameCatBtn) {
         renameCatBtn.addEventListener('click', function () {
-            if (! _renameCatId) { return; }
+            if (! window._ckRenameCatId) { return; }
 
-            var nameInput = document.getElementById('renameCatName');
-            var name      = nameInput ? nameInput.value.trim() : '';
+            var nameInput   = document.getElementById('renameCatName');
+            var colorInput  = document.querySelector('#renameCatColorPicker input[type=radio]:checked');
+            var name        = nameInput ? nameInput.value.trim() : '';
+            var color       = colorInput ? colorInput.value : '';
             if (! name) {
                 if (nameInput) { nameInput.classList.add('ck-input--error'); }
                 return;
@@ -705,7 +861,7 @@ window.ckEvtTab = function (tabId, btn) {
             if (nameInput) { nameInput.classList.remove('ck-input--error'); }
             renameCatBtn.disabled = true;
 
-            fetch(cfg.routes.categoriesBase + '/' + _renameCatId, {
+            fetch(cfg.routes.categoriesBase + '/' + window._ckRenameCatId, {
                 method:  'PATCH',
                 headers: {
                     'Content-Type':     'application/json',
@@ -713,7 +869,7 @@ window.ckEvtTab = function (tabId, btn) {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept':           'application/json',
                 },
-                body: JSON.stringify({ name: name }),
+                body: JSON.stringify({ name: name, color: color }),
             })
             .then(function (res) { return res.json(); })
             .then(function (data) {
@@ -1019,7 +1175,7 @@ window.ckEvtTab = function (tabId, btn) {
         });
     }());
 
-    // ── Add function to event (Funktionen-Tab: "Funktion hinzufügen" button) ────
+    // ── Add function to event (functions tab: "add function" button) ────────────
 
     var newFuncBtn = document.getElementById('newFuncSubmitBtn');
 
@@ -1061,7 +1217,7 @@ window.ckEvtTab = function (tabId, btn) {
         });
     }
 
-    // ── Remove function from event (Funktionen-Tab: × button) ──────────────────
+    // ── Remove function from event (functions tab: × button) ───────────────────
 
     document.addEventListener('click', function (e) {
         var btn = closest(e.target, '.ck-func-remove-btn');
@@ -1166,7 +1322,7 @@ window.ckEvtTab = function (tabId, btn) {
         .catch(function () { btn.disabled = false; });
     });
 
-    // ── Add team to event (Teams-Tab: "Team hinzufügen" button) ─────────────
+    // ── Add team to event (teams tab: "add team" button) ───────────────────────
 
     var teamAddBtn = document.getElementById('teamAddBtn');
 
@@ -1207,7 +1363,7 @@ window.ckEvtTab = function (tabId, btn) {
         });
     }
 
-    // ── Remove team from event (Teams-Tab: × button) ─────────────────────────
+    // ── Remove team from event (teams tab: × button) ────────────────────────────
 
     document.addEventListener('click', function (e) {
         var btn = closest(e.target, '.ck-team-remove-btn');
@@ -1256,18 +1412,20 @@ window.ckEvtTab = function (tabId, btn) {
     // On drop: PATCH tasksBase/{taskId}/move { category_id, sort_order }.
 
     document.querySelectorAll('.ck-task-sortable').forEach(function (tbody) {
+        tbody.setAttribute('data-sortable-init', '1');
         Sortable.create(tbody, {
-            group:       'event-tasks',          // Enables cross-section dragging
-            handle:      '.ck-task-drag-handle', // Only the handle initiates DnD
+            group:       'event-tasks',                    // shared group → cross-section drag enabled
+            handle:      'td:not(.ck-table__col--actions)', // all cells except action buttons are the drag target
             animation:   150,
-            ghostClass:  'sortable-ghost',       // CSS placeholder while dragging (Step 8)
-            chosenClass: 'sortable-chosen',      // CSS for the element being dragged (Step 8)
+            ghostClass:  'sortable-ghost',
+            chosenClass: 'sortable-chosen',
 
             onEnd: function (evt) {
-                var taskRow   = evt.item;
-                var taskId    = taskRow.dataset.taskId;
-                var targetTbody = evt.to;
-                var rawCatId  = targetTbody.dataset.catId;  // 'allgemein' or numeric string
+                var taskRow     = evt.item;
+                var taskId      = taskRow.dataset.taskId;
+                var fromTbody   = evt.from;
+                var toTbody     = evt.to;
+                var rawCatId    = toTbody.dataset.catId;
 
                 // 'allgemein' and '' both map to category_id = null (uncategorised section)
                 var catId = (rawCatId === 'allgemein' || rawCatId === '')
@@ -1275,6 +1433,30 @@ window.ckEvtTab = function (tabId, btn) {
                     : parseInt(rawCatId, 10);
 
                 if (! taskId) { return; }
+
+                // ── Update empty-state rows immediately (DOM-only, no reload) ──
+                // Remove empty-state from destination (a real row just arrived).
+                var toEmpty = toTbody.querySelector('.ck-task-row--empty');
+                if (toEmpty) { toEmpty.remove(); }
+
+                // Add empty-state to source if it now contains no real task rows.
+                if (fromTbody !== toTbody) {
+                    var realRows = fromTbody.querySelectorAll('.ck-task-row:not(.ck-task-row--empty)');
+                    if (realRows.length === 0) {
+                        var emptyRow = document.createElement('tr');
+                        emptyRow.className = 'ck-task-row--empty';
+                        emptyRow.innerHTML = '<td colspan="8" class="ck-empty-state">'
+                            + (window.CK_EventDetail.i18n && window.CK_EventDetail.i18n.sectionEmpty
+                                ? window.CK_EventDetail.i18n.sectionEmpty
+                                : 'Noch keine Aufgaben in diesem Bereich.')
+                            + '</td>';
+                        fromTbody.appendChild(emptyRow);
+                    }
+
+                    // ── Update section count badges ──
+                    updateSectionBadge(fromTbody);
+                    updateSectionBadge(toTbody);
+                }
 
                 fetch(cfg.routes.tasksBase + '/' + taskId + '/move', {
                     method:  'PATCH',
@@ -1294,8 +1476,7 @@ window.ckEvtTab = function (tabId, btn) {
                     if (! data.success) {
                         ckNotify('error', 'Fehler beim Verschieben der Aufgabe.');
                     }
-                    // No full page reload — the DOM position is already correct after DnD.
-                    // Progress bars are updated on the next checkbox interaction.
+                    // DOM position already updated by SortableJS; no reload needed.
                 })
                 .catch(function () {
                     ckNotify('error', 'Netzwerkfehler beim Verschieben. Seite neu laden.');

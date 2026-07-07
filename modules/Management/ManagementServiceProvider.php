@@ -153,7 +153,9 @@ class ManagementServiceProvider extends ServiceProvider
                 'mgmtBesetzungHasAny'    => false,
             ];
 
-            $event = $view->getData()['event'] ?? null;
+            $event = $view->getData()['event']
+                ?? request()->route('event')
+                ?? null;
             if (! $event) {
                 $view->with($empty);
                 return;
@@ -215,7 +217,9 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            $event = $view->getData()['event'] ?? null;
+            $event = $view->getData()['event']
+                ?? request()->route('event')
+                ?? null;
             if (! $event) {
                 $view->with($empty);
                 return;
@@ -249,18 +253,16 @@ class ManagementServiceProvider extends ServiceProvider
 
             // Event-specific categories for the task form category dropdown.
             $mgmtCategoriesJs = [];
-            if (Schema::hasTable('event_task_categories')) {
-                foreach (DB::table('event_task_categories')
-                    ->where('event_id', $event->id)
-                    ->orderBy('sort_order')
-                    ->orderBy('name')
-                    ->get() as $cat) {
-                    $mgmtCategoriesJs[$cat->id] = [
-                        'id'    => $cat->id,
-                        'name'  => $cat->name,
-                        'color' => $cat->color ?? null,
-                    ];
-                }
+            foreach (DB::table('event_task_categories')
+                ->where('event_id', $event->id)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get() as $cat) {
+                $mgmtCategoriesJs[$cat->id] = [
+                    'id'    => $cat->id,
+                    'name'  => $cat->name,
+                    'color' => $cat->color ?? null,
+                ];
             }
 
             // Event-day tasks for the Einsatzplan slot-modal task dropdown.
@@ -407,7 +409,9 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            $event = $view->getData()['event'] ?? null;
+            $event = $view->getData()['event']
+                ?? request()->route('event')
+                ?? null;
             if (! $event) {
                 $view->with($empty);
                 return;
@@ -796,6 +800,7 @@ class ManagementServiceProvider extends ServiceProvider
 
             $empty = [
                 'mgmtByCategory'           => [],
+                'mgmtAllgSection'          => ['tasks' => [], 'secDone' => 0, 'secTotal' => 0, 'secColor' => 'gray'],
                 'mgmtEventCategories'      => collect(),
                 'mgmtMemberMap'            => [],
                 'mgmtAvailableGlobalTasks' => collect(),
@@ -808,61 +813,79 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            $event = $view->getData()['event'] ?? null;
+            $event = $view->getData()['event']
+                ?? request()->route('event')
+                ?? null;
             if (! $event) {
                 $view->with($empty);
                 return;
             }
 
-            // Load all event tasks with their event-local category, sorted by sort_order.
+            // Load all event tasks ordered by sort_order (the DnD order).
+            // Column sorting is handled client-side in events-detail.js —
+            // no server-side ?task_sort param is needed.
             $eventTasks = EventTask::with('category')
                 ->where('event_id', $event->id)
                 ->orderBy('sort_order')
                 ->get();
 
-            // Group tasks into category sections; "allgemein" receives uncategorised tasks.
-            $rawByCategory = [];
+            // Load event categories. No Schema::hasTable guard needed here:
+            // the guard for 'event_tasks' at the top of the composer is sufficient —
+            // if the Management module is installed, all its tables exist.
+            $eventCategories = EventTaskCategory::where('event_id', $event->id)
+                ->orderBy('sort_order')
+                ->get();
+
+            // All event categories are shown as sections — even empty ones.
+            // First, create empty sections for every category (ordered by sort_order).
+            $byCategory    = [];
             $uncategorized = [];
+
+            foreach ($eventCategories as $cat) {
+                $byCategory[$cat->id] = [
+                    'category' => $cat,
+                    'tasks'    => [],
+                    'secDone'  => 0,
+                    'secTotal' => 0,
+                    'secColor' => 'gray',
+                ];
+            }
+
+            // Fill tasks into their category sections.
             foreach ($eventTasks as $task) {
-                if ($task->category) {
-                    $catKey = $task->category_id;
-                    if (! isset($rawByCategory[$catKey])) {
-                        $rawByCategory[$catKey] = ['category' => $task->category, 'tasks' => []];
-                    }
-                    $rawByCategory[$catKey]['tasks'][] = $task;
+                if ($task->category_id && isset($byCategory[$task->category_id])) {
+                    $byCategory[$task->category_id]['tasks'][] = $task;
+                } elseif ($task->category_id && $task->category) {
+                    // Category exists in DB but was not in the pre-loaded array (edge case)
+                    $byCategory[$task->category_id] = [
+                        'category' => $task->category,
+                        'tasks'    => [$task],
+                        'secDone'  => 0,
+                        'secTotal' => 1,
+                        'secColor' => 'gray',
+                    ];
                 } else {
                     $uncategorized[] = $task;
                 }
             }
 
-            // Sort category sections by their user-defined sort_order.
-            usort($rawByCategory, fn ($a, $b) => $a['category']->sort_order <=> $b['category']->sort_order);
-
-            $byCategory = [];
-            foreach ($rawByCategory as $catData) {
-                $cat   = $catData['category'];
-                $tasks = $catData['tasks'];
-                $done  = (int) collect($tasks)->where('completed', true)->count();
-                $total = count($tasks);
-                $byCategory[$cat->id] = [
-                    'category' => $cat,
-                    'tasks'    => $tasks,
-                    'secDone'  => $done,
-                    'secTotal' => $total,
-                    'secColor' => $done === $total && $total > 0 ? 'green' : ($done > 0 ? 'orange' : 'gray'),
-                ];
+            // Calculate progress for each category section.
+            foreach ($byCategory as $catId => $sec) {
+                $done  = (int) collect($sec['tasks'])->where('completed', true)->count();
+                $total = count($sec['tasks']);
+                $byCategory[$catId]['secDone']  = $done;
+                $byCategory[$catId]['secTotal'] = $total;
+                $byCategory[$catId]['secColor'] = $done === $total && $total > 0 ? 'green' : ($done > 0 ? 'orange' : 'gray');
             }
 
-            // "Allgemein" section always appears last — even when empty — so users
-            // can always add uncategorised tasks without needing a named category first.
-            $done  = (int) collect($uncategorized)->where('completed', true)->count();
-            $total = count($uncategorized);
-            $byCategory['allgemein'] = [
-                'category' => null,
+            // Uncategorised tasks are passed separately — the General section is hardcoded in the template.
+            $allgDone  = (int) collect($uncategorized)->where('completed', true)->count();
+            $allgTotal = count($uncategorized);
+            $allgSection = [
                 'tasks'    => $uncategorized,
-                'secDone'  => $done,
-                'secTotal' => $total,
-                'secColor' => $done === $total && $total > 0 ? 'green' : ($done > 0 ? 'orange' : 'gray'),
+                'secDone'  => $allgDone,
+                'secTotal' => $allgTotal,
+                'secColor' => $allgDone === $allgTotal && $allgTotal > 0 ? 'green' : ($allgDone > 0 ? 'orange' : 'gray'),
             ];
 
             // Member assignments per task (task-tab: no time window — time_from IS NULL).
@@ -891,10 +914,6 @@ class ManagementServiceProvider extends ServiceProvider
                 }
             }
 
-            // Event task categories for the "add category" and task-move context.
-            $eventCategories = Schema::hasTable('event_task_categories')
-                ? EventTaskCategory::where('event_id', $event->id)->orderBy('sort_order')->get()
-                : collect();
 
             // Global tasks not yet imported to this event (for "import from library" dropdown).
             $availableGlobalTasks = collect();
@@ -913,11 +932,23 @@ class ManagementServiceProvider extends ServiceProvider
                     ->get();
             }
 
+            // Build a simple array for the JS bridge (no closures — safe for @json()).
+            $globalTasksJs = [];
+            foreach ($availableGlobalTasks as $mgmtT) {
+                $globalTasksJs[] = [
+                    'id'       => $mgmtT->id,
+                    'name'     => $mgmtT->name,
+                    'priority' => $mgmtT->priority ?? 'normal',
+                ];
+            }
+
             $view->with([
-                'mgmtByCategory'           => $byCategory,
+                'mgmtByCategory'           => $byCategory,   // Named categories only (integer keys)
+                'mgmtAllgSection'          => $allgSection,  // Allgemein (hardcoded im Template)
                 'mgmtEventCategories'      => $eventCategories,
                 'mgmtMemberMap'            => $memberMap,
                 'mgmtAvailableGlobalTasks' => $availableGlobalTasks,
+                'mgmtGlobalTasksJs'        => $globalTasksJs,
                 'mgmtPriorityColors'       => $priorityColors,
                 'mgmtPriorityLabels'       => $priorityLabels,
             ]);
@@ -957,7 +988,9 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            $event = $view->getData()['event'] ?? null;
+            $event = $view->getData()['event']
+                ?? request()->route('event')
+                ?? null;
             if (! $event) {
                 $view->with($empty);
                 return;
@@ -1051,7 +1084,9 @@ class ManagementServiceProvider extends ServiceProvider
                 return;
             }
 
-            $event = $view->getData()['event'] ?? null;
+            $event = $view->getData()['event']
+                ?? request()->route('event')
+                ?? null;
             if (! $event) {
                 $view->with($empty);
                 return;
