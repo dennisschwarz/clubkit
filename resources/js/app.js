@@ -29,10 +29,22 @@ flatpickr.setDefaults({
 // Make globally available for standalone JS modules (events-modal.js etc.)
 window.flatpickr = flatpickr;
 
+/**
+ * Liest einen UI-String aus window.CK_Lang.ui.
+ * Gibt den deutschen Fallback zurück, falls der Bridge-Key fehlt.
+ *
+ * @param  {string} key      - Schlüssel aus window.CK_Lang.ui
+ * @param  {string} fallback - Deutscher Fallback-Text
+ * @return {string}
+ */
+window.ckUi = function (key, fallback) {
+    return (((window.CK_Lang || {}).ui || {})[key]) || fallback;
+};
+
 // ── Global confirm modal state ─────────────────────────────────────────────
 // Shared callback reference: set before opening the confirm modal,
 // cleared after the user confirms or cancels.
-window.window._ckConfirmCallback = null;  // window-scoped so ckConfirmCancel() can clear it
+window._ckConfirmCallback = null;  // window-scoped so ckConfirmCancel() can clear it
 
 /**
  * Open the global confirm modal with a message and execute a callback on confirm.
@@ -215,7 +227,7 @@ function _ckFpAddTrigger(instance) {
     var trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'ck-fp-trigger';
-    trigger.setAttribute('aria-label', 'Kalender öffnen');
+    trigger.setAttribute('aria-label', ckUi('fp_calendar_aria', 'Kalender öffnen'));
     trigger.setAttribute('tabindex', '-1'); // Not in tab order – field itself is focusable.
     trigger.textContent = '📅';
     trigger.addEventListener('click', function (e) {
@@ -304,7 +316,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 var confirmBtn          = document.createElement('button');
                 confirmBtn.type         = 'button';
                 confirmBtn.className    = 'ck-fp-confirm';
-                confirmBtn.textContent  = '✓ Datum & Uhrzeit übernehmen';
+                confirmBtn.textContent  = ckUi('fp_confirm_btn', '✓ Datum & Uhrzeit übernehmen');
                 confirmBtn.disabled     = true; // Disabled until a date is chosen.
                 confirmBtn.classList.add('ck-fp-confirm--disabled');
                 confirmBtn.addEventListener('click', function () { instance.close(); });

@@ -92,11 +92,11 @@ class ModuleController extends Controller
         $available = $this->moduleLoader->detectAvailable();
 
         if (! isset($available[$slug])) {
-            return back()->with('error', "Modul '$slug' nicht gefunden.");
+            return back()->with('error', __('modules.flash.not_found', ['slug' => $slug]));
         }
 
         if (DB::table('installed_modules')->where('slug', $slug)->exists()) {
-            return back()->with('error', "Modul '$slug' ist bereits installiert.");
+            return back()->with('error', __('modules.flash.already_installed', ['slug' => $slug]));
         }
 
         // All required dependencies must be installed and active first.
@@ -106,7 +106,7 @@ class ModuleController extends Controller
                 continue;
             }
             if (! DB::table('installed_modules')->where('slug', $dep)->where('is_active', true)->exists()) {
-                return back()->with('error', "Abhängigkeit '$dep' muss zuerst installiert und aktiv sein.");
+                return back()->with('error', __('modules.flash.dep_required', ['dep' => $dep]));
             }
         }
 
@@ -131,10 +131,10 @@ class ModuleController extends Controller
 
             Artisan::call('optimize:clear');
         } catch (\Throwable $e) {
-            return back()->with('error', 'Fehler bei Installation: ' . $e->getMessage());
+            return back()->with('error', __('modules.flash.install_error', ['error' => $e->getMessage()]));
         }
 
-        return back()->with('success', "Modul '{$available[$slug]['name']}' installiert.");
+        return back()->with('success', __('modules.flash.installed', ['name' => $available[$slug]['name']]));
     }
 
     /**
@@ -158,7 +158,7 @@ class ModuleController extends Controller
                 continue;
             }
             if (! DB::table('installed_modules')->where('slug', $dep)->where('is_active', true)->exists()) {
-                return back()->with('error', "Abhängigkeit '$dep' muss aktiv sein, bevor '$slug' aktiviert werden kann.");
+                return back()->with('error', __('modules.flash.dep_activate_required', ['dep' => $dep, 'slug' => $slug]));
             }
         }
 
@@ -168,7 +168,7 @@ class ModuleController extends Controller
 
         Artisan::call('optimize:clear');
 
-        return back()->with('success', "Modul '$slug' aktiviert.");
+        return back()->with('success', __('modules.flash.activated', ['slug' => $slug]));
     }
 
     /**
@@ -182,7 +182,7 @@ class ModuleController extends Controller
     public function deactivate(string $slug): RedirectResponse
     {
         if ($slug === 'core') {
-            return back()->with('error', 'Das Core-Modul kann nicht deaktiviert werden.');
+            return back()->with('error', __('modules.flash.core_deactivate_forbidden'));
         }
 
         DB::table('installed_modules')
@@ -191,7 +191,7 @@ class ModuleController extends Controller
 
         Artisan::call('optimize:clear');
 
-        return back()->with('success', "Modul '$slug' deaktiviert. Daten bleiben erhalten.");
+        return back()->with('success', __('modules.flash.deactivated', ['slug' => $slug]));
     }
 
     /**
@@ -211,13 +211,13 @@ class ModuleController extends Controller
     public function remove(string $slug): RedirectResponse
     {
         if ($slug === 'core') {
-            return back()->with('error', 'Das Core-Modul kann nicht gelöscht werden.');
+            return back()->with('error', __('modules.flash.core_delete_forbidden'));
         }
 
         $installed = DB::table('installed_modules')->where('slug', $slug)->first();
 
         if (! $installed) {
-            return back()->with('error', "Modul '$slug' ist nicht installiert.");
+            return back()->with('error', __('modules.flash.not_installed', ['slug' => $slug]));
         }
 
         // Block removal if other active modules depend on this one
@@ -236,9 +236,7 @@ class ModuleController extends Controller
         }
 
         if (! empty($dependents)) {
-            return back()->with('error',
-                'Kann nicht entfernt werden. Folgende Module sind abhängig: ' . implode(', ', $dependents)
-            );
+            return back()->with('error', __('modules.flash.has_dependents', ['modules' => implode(', ', $dependents)]));
         }
 
         try {
@@ -271,10 +269,10 @@ class ModuleController extends Controller
         } catch (\Throwable $e) {
             // Ensure FK constraints are always re-enabled even on failure
             Schema::enableForeignKeyConstraints();
-            return back()->with('error', 'Fehler beim Entfernen: ' . $e->getMessage());
+            return back()->with('error', __('modules.flash.remove_error', ['error' => $e->getMessage()]));
         }
 
-        return back()->with('success', "Modul '$slug' und alle zugehörigen Daten wurden entfernt.");
+        return back()->with('success', __('modules.flash.removed', ['slug' => $slug]));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

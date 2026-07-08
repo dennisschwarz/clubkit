@@ -69,7 +69,7 @@ class RolesController extends Controller
         $role->syncPermissions($request->input('permissions', []));
 
         return redirect()->route('admin.roles.index')
-            ->with('success', 'Rolle „' . $role->name . '" angelegt.');
+            ->with('success', __('roles.flash.created', ['name' => $role->name]));
     }
 
     /**
@@ -91,7 +91,7 @@ class RolesController extends Controller
         $role->syncPermissions($request->input('permissions', []));
 
         return redirect()->route('admin.roles.index')
-            ->with('success', 'Rolle „' . $role->name . '" aktualisiert.');
+            ->with('success', __('roles.flash.updated', ['name' => $role->name]));
     }
 
     /**
@@ -103,13 +103,13 @@ class RolesController extends Controller
     public function destroy(Role $role): RedirectResponse
     {
         if (in_array($role->name, ['super-admin', 'admin', 'user'], true)) {
-            return back()->with('error', 'Systemrollen können nicht gelöscht werden.');
+            return back()->with('error', __('roles.flash.system_delete_forbidden'));
         }
 
         $name = $role->name;
         $role->delete();
 
         return redirect()->route('admin.roles.index')
-            ->with('success', 'Rolle „' . $name . '" gelöscht.');
+            ->with('success', __('roles.flash.deleted', ['name' => $name]));
     }
 }

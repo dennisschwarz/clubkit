@@ -48,11 +48,13 @@ class EventTaskMember extends Model
         'member_id',
         'time_from',
         'time_to',
+        'sort_order',
     ];
 
     protected $casts = [
-        'time_from' => 'datetime',
-        'time_to'   => 'datetime',
+        'time_from'  => 'datetime',
+        'time_to'    => 'datetime',
+        'sort_order' => 'integer',
     ];
 
     /**
@@ -73,7 +75,7 @@ class EventTaskMember extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['event_task_id', 'member_id', 'time_from', 'time_to'])
+            ->logOnly(['event_task_id', 'member_id', 'time_from', 'time_to', 'sort_order'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('management');

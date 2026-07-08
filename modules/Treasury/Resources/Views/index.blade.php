@@ -1,12 +1,12 @@
 @extends('core::admin.layout')
-@section('title', 'Vereinskasse')
+@section('title', __('treasury.title'))
 
 @section('content')
 
 <div class="ck-page-header">
     <div>
-        <h1 class="ck-page-title">💰 Vereinskasse</h1>
-        <p class="ck-page-subtitle">Buchungen, Konten und Beitragsverwaltung</p>
+        <h1 class="ck-page-title">💰 {{ __('treasury.title') }}</h1>
+        <p class="ck-page-subtitle">{{ __('treasury.subtitle') }}</p>
     </div>
 </div>
 
@@ -21,22 +21,22 @@
 <div class="ck-local-tabs ck-mb-5">
     <button class="ck-local-tab ck-local-tab--blue {{ request('tab', 'zusammenfassung') === 'zusammenfassung' ? 'ck-local-tab--active' : '' }}"
             onclick="ckLocalTab('treasuryTab-zusammenfassung', this)">
-        📊 Zusammenfassung
+        {{ __('treasury.tab.summary') }}
     </button>
     <button class="ck-local-tab ck-local-tab--blue {{ request('tab') === 'buchungen' ? 'ck-local-tab--active' : '' }}"
             onclick="ckLocalTab('treasuryTab-buchungen', this)">
-        📒 Buchungen
+        {{ __('treasury.tab.transactions') }}
     </button>
     @can('treasury.accounts.manage')
     <button class="ck-local-tab ck-local-tab--purple {{ request('tab') === 'konten' ? 'ck-local-tab--active' : '' }}"
             onclick="ckLocalTab('treasuryTab-konten', this)">
-        🏦 Konten
+        {{ __('treasury.tab.accounts') }}
     </button>
     @endcan
     @can('treasury.contributions.manage')
     <button class="ck-local-tab ck-local-tab--green {{ request('tab') === 'beitraege' ? 'ck-local-tab--active' : '' }}"
             onclick="ckLocalTab('treasuryTab-beitraege', this)">
-        📋 Beiträge
+        {{ __('treasury.tab.contributions') }}
     </button>
     @endcan
 </div>
@@ -50,11 +50,11 @@
     {{-- Account selector --}}
     @if($visibleAccounts->count() > 1)
     <div class="ck-summary-selector ck-mb-5">
-        <label class="ck-field-label" for="summaryAccountDropdown">Kasse auswählen</label>
+        <label class="ck-field__label" for="summaryAccountDropdown">{{ __('treasury.select_account') }}</label>
         <select id="summaryAccountDropdown"
-                class="ck-field-input ck-summary-selector__select"
+                class="ck-field__input ck-summary-selector__select"
                 onchange="treasurySummaryFilter(this.value)">
-            <option value="">Alle Konten</option>
+            <option value="">{{ __('treasury.all_accounts') }}</option>
             @foreach($visibleAccounts->sortBy('name') as $a)
             <option value="{{ $a->id }}">{{ $a->name }}</option>
             @endforeach
@@ -65,20 +65,20 @@
     {{-- Stats cards --}}
     <div class="ck-stats-row ck-mb-5">
         <div class="ck-stat-card ck-stat-card--green">
-            <div class="ck-stat-card__label">Einnahmen</div>
+            <div class="ck-stat-card__label">{{ __('treasury.stats.income') }}</div>
             <div class="ck-stat-card__value" id="summaryIncome">
                 {{ number_format($totalIncome, 2, ',', '.') }} €
             </div>
         </div>
         <div class="ck-stat-card ck-stat-card--red">
-            <div class="ck-stat-card__label">Ausgaben</div>
+            <div class="ck-stat-card__label">{{ __('treasury.stats.expense') }}</div>
             <div class="ck-stat-card__value" id="summaryExpense">
                 {{ number_format($totalExpense, 2, ',', '.') }} €
             </div>
         </div>
         <div id="summaryBalanceCard"
              class="ck-stat-card {{ $totalBalance >= 0 ? 'ck-stat-card--blue' : 'ck-stat-card--orange' }}">
-            <div class="ck-stat-card__label">Saldo</div>
+            <div class="ck-stat-card__label">{{ __('treasury.stats.balance') }}</div>
             <div class="ck-stat-card__value" id="summaryBalance">
                 {{ number_format($totalBalance, 2, ',', '.') }} €
             </div>
@@ -87,15 +87,15 @@
 
     {{-- Recent transactions (no member names) --}}
     <x-ck-card>
-        <x-slot:header>Letzte Buchungen</x-slot:header>
+        <x-slot:header>{{ __('treasury.recent_title') }}</x-slot:header>
         <table class="ck-table">
             <thead>
                 <tr>
-                    <th>Datum</th>
-                    <th>Konto</th>
-                    <th>Kategorie</th>
-                    <th>Beschreibung</th>
-                    <th class="ck-table__col--right">Betrag</th>
+                    <th>{{ __('treasury.col.date') }}</th>
+                    <th>{{ __('treasury.col.account') }}</th>
+                    <th>{{ __('treasury.col.category') }}</th>
+                    <th>{{ __('treasury.col.description') }}</th>
+                    <th class="ck-table__col--right">{{ __('treasury.col.amount') }}</th>
                 </tr>
             </thead>
             <tbody id="summaryRecentTbody">
@@ -107,7 +107,7 @@
                         @if($tx['category_name'])
                             <x-ck-badge :color="$tx['category_color'] ?? 'gray'">{{ $tx['category_name'] }}</x-ck-badge>
                         @else
-                            <span class="ck-muted">–</span>
+                            <span class="ck-text-muted">–</span>
                         @endif
                     </td>
                     <td>{{ $tx['description'] }}</td>
@@ -120,7 +120,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="ck-empty-state">Noch keine Buchungen vorhanden.</td>
+                    <td colspan="5" class="ck-empty-state">{{ __('treasury.empty.transactions') }}</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -144,26 +144,26 @@
             <input type="hidden" name="tab" value="buchungen">
 
             <x-ck-field name="filter[account]" type="select" :value="$filters['account']"
-                :options="['' => 'Alle Konten'] + $visibleAccounts->pluck('name', 'id')->toArray()" />
+                :options="['' => __('treasury.all_accounts')] + $visibleAccounts->pluck('name', 'id')->toArray()" />
 
             <x-ck-field name="filter[category]" type="select" :value="$filters['category']"
-                :options="['' => 'Alle Kategorien'] + $categories->pluck('name', 'id')->toArray()" />
+                :options="['' => __('treasury.all_categories')] + $categories->pluck('name', 'id')->toArray()" />
 
             <x-ck-field name="filter[date_from]" type="date" :value="$filters['date_from']" placeholder="Von" />
             <x-ck-field name="filter[date_to]"   type="date" :value="$filters['date_to']"   placeholder="Bis" />
             <x-ck-field name="filter[q]"         type="text" :value="$filters['q']"         placeholder="Suche…" />
 
-            <x-ck-button type="submit" variant="secondary" size="sm">Filtern</x-ck-button>
+            <x-ck-button type="submit" variant="secondary" size="sm">{{ __('treasury.filter.submit') }}</x-ck-button>
             @if(array_filter($filters))
                 <x-ck-button :href="route('treasury.index', ['tab' => 'buchungen'])" variant="secondary" size="sm">
-                    Zurücksetzen
+                    {{ __('treasury.filter.reset') }}
                 </x-ck-button>
             @endif
         </form>
 
         @can('treasury.transactions.manage')
         <x-ck-button variant="success" onclick="treasuryOpen('transaction', 'create')">
-            + Buchung erfassen
+            {{ __('treasury.create_transaction') }}
         </x-ck-button>
         @endcan
     </div>
@@ -174,21 +174,21 @@
         {{-- Left: Income (Einnahmen) --}}
         <div class="ck-buchungen-col ck-buchungen-col--income">
             <div class="ck-buchungen-col__header">
-                <span>↑ Einnahmen</span>
+                <span>{{ __('treasury.col.income') }}</span>
                 <span class="ck-amount--income">
                     {{ number_format($filteredIncomeSum, 2, ',', '.') }} €
                 </span>
             </div>
             @if($incomeTransactions->isEmpty())
-                <div class="ck-buchungen-col__empty">Keine Einnahmen gefunden.</div>
+                <div class="ck-buchungen-col__empty">{{ __('treasury.empty.income') }}</div>
             @else
                 <table class="ck-table ck-buchungen-col__table">
                     <thead>
                         <tr>
-                            <x-ck-sort-header column="transaction_date" label="Datum" />
-                            <th>Kategorie</th>
-                            <x-ck-sort-header column="description" label="Beschreibung" />
-                            <x-ck-sort-header column="amount" label="Betrag" justify="end" />
+                            <x-ck-sort-header column="transaction_date" :label="__('treasury.col.date')" />
+                            <th>{{ __('treasury.col.category') }}</th>
+                            <x-ck-sort-header column="description" :label="__('treasury.col.description')" />
+                            <x-ck-sort-header column="amount" :label="__('treasury.col.amount')" justify="end" />
                             @can('treasury.transactions.manage')
                             <th class="ck-table__col--actions"></th>
                             @endcan
@@ -202,7 +202,7 @@
                                 @if($tx->category)
                                     <x-ck-badge :color="$tx->category->color ?? 'gray'">{{ $tx->category->name }}</x-ck-badge>
                                 @else
-                                    <span class="ck-muted">–</span>
+                                    <span class="ck-text-muted">–</span>
                                 @endif
                             </td>
                             <td>{{ $tx->description }}</td>
@@ -215,13 +215,13 @@
                             <td class="ck-table__col--actions">
                                 <x-ck-button variant="secondary" size="sm"
                                     onclick="treasuryOpen('transaction', 'edit', {{ $tx->id }})">
-                                    Bearbeiten
+                                    {{ __('Edit') }}
                                 </x-ck-button>
                                 <form method="POST" action="{{ route('treasury.transactions.destroy', $tx->id) }}">
                                     @csrf @method('DELETE')
                                     <x-ck-button type="submit" variant="danger" size="sm"
-                                        :confirm="'Buchung »' . $tx->description . '« wirklich löschen?'">
-                                        Löschen
+                                        :confirm="__('treasury.confirm.delete_transaction', ['name' => $tx->description])">
+                                        {{ __('Delete') }}
                                     </x-ck-button>
                                 </form>
                             </td>
@@ -232,7 +232,7 @@
                 </table>
                 @if($incomeTransactions->count() >= 50)
                     <p class="ck-buchungen-col__more">
-                        Mehr als 50 Einnahmen – Filter verwenden um einzugrenzen.
+                        {{ __('treasury.limit_hint_income') }}
                     </p>
                 @endif
             @endif
@@ -241,13 +241,13 @@
         {{-- Right: Expenses (Ausgaben) --}}
         <div class="ck-buchungen-col ck-buchungen-col--expense">
             <div class="ck-buchungen-col__header">
-                <span>↓ Ausgaben</span>
+                <span>{{ __('treasury.col.expense') }}</span>
                 <span class="ck-amount--expense">
                     {{ number_format($filteredExpenseSum, 2, ',', '.') }} €
                 </span>
             </div>
             @if($expenseTransactions->isEmpty())
-                <div class="ck-buchungen-col__empty">Keine Ausgaben gefunden.</div>
+                <div class="ck-buchungen-col__empty">{{ __('treasury.empty.expense') }}</div>
             @else
                 <table class="ck-table ck-buchungen-col__table">
                     <thead>
@@ -269,7 +269,7 @@
                                 @if($tx->category)
                                     <x-ck-badge :color="$tx->category->color ?? 'gray'">{{ $tx->category->name }}</x-ck-badge>
                                 @else
-                                    <span class="ck-muted">–</span>
+                                    <span class="ck-text-muted">–</span>
                                 @endif
                             </td>
                             <td>{{ $tx->description }}</td>
@@ -282,13 +282,13 @@
                             <td class="ck-table__col--actions">
                                 <x-ck-button variant="secondary" size="sm"
                                     onclick="treasuryOpen('transaction', 'edit', {{ $tx->id }})">
-                                    Bearbeiten
+                                    {{ __('Edit') }}
                                 </x-ck-button>
                                 <form method="POST" action="{{ route('treasury.transactions.destroy', $tx->id) }}">
                                     @csrf @method('DELETE')
                                     <x-ck-button type="submit" variant="danger" size="sm"
-                                        :confirm="'Buchung »' . $tx->description . '« wirklich löschen?'">
-                                        Löschen
+                                        :confirm="__('treasury.confirm.delete_transaction', ['name' => $tx->description])">
+                                        {{ __('Delete') }}
                                     </x-ck-button>
                                 </form>
                             </td>
@@ -299,7 +299,7 @@
                 </table>
                 @if($expenseTransactions->count() >= 50)
                     <p class="ck-buchungen-col__more">
-                        Mehr als 50 Ausgaben – Filter verwenden um einzugrenzen.
+                        {{ __('treasury.limit_hint_expense') }}
                     </p>
                 @endif
             @endif
@@ -318,22 +318,22 @@
     <div class="ck-row ck-row--between ck-mb-4">
         <div></div>
         <x-ck-button variant="success" onclick="treasuryOpen('account', 'create')">
-            + Neues Konto
+            {{ __('treasury.create_account') }}
         </x-ck-button>
     </div>
 
     <x-ck-card>
         @if($visibleAccounts->isEmpty())
-            <p class="ck-empty-state">Noch keine Konten angelegt.</p>
+            <p class="ck-empty-state">{{ __('treasury.empty.accounts') }}</p>
         @else
             <table class="ck-table">
                 <thead>
                     <tr>
-                        <th>Konto</th>
-                        <th>Typ</th>
-                        <th>Sichtbarkeit</th>
-                        <th class="ck-table__col--right">Saldo</th>
-                        <th class="ck-table__col--actions">Aktionen</th>
+                        <th>{{ __('treasury.col.account') }}</th>
+                        <th>{{ __('treasury.col.type') }}</th>
+                        <th>{{ __('treasury.col.visibility') }}</th>
+                        <th class="ck-table__col--right">{{ __('treasury.col.balance') }}</th>
+                        <th class="ck-table__col--actions">{{ __('core.col.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -341,25 +341,25 @@
                     <tr>
                         <td>
                             @if($account->parent_id)
-                                <span class="ck-muted">↳ </span>
+                                <span class="ck-text-muted">↳ </span>
                             @endif
                             <strong>{{ $account->name }}</strong>
                             @if($account->description)
-                                <small class="ck-muted ck-block">{{ $account->description }}</small>
+                                <small class="ck-text-muted ck-block">{{ $account->description }}</small>
                             @endif
                         </td>
                         <td>
                             @if($account->parent_id)
-                                <x-ck-badge color="gray">Unterkonto</x-ck-badge>
+                                <x-ck-badge color="gray">{{ __('treasury.account.sub') }}</x-ck-badge>
                             @else
-                                <x-ck-badge color="blue">Hauptkonto</x-ck-badge>
+                                <x-ck-badge color="blue">{{ __('treasury.account.main') }}</x-ck-badge>
                             @endif
                         </td>
                         <td>
                             @if($account->visibility === 'public')
-                                <x-ck-badge color="green">Öffentlich</x-ck-badge>
+                                <x-ck-badge color="green">{{ __('treasury.account.public') }}</x-ck-badge>
                             @else
-                                <x-ck-badge color="orange">Team-intern</x-ck-badge>
+                                <x-ck-badge color="orange">{{ __('treasury.account.team_restricted') }}</x-ck-badge>
                             @endif
                         </td>
                         <td class="ck-table__col--right">
@@ -371,13 +371,13 @@
                         <td class="ck-table__col--actions">
                             <x-ck-button variant="secondary" size="sm"
                                 onclick="treasuryOpen('account', 'edit', {{ $account->id }})">
-                                Bearbeiten
+                                {{ __('Edit') }}
                             </x-ck-button>
                             <form method="POST" action="{{ route('treasury.accounts.destroy', $account->id) }}">
                                 @csrf @method('DELETE')
                                 <x-ck-button type="submit" variant="danger" size="sm"
-                                    :confirm="'Konto »' . $account->name . '« wirklich löschen?'">
-                                    Löschen
+                                    :confirm="__('treasury.confirm.delete_account', ['name' => $account->name])">
+                                    {{ __('Delete') }}
                                 </x-ck-button>
                             </form>
                         </td>
@@ -400,16 +400,13 @@
     <div class="ck-row ck-row--between ck-mb-4">
         <div></div>
         <x-ck-button variant="success" onclick="treasuryOpen('contribution', 'create')">
-            + Aufgabe zuweisen
+            {{ __('treasury.create_contribution') }}
         </x-ck-button>
     </div>
 
     @if($taskMetas->isEmpty())
         <x-ck-card>
-            <p class="ck-empty-state">
-                Keine Beitragsaufgaben vorhanden.
-                Weise eine Aufgabe einer Kasse zu, um die Beitragsverwaltung zu nutzen.
-            </p>
+            <p class="ck-empty-state">{{ __('treasury.empty.contributions') }}</p>
         </x-ck-card>
     @else
         @foreach($taskMetas as $meta)
@@ -418,21 +415,21 @@
                 <div class="ck-row ck-row--between">
                     <div class="ck-row ck-row--gap">
                         <strong>{{ $meta->task?->name }}</strong>
-                        <span class="ck-muted">→ {{ $meta->account?->name }}</span>
+                        <span class="ck-text-muted">→ {{ $meta->account?->name }}</span>
                         @if($meta->due_date)
-                            <x-ck-badge color="gray">Fällig: {{ $meta->due_date->format('d.m.Y') }}</x-ck-badge>
+                            <x-ck-badge color="gray">{{ __('treasury.contribution.due') }} {{ $meta->due_date->format('d.m.Y') }}</x-ck-badge>
                         @endif
                     </div>
                     <div class="ck-row">
                         <x-ck-button variant="secondary" size="sm"
                             onclick="treasuryOpen('paymentMember', 'create', {{ $meta->id }})">
-                            + Mitglied
+                            {{ __('treasury.add_member') }}
                         </x-ck-button>
                         <form method="POST" action="{{ route('treasury.contributions.destroy', $meta->id) }}">
                             @csrf @method('DELETE')
                             <x-ck-button type="submit" variant="danger" size="sm"
-                                :confirm="'Aufgabe »' . $meta->task?->name . '« aus der Kasse entfernen?'">
-                                Entfernen
+                                :confirm="__('treasury.confirm.remove_contribution', ['name' => $meta->task?->name])">
+                                {{ __('treasury.remove') }}
                             </x-ck-button>
                         </form>
                     </div>
@@ -440,16 +437,16 @@
             </x-slot:header>
 
             @if($meta->payments->isEmpty())
-                <p class="ck-empty-state ck-empty-state--small">Noch keine Mitglieder zugewiesen.</p>
+                <p class="ck-empty-state ck-empty-state--small">{{ __('treasury.empty.members') }}</p>
             @else
                 <table class="ck-table">
                     <thead>
                         <tr>
-                            <th>Mitglied</th>
-                            <th class="ck-table__col--right">Betrag</th>
-                            <th>Status</th>
-                            <th>Bezahlt am</th>
-                            <th class="ck-table__col--actions">Aktionen</th>
+                            <th>{{ __('treasury.col.member') }}</th>
+                            <th class="ck-table__col--right">{{ __('treasury.col.amount') }}</th>
+                            <th>{{ __('treasury.col.status') }}</th>
+                            <th>{{ __('treasury.col.paid_at') }}</th>
+                            <th class="ck-table__col--actions">{{ __('core.col.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -461,9 +458,9 @@
                             </td>
                             <td>
                                 @if($payment->isPaid())
-                                    <x-ck-badge color="green">Bezahlt</x-ck-badge>
+                                    <x-ck-badge color="green">{{ __('treasury.payment.paid') }}</x-ck-badge>
                                 @else
-                                    <x-ck-badge color="orange">Ausstehend</x-ck-badge>
+                                    <x-ck-badge color="orange">{{ __('treasury.payment.pending') }}</x-ck-badge>
                                 @endif
                             </td>
                             <td>{{ $payment->paid_at ? $payment->paid_at->format('d.m.Y') : '–' }}</td>
@@ -472,22 +469,22 @@
                                     <form method="POST" action="{{ route('treasury.contributions.payments.pay', [$meta->id, $payment->id]) }}">
                                         @csrf @method('PATCH')
                                         <x-ck-button type="submit" variant="success" size="sm">
-                                            Als bezahlt markieren
+                                            {{ __('treasury.payment.mark_paid') }}
                                         </x-ck-button>
                                     </form>
                                     <form method="POST" action="{{ route('treasury.contributions.payments.destroy', [$meta->id, $payment->id]) }}">
                                         @csrf @method('DELETE')
                                         <x-ck-button type="submit" variant="danger" size="sm"
-                                            :confirm="'Mitglied aus der Liste entfernen?'">
-                                            Entfernen
+                                            :confirm="__('treasury.payment.confirm_remove')">
+                                            {{ __('treasury.remove') }}
                                         </x-ck-button>
                                     </form>
                                 @else
                                     <form method="POST" action="{{ route('treasury.contributions.payments.unpay', [$meta->id, $payment->id]) }}">
                                         @csrf @method('PATCH')
                                         <x-ck-button type="submit" variant="secondary" size="sm"
-                                            :confirm="'Zahlung zurücksetzen? Die dazugehörige Buchung wird gelöscht.'">
-                                            Zurücksetzen
+                                            :confirm="__('treasury.payment.confirm_unpay')">
+                                            {{ __('treasury.payment.reset') }}
                                         </x-ck-button>
                                     </form>
                                 @endif
@@ -500,8 +497,8 @@
                 {{-- Progress bar: paid/total counts pre-computed by controller in $taskMetaStats. --}}
                 @if(($taskMetaStats[$meta->id]['total'] ?? 0) > 0)
                 <div class="ck-contribution-progress ck-mt-3">
-                    <span class="ck-muted">
-                        {{ $taskMetaStats[$meta->id]['paid'] }} / {{ $taskMetaStats[$meta->id]['total'] }} bezahlt
+                    <span class="ck-text-muted">
+                        {{ __('treasury.payment.progress', ['paid' => $taskMetaStats[$meta->id]['paid'], 'total' => $taskMetaStats[$meta->id]['total']]) }}
                     </span>
                     <div class="ck-progress-bar">
                         <div class="ck-progress-bar__fill"
@@ -523,38 +520,38 @@
 
 {{-- Modal: Buchung erfassen / bearbeiten (2-spaltig) --}}
 @can('treasury.transactions.manage')
-<x-ck-modal id="treasuryTransactionModal" title="Buchung" size="md">
+<x-ck-modal id="treasuryTransactionModal" :title="__('treasury.modal.transaction_title')" size="md">
     <form id="treasuryTransactionForm" method="POST">
         @csrf
         <div id="treasuryTransactionMethodField"></div>
 
         {{-- Konto: volle Breite – wichtigster Kontextgeber --}}
-        <x-ck-field label="Konto" name="account_id" type="select"
-            :options="['' => '– Konto wählen –']" :required="true" />
+        <x-ck-field :label="__('treasury.field.account')" name="account_id" type="select"
+            :options="['' => __('treasury.field.account_select')]" :required="true" />
 
         {{-- 2-spaltig: Typ | Betrag, Datum | Kategorie, Referenz | Mitglied --}}
         <div class="ck-form-grid ck-form-grid--2">
-            <x-ck-field label="Typ" name="type" type="select"
-                :options="['income' => '↑ Einnahme', 'expense' => '↓ Ausgabe']" :required="true" />
-            <x-ck-field label="Betrag (€)" name="amount" type="number"
+            <x-ck-field :label="__('treasury.field.type')" name="type" type="select"
+                :options="['income' => __('treasury.field.type_income'), 'expense' => __('treasury.field.type_expense')]" :required="true" />
+            <x-ck-field :label="__('treasury.field.amount')" name="amount" type="number"
                 placeholder="0.00" :required="true" />
-            <x-ck-field label="Datum" name="transaction_date" type="date" :required="true" />
-            <x-ck-field label="Kategorie" name="category_id" type="select"
-                :options="['' => '– Keine Kategorie –']" />
-            <x-ck-field label="Referenz-Nr." name="reference_number" type="text"
+            <x-ck-field :label="__('treasury.field.date')" name="transaction_date" type="date" :required="true" />
+            <x-ck-field :label="__('treasury.field.category')" name="category_id" type="select"
+                :options="['' => __('treasury.field.no_category')]" />
+            <x-ck-field :label="__('treasury.field.reference')" name="reference_number" type="text"
                 placeholder="RE-12345 (optional)" />
-            <x-ck-field label="Mitglied zuordnen" name="member_id" type="select"
-                :options="['' => '– Kein Mitglied –']" />
+            <x-ck-field :label="__('treasury.field.member')" name="member_id" type="select"
+                :options="['' => __('treasury.field.no_member')]" />
         </div>
 
         {{-- Beschreibung: volle Breite --}}
-        <x-ck-field label="Beschreibung" name="description" type="text"
+        <x-ck-field :label="__('treasury.field.description')" name="description" type="text"
             placeholder="Buchungstext" :required="true" />
 
         <div class="ck-form-actions">
             <x-ck-button type="button" variant="secondary"
-                onclick="ckModalClose(null, 'treasuryTransactionModal')">Abbrechen</x-ck-button>
-            <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
+                onclick="ckModalClose(null, 'treasuryTransactionModal')">{{ __('Cancel') }}</x-ck-button>
+            <x-ck-button type="submit" variant="primary">{{ __('Save') }}</x-ck-button>
         </div>
     </form>
 </x-ck-modal>
@@ -562,24 +559,24 @@
 
 {{-- Modal: Konto anlegen / bearbeiten --}}
 @can('treasury.accounts.manage')
-<x-ck-modal id="treasuryAccountModal" title="Konto" size="md">
+<x-ck-modal id="treasuryAccountModal" :title="__('treasury.modal.account_title')" size="md">
     <form id="treasuryAccountForm" method="POST">
         @csrf
         <div id="treasuryAccountMethodField"></div>
 
-        <x-ck-field label="Kontoname" name="name" type="text"
+        <x-ck-field :label="__('treasury.field.account_name')" name="name" type="text"
             placeholder="z.B. Jugendkasse" :required="true" />
-        <x-ck-field label="Beschreibung" name="description" type="text" placeholder="Optional" />
-        <x-ck-field label="Übergeordnetes Konto (Unterkonto von)" name="parent_id" type="select"
-            :options="['' => '– Kein übergeordnetes Konto –']" />
-        <x-ck-field label="Sichtbarkeit" name="visibility" type="select"
-            :options="['public' => 'Öffentlich', 'team_restricted' => 'Nur für Teammitglieder']"
+        <x-ck-field :label="__('treasury.field.description')" name="description" type="text" placeholder="Optional" />
+        <x-ck-field :label="__('treasury.field.parent_account')" name="parent_id" type="select"
+            :options="['' => __('treasury.field.no_parent')]" />
+        <x-ck-field :label="__('treasury.field.visibility')" name="visibility" type="select"
+            :options="['public' => __('treasury.account.public'), 'team_restricted' => __('treasury.account.team_restricted')]"
             :required="true" onchange="treasuryAccountVisibilityChange(this.value)" />
 
         {{-- Team-Zuweisung: via .ck-multiselect-list mit Checkboxes, per JS befüllt --}}
         <div id="treasuryAccountTeamSection" class="is-hidden">
             <div class="ck-field">
-                <span class="ck-field__label">Team(s) zuweisen</span>
+                <span class="ck-field__label">{{ __('treasury.field.teams') }}</span>
                 <div class="ck-multiselect-list ck-multiselect-list--scrollable"
                      id="treasuryAccountTeamList">
                     {{-- via JS befüllt (populateTeamCheckboxes) --}}
@@ -589,8 +586,8 @@
 
         <div class="ck-form-actions">
             <x-ck-button type="button" variant="secondary"
-                onclick="ckModalClose(null, 'treasuryAccountModal')">Abbrechen</x-ck-button>
-            <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
+                onclick="ckModalClose(null, 'treasuryAccountModal')">{{ __('Cancel') }}</x-ck-button>
+            <x-ck-button type="submit" variant="primary">{{ __('Save') }}</x-ck-button>
         </div>
     </form>
 </x-ck-modal>
@@ -598,41 +595,41 @@
 
 {{-- Modal: Aufgabe einer Kasse zuweisen --}}
 @can('treasury.contributions.manage')
-<x-ck-modal id="treasuryContributionModal" title="Aufgabe der Kasse zuweisen" size="md">
+<x-ck-modal id="treasuryContributionModal" :title="__('treasury.modal.contribution_title')" size="md">
     <form method="POST" action="{{ route('treasury.contributions.store') }}">
         @csrf
 
-        <x-ck-field label="Aufgabe" name="task_id" type="select"
-            :options="['' => '– Aufgabe wählen –']" :required="true" />
-        <x-ck-field label="Kasse" name="account_id" type="select"
-            :options="['' => '– Kasse wählen –']" :required="true" />
+        <x-ck-field :label="__('treasury.field.task')" name="task_id" type="select"
+            :options="['' => __('treasury.field.no_task')]" :required="true" />
+        <x-ck-field :label="__('treasury.field.account_for_contribution')" name="account_id" type="select"
+            :options="['' => __('treasury.field.no_account')]" :required="true" />
 
         <div class="ck-form-grid ck-form-grid--2">
-            <x-ck-field label="Standard-Betrag (€)" name="default_amount" type="number"
+            <x-ck-field :label="__('treasury.field.default_amount')" name="default_amount" type="number"
                 placeholder="0.00" />
-            <x-ck-field label="Fälligkeitsdatum" name="due_date" type="date" />
+            <x-ck-field :label="__('treasury.field.due_date')" name="due_date" type="date" />
         </div>
 
         <div class="ck-form-actions">
             <x-ck-button type="button" variant="secondary"
-                onclick="ckModalClose(null, 'treasuryContributionModal')">Abbrechen</x-ck-button>
-            <x-ck-button type="submit" variant="primary">Zuweisen</x-ck-button>
+                onclick="ckModalClose(null, 'treasuryContributionModal')">{{ __('Cancel') }}</x-ck-button>
+            <x-ck-button type="submit" variant="primary">{{ __('treasury.assign') }}</x-ck-button>
         </div>
     </form>
 </x-ck-modal>
 
 {{-- Modal: Mitglied zur Beitragsliste hinzufügen --}}
-<x-ck-modal id="treasuryPaymentMemberModal" title="Mitglied hinzufügen" size="sm">
+<x-ck-modal id="treasuryPaymentMemberModal" :title="__('treasury.modal.payment_title')" size="sm">
     <form id="treasuryPaymentMemberForm" method="POST">
         @csrf
-        <x-ck-field label="Mitglied" name="member_id" type="select"
-            :options="['' => '– Mitglied wählen –']" :required="true" />
-        <x-ck-field label="Betrag (€)" name="amount" type="number" placeholder="0.00" :required="true" />
-        <x-ck-field label="Notiz" name="notes" type="text" placeholder="Optional" />
+        <x-ck-field :label="__('treasury.field.member_select')" name="member_id" type="select"
+            :options="['' => __('treasury.field.no_member_select')]" :required="true" />
+        <x-ck-field :label="__('treasury.field.amount')" name="amount" type="number" placeholder="0.00" :required="true" />
+        <x-ck-field :label="__('treasury.field.notes')" name="notes" type="text" placeholder="Optional" />
         <div class="ck-form-actions">
             <x-ck-button type="button" variant="secondary"
-                onclick="ckModalClose(null, 'treasuryPaymentMemberModal')">Abbrechen</x-ck-button>
-            <x-ck-button type="submit" variant="primary">Hinzufügen</x-ck-button>
+                onclick="ckModalClose(null, 'treasuryPaymentMemberModal')">{{ __('Cancel') }}</x-ck-button>
+            <x-ck-button type="submit" variant="primary">{{ __('treasury.add') }}</x-ck-button>
         </div>
     </form>
 </x-ck-modal>

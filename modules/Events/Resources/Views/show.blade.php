@@ -31,7 +31,7 @@
             🖨 {{ __('Print') }}
         </x-ck-button>
         <x-ck-button variant="danger"
-            :confirm="'Delete event \'' . $event->title . '\'?'"
+            :confirm="__('events.confirm.delete_event', ['name' => $event->title])"
             :form="'deleteEventForm'">
             {{ __('Delete') }}
         </x-ck-button>
@@ -96,8 +96,8 @@
     </div>
     <div class="ck-card__body">
 
-    {{-- Hero grid: split when functions are enabled, single column otherwise --}}
-    <div class="ck-event-hero {{ $showFunctions ? 'ck-event-hero--split' : 'ck-event-hero--full' }}">
+    {{-- Hero grid: 2-col by default; single column when functions are disabled --}}
+    <div class="ck-event-hero {{ $showFunctions ? '' : 'ck-event-hero--full' }}">
 
         {{-- Left column: date tile + time / location / description --}}
         <div class="ck-event-hero__left">
@@ -110,7 +110,7 @@
                 </div>
                 <div class="ck-event-hero__meta">
                     <span class="ck-event-hero__meta-item">
-                        ⏱ {{ $event->starts_at->format('H:i') }}{{ $event->ends_at ? ' – ' . $event->ends_at->format('H:i') . ' Uhr' : ' Uhr' }}
+                        ⏱ {{ $event->starts_at->format('H:i') }}{{ $event->ends_at ? ' – ' . $event->ends_at->format('H:i') . ' ' . __('events.time_suffix') : ' ' . __('events.time_suffix') }}
                     </span>
                     @if($event->location)
                     <span class="ck-event-hero__meta-item">📍 {{ $event->location }}</span>
@@ -182,21 +182,21 @@
 </div>
 @endif
 </div>
-{{-- ── Pane: Aufgaben ───────────────────────────────────────────────────────── --}}
+{{-- ── Pane: Tasks ─────────────────────────────────────────────────────────── --}}
 {{--
 Extension point: events.show.tasks-panel
 Registered by: ManagementServiceProvider (event-tasks-panel.blade.php)
 Renders: collapsible task sections by category + add-task select.
 --}}
 <div class="ck-local-section" id="ckEvtPane-tasks"> @ckHook('events.show.tasks-panel') </div>
-{{-- ── Pane: Einsatzplan ────────────────────────────────────────────────────── --}}
+{{-- ── Pane: Slots / Schedule ──────────────────────────────────────────────── --}}
 {{--
 Extension point: events.show.einsatzplan-panel
 Registered by: ManagementServiceProvider (event-einsatzplan-panel.blade.php)
 Renders: event-day tasks with time-slot ETMs + add-slot form.
 --}}
 <div class="ck-local-section" id="ckEvtPane-slots"> @ckHook('events.show.slots-panel') </div>
-{{-- ── Pane: Funktionen ─────────────────────────────────────────────────────── --}}
+{{-- ── Pane: Functions ─────────────────────────────────────────────────────── --}}
 {{--
 Extension point: events.show.functions-panel
 Registered by: ManagementServiceProvider (event-functions-panel.blade.php)
@@ -237,7 +237,7 @@ Renders: management-functions cards with assigned members.
     :value="old('description', $event->description)" />
 
 <details class="ck-mt-3"{{ old('notes', $event->notes) ? ' open' : '' }}>
-    <summary class="ck-text-muted" style="cursor:pointer;font-size:var(--ck-font-sm);user-select:none;">
+    <summary class="ck-text-muted ck-details-summary">
         {{ __('events.field.notes_toggle') }}
     </summary>
     <div class="ck-mt-2">
@@ -290,13 +290,16 @@ Renders: management-functions cards with assigned members.
 
     {{-- Source: pick an existing ManagementTask from the library, or create a new one.
          Options are injected by events-detail.js from CK_EventDetail.globalTasks.
-         The first option is always "Neue Aufgabe erstellen" (value="new"). --}}
-    <x-ck-field
-        type="select"
-        :label="__('events.task.field_source')"
-        name="new_task_source"
-        id="newTaskSource"
-        :options="['new' => __('events.task.source_new')]" />
+         The first option is always "Neue Aufgabe erstellen" (value="new").
+         #newTaskSourceGroup is hidden in edit mode (events-detail.js). --}}
+    <div id="newTaskSourceGroup">
+        <x-ck-field
+            type="select"
+            :label="__('events.task.field_source')"
+            name="new_task_source"
+            id="newTaskSource"
+            :options="['new' => __('events.task.source_new')]" />
+    </div>
 
     {{-- Name field: only visible when source = "new" --}}
     <div id="newTaskNameGroup">
@@ -357,7 +360,7 @@ Renders: management-functions cards with assigned members.
     <div class="ck-field__group ck-mt-3">
         <label class="ck-field__label">{{ __('events.cat.field_color') }}</label>
         <div class="ck-color-picker" id="newCatColorPicker">
-            @foreach(['' => 'Standard', 'blue' => 'Blau', 'navy' => 'Navy', 'green' => 'Grün', 'teal' => 'Teal', 'red' => 'Rot', 'orange' => 'Orange', 'amber' => 'Gelb', 'purple' => 'Lila', 'pink' => 'Pink', 'slate' => 'Grau'] as $ckColorKey => $ckColorLabel)
+            @foreach($categoryColors as $ckColorKey => $ckColorLabel)
             <label class="ck-color-swatch{{ $ckColorKey === '' ? ' ck-color-swatch--selected' : '' }}" title="{{ $ckColorLabel }}">
                 <input type="radio" name="new_cat_color" id="newCatColor"
                        value="{{ $ckColorKey }}" {{ $ckColorKey === '' ? 'checked' : '' }}>
@@ -455,12 +458,11 @@ Renders: management-functions cards with assigned members.
     Dual-listbox: available members on the left, assigned members on the right.
     Opened by .ck-task-assign-btn click in events-detail.js.
     Submit: batch POST /members (add) + DELETE /members/{id} (remove).
-    CSS layout (.ck-assign-split) is added in Step 8.
 --}}
 <x-ck-modal id="taskAssignModal" :title="__('events.task.assign_member')" size="lg">
     <p id="taskAssignLabel" class="ck-text-muted ck-mb-4"></p>
     <p class="ck-text-muted ck-font-sm ck-mb-4">
-        Ctrl+Klick (Mehrfachauswahl) → dann mit den Pfeilen verschieben.
+        {{ __('events.assign.ctrl_hint') }}
     </p>
     <div class="ck-dual-listbox">
         <div class="ck-dual-listbox__col">
@@ -510,7 +512,7 @@ Renders: management-functions cards with assigned members.
     <div class="ck-field__group ck-mt-3">
         <label class="ck-field__label">{{ __('events.cat.field_color') }}</label>
         <div class="ck-color-picker" id="renameCatColorPicker">
-            @foreach(['' => 'Standard', 'blue' => 'Blau', 'navy' => 'Navy', 'green' => 'Grün', 'teal' => 'Teal', 'red' => 'Rot', 'orange' => 'Orange', 'amber' => 'Gelb', 'purple' => 'Lila', 'pink' => 'Pink', 'slate' => 'Grau'] as $ckRnColorKey => $ckRnColorLabel)
+            @foreach($categoryColors as $ckRnColorKey => $ckRnColorLabel)
             <label class="ck-color-swatch{{ $ckRnColorKey === '' ? ' ck-color-swatch--selected' : '' }}" title="{{ $ckRnColorLabel }}">
                 <input type="radio" name="rename_cat_color"
                        value="{{ $ckRnColorKey }}" {{ $ckRnColorKey === '' ? 'checked' : '' }}>

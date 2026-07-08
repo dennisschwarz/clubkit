@@ -493,6 +493,8 @@ window.ckTaskSortBy = function (column, btn) {
                 if (m.attributeName !== 'class') { return; }
                 if (modal.classList.contains('ck-modal--open')) { return; }
                 _taskEditId = null;
+                var srcGroup = document.getElementById('newTaskSourceGroup');
+                if (srcGroup) { srcGroup.classList.remove('is-hidden'); }
                 var t = modal.querySelector('.ck-modal__title');
                 if (t && _taskModalOrigTitle) { t.textContent = _taskModalOrigTitle; }
                 var nameInput = document.getElementById('newTaskName');
@@ -543,6 +545,15 @@ window.ckTaskSortBy = function (column, btn) {
         if (prioSelect)    { prioSelect.value    = btn.dataset.taskPriority || 'normal'; }
         if (deadlineInput) { deadlineInput.value = btn.dataset.taskDeadline || ''; }
         if (catSelect)     { catSelect.value     = btn.dataset.taskCatId    || ''; }
+
+        // Edit mode: hide source dropdown (task already exists),
+        // always show name and priority fields.
+        var srcGroup  = document.getElementById('newTaskSourceGroup');
+        var nameGroup = document.getElementById('newTaskNameGroup');
+        var prioGroup = document.getElementById('newTaskPriorityGroup');
+        if (srcGroup)  { srcGroup.classList.add('is-hidden'); }
+        if (nameGroup) { nameGroup.classList.remove('is-hidden'); }
+        if (prioGroup) { prioGroup.classList.remove('is-hidden'); }
 
         var modal = document.getElementById('newTaskModal');
         if (modal) {

@@ -41,7 +41,7 @@
         if (firstTab) ckModalTab('teamModal', 'teamTab-daten', firstTab);
 
         if (mode === 'create') {
-            _setTitle('Team anlegen');
+            _setTitle(ckUi('team_create', 'Team anlegen'));
             methodInput.value = 'POST';
             form.action       = routes.store || '';
 
@@ -52,7 +52,7 @@
             const t = (data.teams || {})[teamId];
             if (!t) return;
 
-            _setTitle('„' + t.name + '" bearbeiten');
+            _setTitle('„' + t.name + '"' + ckUi('edit_suffix', ' bearbeiten'));
             methodInput.value = 'PATCH';
             form.action       = (routes.update || '') + '/' + teamId;
 
@@ -92,7 +92,7 @@
 
         if (!t) return;
 
-        if (titleEl) titleEl.textContent = 'Kader: ' + t.name;
+        if (titleEl) titleEl.textContent = ckUi('roster_prefix', 'Kader: ') + t.name;
         if (form)    form.action = (data.routes.syncRoster || '') + '/' + teamId + '/members/sync';
 
         _populateSelect('rosterAvail',    available);

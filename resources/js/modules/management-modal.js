@@ -79,7 +79,7 @@
         if (firstTab) firstTab.classList.add('ck-modal-tab--active');
 
         if (mode === 'create') {
-            setTitle('mgmtFunctionModal', 'Neue Funktion anlegen');
+            setTitle('mgmtFunctionModal', ckUi('function_create', 'Neue Funktion anlegen'));
 
             ckModalOpen('mgmtFunctionModal');
             ckEmit('management.function.modal.open', {
@@ -90,7 +90,7 @@
             const fn = (data.functions || {})[functionId];
             if (!fn) return;
 
-            setTitle('mgmtFunctionModal', '„' + fn.name + '" bearbeiten');
+            setTitle('mgmtFunctionModal', '„' + fn.name + '"' + ckUi('edit_suffix', ' bearbeiten'));
             if (el('mgmtFunctionFormMethod')) el('mgmtFunctionFormMethod').value = 'PATCH';
             if (el('mgmtFunctionForm'))       el('mgmtFunctionForm').action      = (routes.functionUpdate || '') + '/' + fn.id;
             if (el('mgmtFunctionFieldName'))  el('mgmtFunctionFieldName').value  = fn.name;
@@ -116,7 +116,7 @@
         if (firstTab) firstTab.classList.add('ck-modal-tab--active');
 
         if (mode === 'create') {
-            setTitle('mgmtTaskModal', 'Neue Aufgabe anlegen');
+            setTitle('mgmtTaskModal', ckUi('task_create', 'Neue Aufgabe anlegen'));
 
             ckModalOpen('mgmtTaskModal');
             ckEmit('management.task.modal.open', {
@@ -127,7 +127,7 @@
             const task = (data.tasks || {})[taskId];
             if (!task) return;
 
-            setTitle('mgmtTaskModal', '„' + task.name + '" bearbeiten');
+            setTitle('mgmtTaskModal', '„' + task.name + '"' + ckUi('edit_suffix', ' bearbeiten'));
             if (el('mgmtTaskFormMethod')) el('mgmtTaskFormMethod').value = 'PATCH';
             if (el('mgmtTaskForm'))       el('mgmtTaskForm').action      = (routes.taskUpdate || '') + '/' + task.id;
             if (el('mgmtTaskFieldName'))  el('mgmtTaskFieldName').value  = task.name;
@@ -159,7 +159,7 @@
 
         const searchInput = document.createElement('input');
         searchInput.type        = 'text';
-        searchInput.placeholder = 'Mitglied suchen…';
+        searchInput.placeholder = ckUi('member_search', 'Mitglied suchen…');
         searchInput.className   = 'ck-field__input ck-field__input--sm';
 
         searchWrap.appendChild(searchInput);

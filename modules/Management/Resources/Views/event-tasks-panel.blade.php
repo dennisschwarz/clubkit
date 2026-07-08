@@ -48,13 +48,13 @@
     </div>
     <div id="ck-tasks-body-allgemein">
         <div class="ck-table-wrap">
-            <table class="ck-table ck-task-table">
+            <table class="ck-table">
                 <thead>
                     <tr>
                         <th class="ck-table__col--checkbox"></th>
-                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="name"     onclick="ckTaskSortBy('name',this)"><span>{{ __('events.task.col_task') }}</span><span class="ck-sort-icon" aria-hidden="true">⇅</span></button></th>
-                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="priority" onclick="ckTaskSortBy('priority',this)"><span>{{ __('events.task.col_priority') }}</span><span class="ck-sort-icon" aria-hidden="true">⇅</span></button></th>
-                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="deadline" onclick="ckTaskSortBy('deadline',this)"><span>{{ __('events.task.col_deadline') }}</span><span class="ck-sort-icon" aria-hidden="true">⇅</span></button></th>
+                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="name"     onclick="ckTaskSortBy('name',this)"><span>{{ __('events.task.col_task') }}</span><span class="ck-sort-link__icon" aria-hidden="true">⇅</span></button></th>
+                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="priority" onclick="ckTaskSortBy('priority',this)"><span>{{ __('events.task.col_priority') }}</span><span class="ck-sort-link__icon" aria-hidden="true">⇅</span></button></th>
+                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="deadline" onclick="ckTaskSortBy('deadline',this)"><span>{{ __('events.task.col_deadline') }}</span><span class="ck-sort-link__icon" aria-hidden="true">⇅</span></button></th>
                         <th>{{ __('events.task.col_notes') }}</th>
                         <th>{{ __('events.function.col_responsible') }}</th>
                         <th class="ck-table__col--actions"></th>
@@ -185,13 +185,13 @@
     </div>
     <div id="{{ $mgmtBodyId }}">
         <div class="ck-table-wrap">
-            <table class="ck-table ck-task-table">
+            <table class="ck-table">
                 <thead>
                     <tr>
                         <th class="ck-table__col--checkbox"></th>
-                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="name"     onclick="ckTaskSortBy('name',this)"><span>{{ __('events.task.col_task') }}</span><span class="ck-sort-icon" aria-hidden="true">⇅</span></button></th>
-                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="priority" onclick="ckTaskSortBy('priority',this)"><span>{{ __('events.task.col_priority') }}</span><span class="ck-sort-icon" aria-hidden="true">⇅</span></button></th>
-                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="deadline" onclick="ckTaskSortBy('deadline',this)"><span>{{ __('events.task.col_deadline') }}</span><span class="ck-sort-icon" aria-hidden="true">⇅</span></button></th>
+                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="name"     onclick="ckTaskSortBy('name',this)"><span>{{ __('events.task.col_task') }}</span><span class="ck-sort-link__icon" aria-hidden="true">⇅</span></button></th>
+                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="priority" onclick="ckTaskSortBy('priority',this)"><span>{{ __('events.task.col_priority') }}</span><span class="ck-sort-link__icon" aria-hidden="true">⇅</span></button></th>
+                        <th><button type="button" class="ck-sort-link ck-task-sort-btn" data-col="deadline" onclick="ckTaskSortBy('deadline',this)"><span>{{ __('events.task.col_deadline') }}</span><span class="ck-sort-link__icon" aria-hidden="true">⇅</span></button></th>
                         <th>{{ __('events.task.col_notes') }}</th>
                         <th>{{ __('events.function.col_responsible') }}</th>
                         <th class="ck-table__col--actions"></th>

@@ -115,7 +115,7 @@ class UserController extends Controller
 
         return redirect()
             ->route('admin.users.index')
-            ->with('success', 'Nutzer „' . $request->input('name') . '" angelegt.');
+            ->with('success', __('users.flash.created', ['name' => $request->input('name')]));
     }
 
     // ── show ──────────────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ class UserController extends Controller
 
             return redirect()
                 ->route('admin.users.index')
-                ->with('success', 'Rechte von „' . $user->name . '" aktualisiert.');
+                ->with('success', __('users.flash.rights_updated', ['name' => $user->name]));
         }
 
         $data = [
@@ -180,7 +180,7 @@ class UserController extends Controller
 
         return redirect()
             ->route('admin.users.index')
-            ->with('success', 'Nutzer „' . $user->name . '" aktualisiert.');
+            ->with('success', __('users.flash.updated', ['name' => $user->name]));
     }
 
     // ── destroy ───────────────────────────────────────────────────────────────
@@ -194,7 +194,7 @@ class UserController extends Controller
     public function destroy(User $user): RedirectResponse
     {
         if ($user->id === auth()->id()) {
-            return back()->with('error', 'Du kannst deinen eigenen Account nicht löschen.');
+            return back()->with('error', __('users.flash.self_delete_forbidden'));
         }
 
         $name = $user->name;
@@ -202,6 +202,6 @@ class UserController extends Controller
 
         return redirect()
             ->route('admin.users.index')
-            ->with('success', 'Nutzer „' . $name . '" gelöscht.');
+            ->with('success', __('users.flash.deleted', ['name' => $name]));
     }
 }

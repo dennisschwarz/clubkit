@@ -107,7 +107,7 @@ class MemberController extends Controller
 
         Member::create($data);
 
-        return redirect()->route('members.index')->with('success', 'Mitglied erstellt.');
+        return redirect()->route('members.index')->with('success', __('members.flash.created'));
     }
 
     /**
@@ -124,7 +124,7 @@ class MemberController extends Controller
 
         $member->update($data);
 
-        return redirect()->route('members.index')->with('success', 'Mitglied aktualisiert.');
+        return redirect()->route('members.index')->with('success', __('members.flash.updated'));
     }
 
     /**
@@ -144,7 +144,7 @@ class MemberController extends Controller
         $member->update(['profile_image' => $path]);
 
         return redirect()->route('members.index')
-            ->with('success', 'Foto für „' . $member->last_name . ', ' . $member->first_name . '" gespeichert.');
+            ->with('success', __('members.flash.photo_saved', ['name' => $member->last_name . ', ' . $member->first_name]));
     }
 
     /**
@@ -160,7 +160,7 @@ class MemberController extends Controller
         }
         $member->delete();
 
-        return redirect()->route('members.index')->with('success', 'Mitglied gelöscht.');
+        return redirect()->route('members.index')->with('success', __('members.flash.deleted'));
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

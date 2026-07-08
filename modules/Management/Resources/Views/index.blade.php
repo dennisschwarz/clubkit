@@ -1,5 +1,5 @@
 @extends('core::admin.layout')
-@section('title', 'Organisation')
+@section('title', __('management.title'))
 
 @section('content')
 
@@ -12,8 +12,8 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 
 <div class="ck-page-header">
     <div>
-        <h1 class="ck-page-title">🏛️ Organisation</h1>
-        <p class="ck-page-subtitle">Vereinsfunktionen, Aufgaben, Verantwortliche und Zuständigkeiten</p>
+        <h1 class="ck-page-title">{{ __('management.title') }}</h1>
+        <p class="ck-page-subtitle">{{ __('management.subtitle') }}</p>
     </div>
 </div>
 
@@ -21,11 +21,11 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 <div class="ck-local-tabs ck-mb-5">
     <button class="ck-local-tab ck-local-tab--purple {{ request('tab') !== 'aufgaben' ? 'ck-local-tab--active' : '' }}"
             onclick="ckLocalTab('mgmtTab-funktionen', this)">
-        ⚙️ Funktionen
+        {{ __('management.tab_functions') }}
     </button>
     <button class="ck-local-tab ck-local-tab--blue {{ request('tab') === 'aufgaben' ? 'ck-local-tab--active' : '' }}"
             onclick="ckLocalTab('mgmtTab-aufgaben', this)">
-        📋 Aufgaben
+        {{ __('management.tab_tasks') }}
     </button>
 </div>
 
@@ -48,14 +48,14 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
             <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
             </svg>
-            Neue Funktion
+            {{ __('management.create_function') }}
         </x-ck-button>
     </div>
 
     @if($functions->isEmpty())
         <x-ck-card>
-            <p class="ck-empty-state">Noch keine Funktionen angelegt.
-                <a href="javascript:void(0)" onclick="mgmtModalOpen('function', 'create')">Jetzt anlegen</a>
+            <p class="ck-empty-state">{{ __('management.functions_empty') }}
+                <a href="javascript:void(0)" onclick="mgmtModalOpen('function', 'create')">{{ __('core.create_now') }}</a>
             </p>
         </x-ck-card>
     @else
@@ -96,14 +96,14 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
             <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
             </svg>
-            Neue Aufgabe
+            {{ __('management.create_task') }}
         </x-ck-button>
     </div>
 
     @if($tasks->isEmpty())
         <x-ck-card>
-            <p class="ck-empty-state">Noch keine Aufgaben angelegt.
-                <a href="javascript:void(0)" onclick="mgmtModalOpen('task', 'create')">Jetzt anlegen</a>
+            <p class="ck-empty-state">{{ __('management.tasks_empty') }}
+                <a href="javascript:void(0)" onclick="mgmtModalOpen('task', 'create')">{{ __('core.create_now') }}</a>
             </p>
         </x-ck-card>
     @else
@@ -134,7 +134,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
     <div class="ck-modal-content ck-modal-content--md" onclick="event.stopPropagation()">
 
         <div class="ck-modal__header">
-            <h2 class="ck-modal__title">Funktion</h2>
+            <h2 class="ck-modal__title">{{ __('management.function_modal_title') }}</h2>
             <button type="button" class="ck-modal__close"
                     onclick="ckModalClose(null, 'mgmtFunctionModal')">&times;</button>
         </div>
@@ -142,7 +142,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
         <div class="ck-modal__tabbar">
             <button class="ck-modal-tab ck-modal-tab--active"
                     onclick="ckModalTab('mgmtFunctionModal', 'mgmtFunctionTab-form', this)">
-                ⚙️ Funktionsdaten
+                {{ __('management.function_tab') }}
             </button>
             @ckHook('management.function.modal.tabs')
         </div>
@@ -153,7 +153,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                 <form id="mgmtFunctionForm" method="POST">
                     @csrf
                     <input type="hidden" name="_method" id="mgmtFunctionFormMethod" value="POST">
-                    <x-ck-field label="Funktionsname" name="name" id="mgmtFunctionFieldName" :required="true"
+                    <x-ck-field :label="__('management.field.function_name')" name="name" id="mgmtFunctionFieldName" :required="true"
                                 placeholder="z.B. Trainer, Co-Trainer, Betreuer, Kassenwart" />
 
                     {{--
@@ -166,7 +166,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 
                     @if($membersActive && $members->isNotEmpty())
                     <div class="ck-field ck-mt-4">
-                        <span class="ck-field__label">Personen <span class="ck-text-muted ck-font-normal">(optional)</span></span>
+                        <span class="ck-field__label">{{ __('management.field.persons') }} <span class="ck-text-muted">(optional)</span></span>
                         <div class="ck-multiselect-list ck-multiselect-list--scrollable" id="mgmtFunctionMemberList">
                             @foreach($members as $member)
                             <label class="ck-multiselect-item">
@@ -178,8 +178,8 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                     </div>
                     @endif
                     <div class="ck-form-actions">
-                        <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
-                        <x-ck-button type="button" variant="secondary" onclick="ckModalClose(null, 'mgmtFunctionModal')">Abbrechen</x-ck-button>
+                        <x-ck-button type="submit" variant="primary">{{ __('Save') }}</x-ck-button>
+                        <x-ck-button type="button" variant="secondary" onclick="ckModalClose(null, 'mgmtFunctionModal')">{{ __('Cancel') }}</x-ck-button>
                     </div>
                 </form>
             </div>
@@ -199,7 +199,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
     <div class="ck-modal-content ck-modal-content--md" onclick="event.stopPropagation()">
 
         <div class="ck-modal__header">
-            <h2 class="ck-modal__title">Aufgabe</h2>
+            <h2 class="ck-modal__title">{{ __('management.task_modal_title') }}</h2>
             <button type="button" class="ck-modal__close"
                     onclick="ckModalClose(null, 'mgmtTaskModal')">&times;</button>
         </div>
@@ -207,7 +207,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
         <div class="ck-modal__tabbar">
             <button class="ck-modal-tab ck-modal-tab--active"
                     onclick="ckModalTab('mgmtTaskModal', 'mgmtTaskTab-form', this)">
-                📋 Aufgabendaten
+                {{ __('management.task_tab') }}
             </button>
             @ckHook('management.task.modal.tabs')
         </div>
@@ -218,9 +218,9 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                 <form id="mgmtTaskForm" method="POST">
                     @csrf
                     <input type="hidden" name="_method" id="mgmtTaskFormMethod" value="POST">
-                    <x-ck-field label="Aufgabenbezeichnung" name="name" id="mgmtTaskFieldName" :required="true"
+                    <x-ck-field :label="__('management.field.task_name')" name="name" id="mgmtTaskFieldName" :required="true"
                                 placeholder="z.B. Platzpflege, Materialwart, Schriftführer" />
-                    <x-ck-field type="textarea" label="Beschreibung" name="description" id="mgmtTaskFieldDesc"
+                    <x-ck-field type="textarea" :label="__('management.field.description')" name="description" id="mgmtTaskFieldDesc"
                                 placeholder="Optionale Beschreibung der Aufgabe" />
 
                     {{--
@@ -232,7 +232,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 
                     @if($membersActive && $members->isNotEmpty())
                     <div class="ck-field ck-mt-4">
-                        <span class="ck-field__label">Personen <span class="ck-text-muted ck-font-normal">(optional)</span></span>
+                        <span class="ck-field__label">{{ __('management.field.persons') }} <span class="ck-text-muted">(optional)</span></span>
                         <div class="ck-multiselect-list ck-multiselect-list--scrollable" id="mgmtTaskMemberList">
                             @foreach($members as $member)
                             <label class="ck-multiselect-item">
@@ -244,8 +244,8 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                     </div>
                     @endif
                     <div class="ck-form-actions">
-                        <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
-                        <x-ck-button type="button" variant="secondary" onclick="ckModalClose(null, 'mgmtTaskModal')">Abbrechen</x-ck-button>
+                        <x-ck-button type="submit" variant="primary">{{ __('Save') }}</x-ck-button>
+                        <x-ck-button type="button" variant="secondary" onclick="ckModalClose(null, 'mgmtTaskModal')">{{ __('Cancel') }}</x-ck-button>
                     </div>
                 </form>
             </div>

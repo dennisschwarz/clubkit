@@ -93,7 +93,7 @@
             : all;
 
         if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="ck-empty-state">Keine Buchungen für diese Kasse.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="ck-empty-state">' + ckUi('no_transactions', 'Keine Buchungen für diese Kasse.') + '</td></tr>';
             return;
         }
 
@@ -103,7 +103,7 @@
             const sign     = tx.type === 'income' ? '+' : '−';
             const catCell  = tx.category_name
                 ? '<span class="ck-badge ck-badge--' + (tx.category_color || 'gray') + '">' + escapeHtml(tx.category_name) + '</span>'
-                : '<span class="ck-muted">–</span>';
+                : '<span class="ck-text-muted">–</span>';
 
             rows += '<tr>'
                 + '<td>' + escapeHtml(tx.transaction_date || '') + '</td>'
@@ -186,8 +186,8 @@
 
         if (list.length === 0) {
             const p = document.createElement('p');
-            p.className   = 'ck-muted';
-            p.textContent = 'Keine Teams vorhanden.';
+            p.className   = 'ck-text-muted';
+            p.textContent = ckUi('no_teams', 'Keine Teams vorhanden.');
             container.appendChild(p);
             return;
         }

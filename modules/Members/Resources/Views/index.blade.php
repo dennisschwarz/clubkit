@@ -1,17 +1,17 @@
 @extends('core::admin.layout')
-@section('title', 'Mitglieder')
+@section('title', __('members.title'))
 
 @section('content')
 
 <div class="ck-page-header">
     <div>
-        <h1 class="ck-page-title">Mitglieder</h1>
-        <p class="ck-page-subtitle">{{ $members->total() }} Mitglieder gesamt</p>
+        <h1 class="ck-page-title">{{ __('members.title') }}</h1>
+        <p class="ck-page-subtitle">{{ __('members.count', ['count' => $members->total()]) }}</p>
     </div>
     <div class="ck-row ck-row--gap">
         @ckHook('member.page.actions')
         <x-ck-button variant="primary" onclick="membersModalOpen('create')">
-            + Mitglied hinzufügen
+            {{ __('members.create') }}
         </x-ck-button>
     </div>
 </div>
@@ -23,22 +23,22 @@
 --}}
 <form method="GET" class="ck-members-filter ck-mb-4">
     <input type="text" name="filter[q]" value="{{ request('filter.q') }}"
-           placeholder="Nach Name suchen…" class="ck-field__input">
+           placeholder="{{ __('members.search_placeholder') }}" class="ck-field__input">
 
     <div class="ck-members-filter__right">
         <select name="filter[status]" class="ck-field__input">
-            <option value="">Alle Status</option>
-            <option value="active"   {{ request('filter.status') === 'active'   ? 'selected' : '' }}>Aktiv</option>
-            <option value="inactive" {{ request('filter.status') === 'inactive' ? 'selected' : '' }}>Inaktiv</option>
+            <option value="">{{ __('members.filter.all_status') }}</option>
+            <option value="active"   {{ request('filter.status') === 'active'   ? 'selected' : '' }}>{{ __('members.filter.active') }}</option>
+            <option value="inactive" {{ request('filter.status') === 'inactive' ? 'selected' : '' }}>{{ __('members.filter.inactive') }}</option>
         </select>
 
         <select name="filter[eligible]" class="ck-field__input">
-            <option value="">Spielberechtigung</option>
-            <option value="1" {{ request('filter.eligible') === '1' ? 'selected' : '' }}>✓ Spielberechtigt</option>
-            <option value="0" {{ request('filter.eligible') === '0' ? 'selected' : '' }}>✗ Nicht berechtigt</option>
+            <option value="">{{ __('members.filter.eligible') }}</option>
+            <option value="1" {{ request('filter.eligible') === '1' ? 'selected' : '' }}>{{ __('members.filter.eligible_yes') }}</option>
+            <option value="0" {{ request('filter.eligible') === '0' ? 'selected' : '' }}>{{ __('members.filter.eligible_no') }}</option>
         </select>
 
-        <x-ck-button type="submit" variant="secondary">Suchen</x-ck-button>
+        <x-ck-button type="submit" variant="secondary">{{ __('members.search') }}</x-ck-button>
     </div>
 </form>
 
@@ -51,13 +51,13 @@
     <table class="ck-table">
         <thead>
             <tr>
-                <x-ck-sort-header column="last_name"  label="Name" />
-                <x-ck-sort-header column="date_of_birth" label="Geburtsdatum / Alter" />
-                <x-ck-sort-header column="pass_number"   label="Passnummer" />
-                <x-ck-sort-header column="eligible_to_play_date" label="Spielberechtigt" />
+                <x-ck-sort-header column="last_name"             :label="__('members.col.name')" />
+                <x-ck-sort-header column="date_of_birth"         :label="__('members.col.birthdate')" />
+                <x-ck-sort-header column="pass_number"           :label="__('members.col.pass_number')" />
+                <x-ck-sort-header column="eligible_to_play_date" :label="__('members.col.eligible')" />
                 @ckHook('member.table.header')
-                <x-ck-sort-header column="status" label="Status" />
-                <th class="ck-table__actions">Aktionen</th>
+                <x-ck-sort-header column="status"                :label="__('members.col.status')" />
+                <th class="ck-table__actions">{{ __('core.col.actions') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -86,22 +86,22 @@
                     {{-- eligible_to_play is an accessor → true when eligible_to_play_date <= today --}}
                     @if($member->eligible_to_play)
                         <x-ck-badge color="green" :title="'ab ' . ($member->eligible_to_play_date?->format('d.m.Y') ?? '')">
-                            ✓ Ja
+                            {{ __('members.eligible_yes') }}
                         </x-ck-badge>
                     @else
-                        <x-ck-badge color="gray">Nein</x-ck-badge>
+                        <x-ck-badge color="gray">{{ __('members.eligible_no') }}</x-ck-badge>
                     @endif
                 </td>
                 @ckHook('member.table.row')
                 <td>
                     <x-ck-badge :color="$member->status === 'active' ? 'green' : 'gray'">
-                        {{ $member->status === 'active' ? 'Aktiv' : 'Inaktiv' }}
+                        {{ $member->status === 'active' ? __('members.active') : __('members.inactive') }}
                     </x-ck-badge>
                 </td>
                 <td class="ck-table__actions">
                     <div class="ck-table__action-cell">
                         <x-ck-button variant="warning" size="icon"
-                            title="Bearbeiten"
+                            :title="__('Edit')"
                             onclick="membersModalOpen('edit', {{ $member->id }})">
                             <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
@@ -113,9 +113,9 @@
                             → Prevents <form> as a block element in the action-cell layout.
                         --}}
                         <x-ck-button variant="danger" size="icon"
-                            title="Löschen"
+                            :title="__('Delete')"
                             data-delete-url="{{ route('members.destroy', $member) }}"
-                            :confirm="'Mitglied ' . $member->last_name . ', ' . $member->first_name . ' wirklich löschen?'">
+                            :confirm="__('members.confirm_delete', ['name' => $member->last_name . ', ' . $member->first_name])">
                             <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
                             </svg>
@@ -127,9 +127,9 @@
             @empty
             <tr>
                 <td colspan="99" class="ck-empty-state">
-                    Keine Mitglieder gefunden.
+                    {{ __('members.empty') }}
                     <x-ck-button type="button" variant="primary" size="sm" onclick="membersModalOpen('create')">
-                        Jetzt hinzufügen
+                        {{ __('core.create_now') }}
                     </x-ck-button>
                 </td>
             </tr>
@@ -143,16 +143,16 @@
     @endif
 </div>
 
-<x-ck-modal id="memberModal" title="Mitglied" size="lg">
+<x-ck-modal id="memberModal" :title="__('members.modal_title')" size="lg">
 
     <x-slot:tabs>
         <button class="ck-modal-tab ck-modal-tab--active"
                 onclick="ckModalTab('memberModal', 'memberTab-stamm', this)">
-            👤 Stammdaten
+            {{ __('members.tab_data') }}
         </button>
         <button id="memberPhotoTabBtn" class="ck-modal-tab"
                 onclick="ckModalTab('memberModal', 'memberTab-photo', this)">
-            📷 Foto
+            {{ __('members.tab_photo') }}
         </button>
         @ckHook('member.modal.tabs')
     </x-slot:tabs>
@@ -162,30 +162,30 @@
             @csrf
             <input type="hidden" name="_method" id="memberFormMethod" value="POST">
             <div class="ck-form-grid ck-form-grid--2">
-                <x-ck-field label="Vorname"    name="first_name"    id="mFieldFirstName"   :required="true" />
-                <x-ck-field label="Nachname"   name="last_name"     id="mFieldLastName"    :required="true" />
-                <x-ck-field label="Passnummer" name="pass_number"   id="mFieldPassNumber" />
-                <x-ck-field label="Geschlecht" name="gender"        id="mFieldGender"     type="select"
-                    :options="['' => '– nicht angegeben –', 'male' => 'Männlich', 'female' => 'Weiblich', 'diverse' => 'Divers']" />
-                <x-ck-field label="Geburtsdatum" name="date_of_birth" type="date"
+                <x-ck-field :label="__('members.field.first_name')" name="first_name"  id="mFieldFirstName"  :required="true" />
+                <x-ck-field :label="__('members.field.last_name')"  name="last_name"   id="mFieldLastName"   :required="true" />
+                <x-ck-field :label="__('members.field.pass_number')" name="pass_number" id="mFieldPassNumber" />
+                <x-ck-field :label="__('members.field.gender')" name="gender" id="mFieldGender" type="select"
+                    :options="['' => '– nicht angegeben –', 'male' => __('members.field.gender_male'), 'female' => __('members.field.gender_female'), 'diverse' => __('members.field.gender_other')]" />
+                <x-ck-field :label="__('members.field.birthdate')" name="date_of_birth" type="date"
                     id="mFieldDob" :max="now()->subDay()->format('Y-m-d')" />
-                <x-ck-field label="Status" name="status" type="select" id="mFieldStatus"
-                    :options="['active' => 'Aktiv', 'inactive' => 'Inaktiv']" />
-                <x-ck-field label="Spielberechtigt ab" name="eligible_to_play_date"
+                <x-ck-field :label="__('members.field.status')" name="status" type="select" id="mFieldStatus"
+                    :options="['active' => __('members.active'), 'inactive' => __('members.inactive')]" />
+                <x-ck-field :label="__('members.field.eligible_from')" name="eligible_to_play_date"
                     type="date" id="mFieldEligible"
-                    hint="Leer = nicht spielberechtigt" />
+                    :hint="__('members.eligible_hint')" />
             </div>
             <div class="ck-form-actions">
-                <x-ck-button type="submit" variant="primary">Speichern</x-ck-button>
+                <x-ck-button type="submit" variant="primary">{{ __('Save') }}</x-ck-button>
                 <x-ck-button type="button" variant="secondary"
-                    onclick="ckModalClose(null, 'memberModal')">Abbrechen</x-ck-button>
+                    onclick="ckModalClose(null, 'memberModal')">{{ __('Cancel') }}</x-ck-button>
             </div>
         </form>
     </div>
 
     <div id="memberTab-photo" class="ck-modal__section">
         <div id="memberPhotoCreateHint" class="ck-flash ck-flash--warning is-hidden">
-            Bitte zuerst das Mitglied speichern (Tab Stammdaten), dann ein Foto hochladen.
+            {{ __('members.photo_flash') }}
         </div>
         <form id="memberPhotoForm" method="POST" enctype="multipart/form-data">
             @csrf
@@ -197,15 +197,15 @@
                          class="ck-avatar ck-avatar--lg ck-avatar--photo is-hidden">
                 </div>
                 <div class="ck-spacer">
-                    <x-ck-field label="Neues Foto hochladen" name="profile_image" type="file"
+                    <x-ck-field :label="__('members.photo_upload_label')" name="profile_image" type="file"
                         id="mFieldPhoto" accept="image/jpeg,image/png" />
-                    <p class="ck-form-hint">Erlaubte Formate: JPEG, PNG. Maximale Größe: 3 MB.</p>
+                    <p class="ck-field__hint">{{ __('members.photo_hint') }}</p>
                 </div>
             </div>
             <div class="ck-form-actions">
-                <x-ck-button type="submit" variant="primary">Foto speichern</x-ck-button>
+                <x-ck-button type="submit" variant="primary">{{ __('members.photo_save') }}</x-ck-button>
                 <x-ck-button type="button" variant="secondary"
-                    onclick="ckModalClose(null, 'memberModal')">Abbrechen</x-ck-button>
+                    onclick="ckModalClose(null, 'memberModal')">{{ __('Cancel') }}</x-ck-button>
             </div>
         </form>
     </div>

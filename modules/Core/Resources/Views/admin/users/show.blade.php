@@ -8,7 +8,7 @@
     <div>
         <h1 class="ck-page-title">{{ $user->name }}</h1>
         <p class="ck-page-subtitle">
-            <a href="{{ route('admin.users.index') }}" class="ck-link">← Zurück zur Übersicht</a>
+            <a href="{{ route('admin.users.index') }}" class="ck-link">{{ __('core.back') }}</a>
         </p>
     </div>
 </div>
@@ -17,20 +17,20 @@
 
     {{-- ── Login credentials ─────────────────────────────────────────────────────── --}}
     <x-ck-card>
-        <x-slot:header>🔑 Login-Daten</x-slot:header>
+        <x-slot:header>{{ __('core.users.tab_login') }}</x-slot:header>
         <form method="POST" action="{{ route('admin.users.update', $user) }}">
             @csrf
             @method('PATCH')
             <div class="ck-form-grid ck-form-grid--2">
                 <x-ck-field label="Name"   name="name"  id="showFieldName"
                     :value="old('name', $user->name)"   :required="true" />
-                <x-ck-field label="E-Mail" name="email" id="showFieldEmail"
+                <x-ck-field :label="__('auth.email')" name="email" id="showFieldEmail"
                     type="email"
                     :value="old('email', $user->email)" :required="true" />
-                <x-ck-field label="Neues Passwort" name="password" type="password"
+                <x-ck-field :label="__('core.users.password_new')" name="password" type="password"
                     id="showFieldPassword"
-                    hint="(leer lassen = nicht ändern)" />
-                <x-ck-field label="Passwort wiederholen" name="password_confirmation"
+                    :hint="__('core.users.password_hint')" />
+                <x-ck-field :label="__('core.users.password_repeat')" name="password_confirmation"
                     type="password" />
             </div>
             <div class="ck-form-actions">
@@ -44,28 +44,27 @@
 
     {{-- ── Roles & permissions ─────────────────────────────────────────────────── --}}
     <x-ck-card>
-        <x-slot:header>🔒 Rollen &amp; Rechte</x-slot:header>
+        <x-slot:header>{{ __('core.users.tab_rights') }}</x-slot:header>
         <form method="POST" action="{{ route('admin.users.update', $user) }}">
             @csrf
             @method('PATCH')
             <input type="hidden" name="rights_only" value="1">
             <div class="ck-field">
-                <label class="ck-field__label" for="showRoleSelect">Rolle zuweisen</label>
+                <label class="ck-field__label" for="showRoleSelect">{{ __('core.users.assign_role') }}</label>
                 <select name="role" id="showRoleSelect" class="ck-field__input">
-                    <option value="">– Keine Rolle –</option>
+                    <option value="">{{ __('core.users.no_role') }}</option>
                     @foreach($roles as $role)
                     <option value="{{ $role->name }}"
                         {{ $user->hasRole($role->name) ? 'selected' : '' }}>
                         {{ ucfirst($role->name) }}
-                        @if($role->name === 'super-admin') (Vollzugriff)@endif
+                        @if($role->name === 'super-admin') ({{ __('core.roles.full_access') }})@endif
                     </option>
                     @endforeach
                 </select>
             </div>
             @if($user->roles->isEmpty() && $user->permissions->isNotEmpty())
             <p class="ck-text-muted ck-mt-2">
-                Dieser Nutzer hat benutzerdefinierte Einzelrechte.
-                Rollenzuweisung überschreibt diese.
+                {{ __('core.users.custom_perms_hint') }}
             </p>
             @endif
             <div class="ck-form-actions">
@@ -79,10 +78,8 @@
 {{-- ── Delete user ──────────────────────────────────────────────────────── --}}
 @if($user->id !== auth()->id())
 <x-ck-card class="ck-mt-5" accent="red">
-    <x-slot:header>⚠️ Nutzer löschen</x-slot:header>
-    <p class="ck-text-muted">
-        Dieser Nutzer und alle seine Sitzungsdaten werden unwiderruflich gelöscht.
-    </p>
+    <x-slot:header>{{ __('core.users.delete_section') }}</x-slot:header>
+    <p class="ck-text-muted">{{ __('core.users.delete_warning') }}</p>
     <div class="ck-form-actions ck-mt-3">
         <form method="POST" action="{{ route('admin.users.destroy', $user) }}">
             @csrf
@@ -90,7 +87,7 @@
             <x-ck-button
                 type="submit"
                 variant="danger"
-                :confirm="'Nutzer ' . $user->name . ' wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'">
+                :confirm="__('core.users.confirm_delete', ['name' => $user->name])">
                 {{ __('Delete user') }}
             </x-ck-button>
         </form>

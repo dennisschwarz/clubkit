@@ -1,5 +1,5 @@
 @extends('core::admin.layout')
-@section('title', 'Teams')
+@section('title', __('teams.title'))
 
 @section('content')
 
@@ -9,27 +9,27 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 </svg>';
 
 $teamColors = [
-    ''       => 'Standard',
-    'blue'   => 'Blau',
-    'navy'   => 'Navy',
-    'green'  => 'Grün',
-    'teal'   => 'Teal',
-    'red'    => 'Rot',
-    'orange' => 'Orange',
-    'amber'  => 'Gelb',
-    'purple' => 'Lila',
-    'pink'   => 'Pink',
-    'slate'  => 'Grau',
+    ''       => __('teams.color.default'),
+    'blue'   => __('teams.color.blue'),
+    'navy'   => __('teams.color.navy'),
+    'green'  => __('teams.color.green'),
+    'teal'   => __('teams.color.teal'),
+    'red'    => __('teams.color.red'),
+    'orange' => __('teams.color.orange'),
+    'amber'  => __('teams.color.yellow'),
+    'purple' => __('teams.color.purple'),
+    'pink'   => __('teams.color.pink'),
+    'slate'  => __('teams.color.gray'),
 ];
 @endphp
 
 <div class="ck-page-header">
     <div>
-        <h1 class="ck-page-title">Teams</h1>
-        <p class="ck-page-subtitle">{{ $teams->count() }} Teams gesamt</p>
+        <h1 class="ck-page-title">{{ __('teams.title') }}</h1>
+        <p class="ck-page-subtitle">{{ __('teams.count', ['count' => $teams->count()]) }}</p>
     </div>
     <x-ck-button variant="primary" onclick="teamsModalOpen('create')">
-        + Team anlegen
+        {{ __('teams.create') }}
     </x-ck-button>
 </div>
 
@@ -42,11 +42,11 @@ $teamColors = [
     <form method="GET">
         <select name="sort" class="ck-field__input ck-field__input--sm"
                 onchange="this.form.submit()">
-            <option value="name"            {{ request('sort', 'name') === 'name'            ? 'selected' : '' }}>Reihenfolge: Name A–Z</option>
-            <option value="-name"           {{ request('sort') === '-name'                   ? 'selected' : '' }}>Reihenfolge: Name Z–A</option>
-            <option value="-is_active"      {{ request('sort') === '-is_active'              ? 'selected' : '' }}>Reihenfolge: Aktive zuerst</option>
-            <option value="is_active"       {{ request('sort') === 'is_active'               ? 'selected' : '' }}>Reihenfolge: Inaktive zuerst</option>
-            <option value="-is_competition" {{ request('sort') === '-is_competition'         ? 'selected' : '' }}>Reihenfolge: Spielbetrieb zuerst</option>
+            <option value="name"            {{ request('sort', 'name') === 'name'            ? 'selected' : '' }}>{{ __('teams.sort.az') }}</option>
+            <option value="-name"           {{ request('sort') === '-name'                   ? 'selected' : '' }}>{{ __('teams.sort.za') }}</option>
+            <option value="-is_active"      {{ request('sort') === '-is_active'              ? 'selected' : '' }}>{{ __('teams.sort.status') }}</option>
+            <option value="is_active"       {{ request('sort') === 'is_active'               ? 'selected' : '' }}>{{ __('teams.sort.status') }}</option>
+            <option value="-is_competition" {{ request('sort') === '-is_competition'         ? 'selected' : '' }}>{{ __('teams.sort.members') }}</option>
         </select>
     </form>
 </div>
@@ -59,11 +59,11 @@ $teamColors = [
         ? 'ck-section-header--team-' . $team->color . ' ck-section-header--colored'
         : '';
     $metaParts = [];
-    $metaParts[] = $team->is_competition ? 'Spielbetrieb' : 'Freizeitbetrieb';
+    $metaParts[] = $team->is_competition ? __('teams.competition') : __('teams.leisure');
     if ($team->age_class) $metaParts[] = $team->age_class;
     if ($team->season)    $metaParts[] = $team->season;
     if ($team->league)    $metaParts[] = $team->league;
-    $metaParts[] = $team->members_count . ' ' . ($team->members_count === 1 ? 'Mitglied' : 'Mitglieder');
+    $metaParts[] = $team->members_count . ' ' . __('teams.col.member');
 @endphp
 
 <div class="ck-mb-5">
@@ -76,7 +76,7 @@ $teamColors = [
             <span class="ck-section-header__title">{{ $team->name }}</span>
             <span class="ck-section-header__meta">
                 {{ implode(' · ', $metaParts) }}
-                @if(!$team->is_active) · <span class="ck-section-header__meta--inactive">Inaktiv</span>@endif
+                @if(!$team->is_active) · <span class="ck-section-header__meta--inactive">{{ __('teams.inactive') }}</span>@endif
             </span>
         </div>
         {{-- Action buttons: stop propagation so clicks don't toggle the accordion --}}
@@ -92,7 +92,7 @@ $teamColors = [
             {{-- Manage roster via Dual Listbox modal --}}
             @if($team->is_active)
             <x-ck-button variant="secondary" size="icon"
-                title="Kader verwalten"
+                :title="__('teams.manage_roster')"
                 onclick="openRosterModal({{ $team->id }})">
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
@@ -104,7 +104,7 @@ $teamColors = [
                 @csrf @method('DELETE')
                 <x-ck-button variant="danger" size="icon" type="submit"
                     title="{{ __('Delete') }}"
-                    :confirm="'Team »' . $team->name . '« wirklich löschen?'">
+                    :confirm="__('teams.confirm_delete', ['name' => $team->name])">
                     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
                     </svg>
@@ -119,10 +119,10 @@ $teamColors = [
             <table class="ck-table">
                 <thead>
                     <tr>
-                        <th>Mitglied</th>
-                        @if($team->is_competition)<th>Rückennummer</th>@endif
-                        <th>Spielberechtigung</th>
-                        @if($team->is_active)<th class="ck-table__actions">Aktionen</th>@endif
+                        <th>{{ __('teams.col.member') }}</th>
+                        @if($team->is_competition)<th>{{ __('teams.col.squad_number') }}</th>@endif
+                        <th>{{ __('teams.col.eligible') }}</th>
+                        @if($team->is_active)<th class="ck-table__actions">{{ __('core.col.actions') }}</th>@endif
                     </tr>
                 </thead>
                 <tbody>
@@ -140,9 +140,9 @@ $teamColors = [
                         @endif
                         <td>
                             @if($member->eligible_to_play)
-                                <x-ck-badge color="green">✓ Spielberechtigt</x-ck-badge>
+                                <x-ck-badge color="green">{{ __('teams.eligible') }}</x-ck-badge>
                             @else
-                                <x-ck-badge color="gray">Nicht spielberechtigt</x-ck-badge>
+                                <x-ck-badge color="gray">{{ __('teams.not_eligible') }}</x-ck-badge>
                             @endif
                         </td>
                         @if($team->is_active)
@@ -153,7 +153,7 @@ $teamColors = [
                                       class="ck-inline-form">
                                     @csrf @method('DELETE')
                                     <x-ck-button size="sm" variant="danger" type="submit"
-                                        :confirm="$member->last_name . ' aus dem Kader entfernen?'">
+                                        :confirm="__('teams.confirm_remove_member', ['name' => $member->last_name])">
                                         {{ __('Remove') }}
                                     </x-ck-button>
                                 </form>
@@ -165,7 +165,7 @@ $teamColors = [
                     <tr>
                         <td colspan="{{ ($team->is_competition ? 1 : 0) + ($team->is_active ? 1 : 0) + 2 }}"
                             class="ck-empty-state">
-                            Kader leer – Mitglieder über 👥 (Kader verwalten) zuweisen.
+                            {{ __('teams.roster_empty') }}
                         </td>
                     </tr>
                     @endforelse
@@ -178,27 +178,25 @@ $teamColors = [
 @empty
 <x-ck-card>
     <p class="ck-empty-state">
-        Noch keine Teams angelegt.
+        {{ __('teams.empty') }}
         <x-ck-button type="button" variant="primary" size="sm" onclick="teamsModalOpen('create')">
-            Jetzt anlegen
+            {{ __('core.create_now') }}
         </x-ck-button>
     </p>
 </x-ck-card>
 @endforelse
 
 {{-- ══ Roster Dual Listbox Modal ═══════════════════════════════════════════ --}}
-<x-ck-modal id="teamRosterModal" title="Kader verwalten" size="lg">
+<x-ck-modal id="teamRosterModal" :title="__('teams.modal_roster')" size="lg">
     <form id="rosterForm" method="POST">
         @csrf
         @method('PUT')
 
-        <p class="ck-text-muted ck-font-sm ck-mb-4">
-            Ctrl+Klick (Mehrfachauswahl) → dann mit den Pfeilen verschieben.
-        </p>
+        <p class="ck-text-muted ck-font-sm ck-mb-4">{{ __('events.assign.ctrl_hint') }}</p>
 
         <div class="ck-dual-listbox">
             <div class="ck-dual-listbox__col">
-                <span class="ck-dual-listbox__label">Verfügbar</span>
+                <span class="ck-dual-listbox__label">{{ __('teams.available') }}</span>
                 <select id="rosterAvail" multiple class="ck-dual-listbox__list">
                     {{-- populated by openRosterModal() in teams-modal.js --}}
                 </select>
@@ -208,7 +206,7 @@ $teamColors = [
                 <x-ck-button type="button" variant="secondary" onclick="ckRosterMove('left')">←</x-ck-button>
             </div>
             <div class="ck-dual-listbox__col">
-                <span class="ck-dual-listbox__label">Im Kader</span>
+                <span class="ck-dual-listbox__label">{{ __('teams.in_roster') }}</span>
                 {{--
                     name="member_ids[]" – all options are selected before submit
                     by the rosterForm submit handler in teams-modal.js.
@@ -220,7 +218,7 @@ $teamColors = [
         </div>
 
         <div class="ck-form-actions">
-            <x-ck-button type="submit" variant="primary">Kader speichern</x-ck-button>
+            <x-ck-button type="submit" variant="primary">{{ __('teams.save_roster') }}</x-ck-button>
             <x-ck-button type="button" variant="secondary"
                 onclick="ckModalClose(null, 'teamRosterModal')">{{ __('Cancel') }}</x-ck-button>
         </div>
@@ -228,13 +226,13 @@ $teamColors = [
 </x-ck-modal>
 
 {{-- ══ Team Edit Modal ═════════════════════════════════════════════════════ --}}
-<x-ck-modal id="teamModal" title="Team" size="md">
+<x-ck-modal id="teamModal" :title="__('teams.title')" size="md">
 
     <x-slot:tabs>
         <button class="ck-modal-tab ck-modal-tab--active"
                 id="teamDatenTabBtn"
                 onclick="ckModalTab('teamModal', 'teamTab-daten', this)">
-            🏆 Team-Daten
+            {{ __('teams.tab_data') }}
         </button>
         @ckHook('team.modal.tabs')
     </x-slot:tabs>
@@ -244,10 +242,10 @@ $teamColors = [
             @csrf
             <input type="hidden" name="_method" id="teamFormMethod" value="POST">
 
-            <x-ck-field label="Teamname" name="name" id="tFieldName" :required="true" />
+            <x-ck-field :label="__('teams.field.name')" name="name" id="tFieldName" :required="true" />
 
             <div class="ck-field__group ck-mt-3">
-                <label class="ck-field__label">Teamfarbe</label>
+                <label class="ck-field__label">{{ __('teams.field.color') }}</label>
                 <div class="ck-color-picker" id="tColorPicker">
                     @foreach($teamColors as $colorKey => $colorLabel)
                     <label class="ck-color-swatch{{ $colorKey === '' ? ' ck-color-swatch--selected' : '' }}"
@@ -263,7 +261,7 @@ $teamColors = [
 
             <div class="ck-mt-3">
                 <x-ck-field type="checkbox" name="is_active" id="tFieldActive" :checked="true">
-                    Team ist aktiv
+                    {{ __('teams.field.active') }}
                 </x-ck-field>
             </div>
 
@@ -272,28 +270,23 @@ $teamColors = [
                     <label class="ck-competition-block__header">
                         <input type="checkbox" name="is_competition" id="tFieldIsCompetition"
                                value="1" onchange="teamsToggleCompetition(this.checked)">
-                        <span>Spielbetrieb (Wettbewerb)</span>
+                        <span>{{ __('teams.field.competition') }}</span>
                         <span class="ck-competition-block__chevron" id="tCompetitionChevron">▼</span>
                     </label>
                     <div class="ck-competition-block__body is-hidden" id="tCompetitionBody">
                         <div class="ck-form-grid ck-form-grid--2">
-                            <x-ck-field label="Saison" name="season" id="tFieldSeason"
-                                        placeholder="z.B. 2026/27" />
-                            <x-ck-field label="Altersklasse" name="age_class" id="tFieldAgeClass"
-                                        placeholder="z.B. D-Jugend" />
+                            <x-ck-field :label="__('teams.field.season')"    name="season"    id="tFieldSeason"    placeholder="z.B. 2026/27" />
+                            <x-ck-field :label="__('teams.field.age_class')" name="age_class" id="tFieldAgeClass" placeholder="z.B. D-Jugend" />
                             <div class="ck-form-grid__span-2">
-                                <x-ck-field label="Liga" name="league" id="tFieldLeague"
-                                            placeholder="z.B. Kreisliga A" />
+                                <x-ck-field :label="__('teams.field.league')" name="league" id="tFieldLeague" placeholder="z.B. Kreisliga A" />
                             </div>
                         </div>
                         <div class="ck-competition-block__divider"></div>
                         <label class="ck-competition-block__sub-check">
                             <input type="checkbox" name="eligible_only" id="tFieldEligibleOnly" value="1">
                             <div>
-                                <span class="ck-competition-block__sub-label">Nur Spielberechtigte</span>
-                                <span class="ck-competition-block__sub-hint">
-                                    Nur Mitglieder mit Spielberechtigung dürfen in den Kader
-                                </span>
+                                <span class="ck-competition-block__sub-label">{{ __('teams.eligible_only') }}</span>
+                                <span class="ck-competition-block__sub-hint">{{ __('teams.eligible_only_hint') }}</span>
                             </div>
                         </label>
                     </div>

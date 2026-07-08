@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Modules\Management\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 use Modules\Events\Models\Event;
 use Modules\Management\Http\Requests\StoreEventTaskMemberRequest;
 use Modules\Management\Models\EventTask;
@@ -55,17 +57,65 @@ class EventTaskMemberController extends Controller
             return response()->json(['error' => 'already_assigned'], 409);
         }
 
+        // Place the new assignment at the end of the current sort order.
+        $nextSortOrder = EventTaskMember::where('event_task_id', $task->id)
+            ->whereNull('time_from')
+            ->max('sort_order') + 1;
+
         $assignment = EventTaskMember::create([
             'event_task_id' => $task->id,
             'member_id'     => $data['member_id'],
             'time_from'     => null,
             'time_to'       => null,
+            'sort_order'    => $nextSortOrder,
         ]);
 
         return response()->json([
             'success'    => true,
-            'assignment' => ['id' => $assignment->id, 'member_id' => $assignment->member_id],
+            'assignment' => [
+                'id'         => $assignment->id,
+                'member_id'  => $assignment->member_id,
+                'sort_order' => $assignment->sort_order,
+            ],
         ], 201);
+    }
+
+    /**
+     * Updates the sort_order of multiple task member assignments in one call.
+     *
+     * Accepts { ids: [assignmentId1, assignmentId2, ...] } in the desired order.
+     * Each assignment's sort_order is set to its index in the array.
+     *
+     * Security: only assignments that belong to this event are updated (IDOR prevention).
+     *
+     * @param  Request $request
+     * @param  Event   $event
+     * @param  int     $taskId
+     * @return JsonResponse
+     */
+    public function reorder(Request $request, Event $event, int $taskId): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids'   => ['required', 'array'],
+            'ids.*' => ['integer'],
+        ]);
+
+        // Verify the task belongs to this event.
+        $task = EventTask::where('event_id', $event->id)->find($taskId);
+        if (! $task) {
+            return response()->json(['error' => 'Task does not belong to this event.'], 422);
+        }
+
+        // Bulk-update sort_order for each assignment in the provided order.
+        foreach ($validated['ids'] as $index => $assignmentId) {
+            DB::table('event_task_members')
+                ->where('id', $assignmentId)
+                ->where('event_task_id', $task->id)
+                ->whereNull('time_from')
+                ->update(['sort_order' => $index]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     /**

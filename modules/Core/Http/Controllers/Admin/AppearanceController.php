@@ -162,12 +162,12 @@ class AppearanceController extends Controller
                 'success'     => true,
                 'cssVars'     => $cssVars,
                 'needsReload' => $needsReload,
-                'message'     => 'Gespeichert.',
+                'message'     => __('appearance.flash.saved_json'),
             ]);
         }
 
         // ── Standard form submit ──────────────────────────────────────────────
-        return back()->with('success', 'Erscheinungsbild gespeichert.');
+        return back()->with('success', __('appearance.flash.saved'));
     }
 
     // ── Logo deletion ─────────────────────────────────────────────────────────
@@ -186,9 +186,9 @@ class AppearanceController extends Controller
         Setting::setValue('logo_path', '');
 
         if (request()->ajax() || request()->wantsJson()) {
-            return response()->json(['success' => true, 'needsReload' => true, 'message' => 'Logo entfernt.']);
+            return response()->json(['success' => true, 'needsReload' => true, 'message' => __('appearance.flash.logo_removed')]);
         }
 
-        return back()->with('success', 'Logo entfernt.');
+        return back()->with('success', __('appearance.flash.logo_removed'));
     }
 }

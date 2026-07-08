@@ -1,189 +1,379 @@
 @extends('core::admin.layout')
 
-@section('title', 'Aktivitätsprotokoll')
+@section('title', __('core.appearance.title'))
 
 @section('content')
 
 <div class="ck-page-header">
     <div>
-        <h1 class="ck-page-title">Aktivitätsprotokoll</h1>
-        <p class="ck-page-subtitle">Alle Aktionen im System – wer wann was geändert hat.</p>
+        <h1 class="ck-page-title">{{ __('core.appearance.title') }}</h1>
+        <p class="ck-page-subtitle">{{ __('core.appearance.subtitle') }}</p>
     </div>
 </div>
 
-{{-- Filters ──────────────────────────────────────────────────────────────── --}}
+{{-- ════════════════════════════════════════════════
+     CLUB IDENTITY
+════════════════════════════════════════════════ --}}
 <x-ck-card>
-    <form method="GET" action="{{ route('admin.activity-log.index') }}" class="ck-filter-form">
-        <div class="ck-filter-row">
 
-            {{-- URL format: ?filter[causer_id]=1 --}}
-            <x-ck-field
-                type="select"
-                name="filter[causer_id]"
-                label="Benutzer"
-                :value="request('filter.causer_id')"
-                :options="['' => 'Alle Benutzer'] + $users->pluck('name', 'id')->toArray()"
-            />
+    <x-slot:header>{{ __('core.appearance.identity_title') }}</x-slot:header>
 
-            <x-ck-field
-                type="select"
-                name="filter[event]"
-                label="Aktion"
-                :value="request('filter.event')"
-                :options="[
-                    ''        => 'Alle Aktionen',
-                    'created' => 'Erstellt',
-                    'updated' => 'Geändert',
-                    'deleted' => 'Gelöscht',
-                ]"
-            />
+    <x-slot:headerAction>
+        <span data-save-status class="ck-save-status"></span>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
+            {{ __('Save') }}
+        </x-ck-button>
+    </x-slot:headerAction>
 
-            <x-ck-field
-                type="select"
-                name="filter[log_name]"
-                label="Modul"
-                :value="request('filter.log_name')"
-                :options="['' => 'Alle Module'] + $logNames->combine($logNames)->toArray()"
-            />
+    <div class="ck-settings-section">
 
-            <x-ck-field
-                type="date"
-                name="filter[date_from]"
-                label="Von"
-                :value="request('filter.date_from')"
-            />
-
-            <x-ck-field
-                type="date"
-                name="filter[date_to]"
-                label="Bis"
-                :value="request('filter.date_to')"
-            />
-
-            <div class="ck-filter-actions">
-                <x-ck-button type="submit" variant="primary">{{ __('Filter') }}</x-ck-button>
-                <x-ck-button variant="secondary" tag="a" href="{{ route('admin.activity-log.index') }}">{{ __('Reset') }}</x-ck-button>
+        {{-- Club name --}}
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.club_name') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.club_name_hint') }}</div>
             </div>
-
+            <div class="ck-settings-row__input">
+                <input type="text"
+                       name="club_name"
+                       class="ck-field__input"
+                       data-setting
+                       value="{{ $settings['club_name'] }}"
+                       maxlength="60"
+                       placeholder="z. B. HSV Langenfeld 1959 e.V.">
+            </div>
         </div>
-    </form>
-</x-ck-card>
 
-{{-- Table ───────────────────────────────────────────────────────────────── --}}
-<x-ck-card>
+        {{-- Logo --}}
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.logo') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.logo_hint') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                @if(!empty($settings['logo_path']))
+                    <img src="{{ asset('storage/' . $settings['logo_path']) }}"
+                         alt="{{ __('core.appearance.logo_alt') }}"
+                         class="ck-appearance__logo-preview">
+                @endif
+                <input type="file"
+                       name="logo"
+                       class="ck-field__input"
+                       data-setting
+                       accept="image/jpeg,image/png,image/webp">
+            </div>
+        </div>
 
-    @if($activities->isEmpty())
-        <p class="ck-empty-state">Keine Einträge gefunden.</p>
-    @else
-
-    <table class="ck-table">
-        <thead>
-            <tr>
-                <x-ck-sort-header column="created_at" label="Zeit" />
-                <th>Benutzer</th>
-                <x-ck-sort-header column="event"      label="Aktion" />
-                <th>Objekt</th>
-                <x-ck-sort-header column="log_name"   label="Modul" />
-                <th>IP</th>
-                <th>Details</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($activities as $activity)
-            <tr>
-
-                {{-- Timestamp --}}
-                <td class="ck-table__nowrap">
-                    {{ $activity->created_at->format('d.m.Y H:i') }}
-                </td>
-
-                {{-- Causer --}}
-                <td>
-                    @if($activity->causer)
-                        {{ $activity->causer->name }}
-                    @else
-                        <span class="ck-muted">System</span>
-                    @endif
-                </td>
-
-                {{-- Action badge --}}
-                <td>
-                    @php
-                        $eventLabel = match($activity->event) {
-                            'created'  => ['label' => __('Created'),  'color' => 'green'],
-                            'updated'  => ['label' => __('Updated'),  'color' => 'blue'],
-                            'deleted'  => ['label' => __('Deleted'),  'color' => 'red'],
-                            'restored' => ['label' => __('Restored'), 'color' => 'amber'],
-                            default    => ['label' => $activity->event ?? '–', 'color' => 'gray'],
-                        };
-                    @endphp
-                    <x-ck-badge :color="$eventLabel['color']">{{ $eventLabel['label'] }}</x-ck-badge>
-                </td>
-
-                {{-- Subject (what was changed) --}}
-                <td>
-                    @if($activity->subject_type)
-                        {{ class_basename($activity->subject_type) }}
-                        @if($activity->subject_id)
-                            <span class="ck-muted">#{{ $activity->subject_id }}</span>
-                        @endif
-                    @else
-                        <span class="ck-muted">–</span>
-                    @endif
-                    @if($activity->description && $activity->description !== $activity->event)
-                        <div class="ck-table__sub">{{ $activity->description }}</div>
-                    @endif
-                </td>
-
-                {{-- Module --}}
-                <td>
-                    <span class="ck-muted">{{ $activity->log_name ?? 'default' }}</span>
-                </td>
-
-                {{-- IP address (from properties JSON) --}}
-                <td class="ck-table__nowrap">
-                    <span class="ck-muted">{{ $activity->properties->get('ip', '–') }}</span>
-                </td>
-
-                {{-- Changed fields (collapsed) --}}
-                <td>
-                    @php
-                        $attrs = $activity->properties->get('attributes', []);
-                        $old   = $activity->properties->get('old', []);
-                    @endphp
-                    @if(!empty($attrs))
-                        <details class="ck-log-details">
-                            <summary>{{ count($attrs) }} Feld(er)</summary>
-                            <table class="ck-log-diff">
-                                @foreach($attrs as $field => $newVal)
-                                    <tr>
-                                        <td class="ck-log-diff__field">{{ $field }}</td>
-                                        @if(isset($old[$field]))
-                                            <td class="ck-log-diff__old">{{ $old[$field] ?? '–' }}</td>
-                                            <td class="ck-log-diff__arrow">→</td>
-                                        @endif
-                                        <td class="ck-log-diff__new">{{ $newVal ?? '–' }}</td>
-                                    </tr>
-                                @endforeach
-                            </table>
-                        </details>
-                    @else
-                        <span class="ck-muted">–</span>
-                    @endif
-                </td>
-
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    {{-- Pagination --}}
-    <div class="ck-pagination">
-        {{ $activities->links() }}
     </div>
 
-    @endif
+</x-ck-card>
+
+{{-- ════════════════════════════════════════════════
+     BRAND BAR (row 1 in header)
+════════════════════════════════════════════════ --}}
+<x-ck-card class="ck-mt-5">
+
+    <x-slot:header>{{ __('core.appearance.brand_bar_title') }}</x-slot:header>
+
+    <x-slot:headerAction>
+        <span data-save-status class="ck-save-status"></span>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
+            {{ __('Save') }}
+        </x-ck-button>
+    </x-slot:headerAction>
+
+    <div class="ck-settings-section">
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.bg_color') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="header_bg" class="ck-field__input" data-setting
+                       value="{{ $settings['header_bg'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.text_color') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.text_color_hint_brand') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="brand_bar_text" class="ck-field__input" data-setting
+                       value="{{ $settings['brand_bar_text'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.hover_color') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.hover_color_hint_brand') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="brand_bar_hover" class="ck-field__input" data-setting
+                       value="{{ $settings['brand_bar_hover'] }}">
+            </div>
+        </div>
+
+    </div>
 
 </x-ck-card>
+
+{{-- ════════════════════════════════════════════════
+     NAVIGATION BAR (row 2 in header)
+════════════════════════════════════════════════ --}}
+<x-ck-card class="ck-mt-5">
+
+    <x-slot:header>{{ __('core.appearance.nav_bar_title') }}</x-slot:header>
+
+    <x-slot:headerAction>
+        <span data-save-status class="ck-save-status"></span>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
+            {{ __('Save') }}
+        </x-ck-button>
+    </x-slot:headerAction>
+
+    <div class="ck-settings-section">
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.show_emojis') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.show_emojis_hint_nav') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <label class="ck-field__checkbox">
+                    <input type="checkbox"
+                           name="nav_bar_show_emojis"
+                           class="ck-field__input"
+                           data-setting
+                           value="1"
+                           {{ $settings['nav_bar_show_emojis'] === '1' ? 'checked' : '' }}>
+                    {{ __('core.appearance.show_emojis') }}
+                </label>
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.bg_color') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="nav_bar_bg" class="ck-field__input" data-setting
+                       value="{{ $settings['nav_bar_bg'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.text_color') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.text_inactive') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="nav_bar_text" class="ck-field__input" data-setting
+                       value="{{ $settings['nav_bar_text'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.hover_color') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.hover_color_hint_nav') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="nav_bar_hover" class="ck-field__input" data-setting
+                       value="{{ $settings['nav_bar_hover'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.active_highlight') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.active_highlight_hint_nav') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="nav_bar_active_bar" class="ck-field__input" data-setting
+                       value="{{ $settings['nav_bar_active_bar'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.font_size') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <select name="nav_bar_font_size" class="ck-field__input" data-setting>
+                    @foreach($fontSizes as $size)
+                        <option value="{{ $size }}"
+                            {{ $settings['nav_bar_font_size'] === $size ? 'selected' : '' }}>
+                            {{ $size }} px
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+    </div>
+
+</x-ck-card>
+
+{{-- ════════════════════════════════════════════════
+     SUB-TAB BAR
+════════════════════════════════════════════════ --}}
+<x-ck-card class="ck-mt-5">
+
+    <x-slot:header>{{ __('core.appearance.subtab_title') }}</x-slot:header>
+
+    <x-slot:headerAction>
+        <span data-save-status class="ck-save-status"></span>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
+            {{ __('Save') }}
+        </x-ck-button>
+    </x-slot:headerAction>
+
+    <div class="ck-settings-section">
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.show_emojis') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.show_emojis_hint_subtab') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <label class="ck-field__checkbox">
+                    <input type="checkbox"
+                           name="subtab_show_emojis"
+                           class="ck-field__input"
+                           data-setting
+                           value="1"
+                           {{ $settings['subtab_show_emojis'] === '1' ? 'checked' : '' }}>
+                    {{ __('core.appearance.show_emojis') }}
+                </label>
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.bg_color') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="subtab_bg" class="ck-field__input" data-setting
+                       value="{{ $settings['subtab_bg'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.text_color') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.text_inactive_subtab') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="subtab_text" class="ck-field__input" data-setting
+                       value="{{ $settings['subtab_text'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.hover_color') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.hover_color_hint_subtab') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="subtab_hover" class="ck-field__input" data-setting
+                       value="{{ $settings['subtab_hover'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.active_highlight') }}</div>
+                <div class="ck-settings-row__hint">{{ __('core.appearance.active_highlight_hint_subtab') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="subtab_active_bar" class="ck-field__input" data-setting
+                       value="{{ $settings['subtab_active_bar'] }}">
+            </div>
+        </div>
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.font_size') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <select name="subtab_font_size" class="ck-field__input" data-setting>
+                    @foreach($fontSizes as $size)
+                        <option value="{{ $size }}"
+                            {{ $settings['subtab_font_size'] === $size ? 'selected' : '' }}>
+                            {{ $size }} px
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+    </div>
+
+</x-ck-card>
+
+{{-- ════════════════════════════════════════════════
+     GENERAL
+════════════════════════════════════════════════ --}}
+<x-ck-card class="ck-mt-5">
+
+    <x-slot:header>{{ __('core.appearance.general_title') }}</x-slot:header>
+
+    <x-slot:headerAction>
+        <span data-save-status class="ck-save-status"></span>
+        <x-ck-button type="button" variant="primary" size="sm" data-appearance-save>
+            {{ __('Save') }}
+        </x-ck-button>
+    </x-slot:headerAction>
+
+    <div class="ck-settings-section">
+
+        <div class="ck-settings-row">
+            <div>
+                <div class="ck-settings-row__label">{{ __('core.appearance.body_bg') }}</div>
+            </div>
+            <div class="ck-settings-row__input">
+                <input type="color" name="body_bg" class="ck-field__input" data-setting
+                       value="{{ $settings['body_bg'] }}">
+            </div>
+        </div>
+
+    </div>
+
+</x-ck-card>
+
+{{-- Delete logo (only shown when a logo is set) --}}
+@if(!empty($settings['logo_path']))
+<x-ck-card class="ck-mt-5">
+    <x-slot:header>{{ __('core.appearance.logo_remove_title') }}</x-slot:header>
+    <x-slot:headerAction>
+        <span data-save-status class="ck-save-status"></span>
+    </x-slot:headerAction>
+    <form method="POST" action="{{ route('admin.appearance.logo.delete') }}">
+        @csrf
+        @method('DELETE')
+        <x-ck-button
+            variant="danger"
+            type="submit"
+            :confirm="__('core.appearance.logo_remove_confirm')">
+            {{ __('Remove logo') }}
+        </x-ck-button>
+    </form>
+</x-ck-card>
+@endif
+
+@push('scripts')
+{{-- Data bridge: route + current CSS variables for JS --}}
+<script>
+window.CK_Appearance = {
+    routes: {
+        update: "{{ route('admin.appearance.update') }}"
+    }
+};
+</script>
+@vite('resources/js/modules/appearance-modal.js')
+@endpush
 
 @endsection

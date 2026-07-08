@@ -31,7 +31,7 @@
         userId = userId || null;
 
         if (mode === 'create') {
-            if (titleEl) titleEl.textContent = 'Neuen Nutzer anlegen';
+            if (titleEl) titleEl.textContent = ckUi('user_create', 'Neuen Nutzer anlegen');
             _setField('fieldName',     '');
             _setField('fieldEmail',    '');
             _setField('fieldPassword', '');
@@ -44,7 +44,7 @@
             const u = users[userId];
             if (!u) return;
 
-            if (titleEl) titleEl.textContent = u.name + ' bearbeiten';
+            if (titleEl) titleEl.textContent = u.name + ckUi('edit_suffix', ' bearbeiten');
             _setField('fieldName',     u.name);
             _setField('fieldEmail',    u.email);
             _setField('fieldPassword', '');
@@ -96,7 +96,7 @@
             permList.innerHTML = '';
 
             if (roleData.permissions.length === 0) {
-                permList.innerHTML = '<span class="ck-text-muted">Keine Permissions zugewiesen</span>';
+                permList.innerHTML = '<span class="ck-text-muted">' + ckUi('no_permissions', 'Keine Permissions zugewiesen') + '</span>';
             } else {
                 // Group by module prefix
                 const grouped = {};

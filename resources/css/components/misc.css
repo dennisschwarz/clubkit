@@ -9,9 +9,11 @@
   flex-shrink: 0;
   overflow: hidden;
 }
-.ck-avatar img   { width: 100%; height: 100%; object-fit: cover; }
-.ck-avatar--sm   { width: 28px; height: 28px; font-size: 9px; }
-.ck-avatar--lg   { width: 56px; height: 56px; font-size: var(--ck-font-md); }
+.ck-avatar img       { width: 100%; height: 100%; object-fit: cover; }
+.ck-avatar--sm       { width: 28px; height: 28px; font-size: 9px; }
+.ck-avatar--lg       { width: 56px; height: 56px; font-size: var(--ck-font-md); }
+/* Photo avatar: uses an <img> inside; no initials background needed */
+.ck-avatar--photo    { background: transparent; }
 
 /* ── Thumbnail in table row ──────────────────────────── */
 .ck-table-thumb {
@@ -238,6 +240,33 @@
 .ck-alert--danger  { background: var(--ck-danger-bg);  color: var(--ck-danger-text);  border-color: var(--ck-danger-border); }
 .ck-alert--success { background: var(--ck-success-bg); color: var(--ck-success-text); border-color: var(--ck-success-border); }
 .ck-alert--warning { background: var(--ck-warning-bg); color: var(--ck-warning-text); border-color: var(--ck-warning-border); }
+.ck-alert--info    { background: var(--ck-blue-tint);  color: var(--ck-accent-dark);  border-color: var(--ck-accent); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Activity log – diff viewer
+   .ck-log-details: collapsible <details> wrapper
+   .ck-log-diff:    two-column before/after table inside the details
+══════════════════════════════════════════════════════════════════════ */
+.ck-log-details {
+  font-size: var(--ck-font-xs);
+  color: var(--ck-text-secondary);
+}
+.ck-log-details summary {
+  cursor: pointer;
+  user-select: none;
+  color: var(--ck-accent-dark);
+  font-weight: 600;
+}
+.ck-log-diff {
+  margin-top: var(--ck-space-2);
+  border-collapse: collapse;
+  width: 100%;
+}
+.ck-log-diff td               { padding: 2px 6px; vertical-align: top; border: none; }
+.ck-log-diff__field           { font-weight: 700; color: var(--ck-text-secondary); width: 120px; }
+.ck-log-diff__old             { color: var(--ck-danger-text); text-decoration: line-through; max-width: 160px; word-break: break-all; }
+.ck-log-diff__arrow           { color: var(--ck-text-muted); padding: 0 4px; }
+.ck-log-diff__new             { color: var(--ck-success-text); font-weight: 600; max-width: 160px; word-break: break-all; }
 
 /* ══════════════════════════════════════════════════════════════════════
    YouthClubMode – family list

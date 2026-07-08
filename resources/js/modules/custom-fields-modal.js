@@ -36,7 +36,7 @@
         _toggleOptionsBlock('text');
 
         if (mode === 'create') {
-            _cfDefSetTitle('Feld anlegen');
+            _cfDefSetTitle(ckUi('cf_create', 'Feld anlegen'));
             methodInput.value = 'POST';
             form.action       = routes.store || '';
 
@@ -48,7 +48,7 @@
             const def = (cfData.definitions || {})[defId];
             if (!def) return;
 
-            _cfDefSetTitle('Feld bearbeiten');
+            _cfDefSetTitle(ckUi('cf_edit', 'Feld bearbeiten'));
             methodInput.value = 'PATCH';
             form.action       = (routes.update || '') + '/' + defId;
 

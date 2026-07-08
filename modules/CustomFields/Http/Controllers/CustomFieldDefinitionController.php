@@ -71,7 +71,7 @@ class CustomFieldDefinitionController extends Controller
         }
 
         return redirect()->route('admin.module-settings.index')
-            ->with('success', 'Feld „' . $def->label . '" angelegt.');
+            ->with('success', __('custom-fields.flash.created', ['name' => $def->label]));
     }
 
     /**
@@ -98,7 +98,7 @@ class CustomFieldDefinitionController extends Controller
         $def->update($validated);
 
         return redirect()->route('admin.module-settings.index')
-            ->with('success', 'Feld „' . $def->label . '" aktualisiert.');
+            ->with('success', __('custom-fields.flash.updated', ['name' => $def->label]));
     }
 
     /**
@@ -114,7 +114,7 @@ class CustomFieldDefinitionController extends Controller
         $def->delete();
 
         return redirect()->route('admin.module-settings.index')
-            ->with('success', 'Feld „' . $label . '" gelöscht.');
+            ->with('success', __('custom-fields.flash.deleted', ['name' => $label]));
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

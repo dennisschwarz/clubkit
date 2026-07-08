@@ -46,7 +46,7 @@ class TaskCategoryController extends Controller
         }
 
         return redirect()->route('admin.module-settings.index')
-            ->with('success', 'Kategorie „' . $name . '" angelegt.');
+            ->with('success', __('management.flash.category_created', ['name' => $cat->name]));
     }
 
     /**
@@ -64,7 +64,7 @@ class TaskCategoryController extends Controller
         ]);
 
         return redirect()->route('admin.module-settings.index')
-            ->with('success', 'Kategorie „' . $taskCategory->name . '" aktualisiert.');
+            ->with('success', __('management.flash.category_updated', ['name' => $taskCategory->name]));
     }
 
     /**
@@ -82,6 +82,6 @@ class TaskCategoryController extends Controller
         $taskCategory->delete();
 
         return redirect()->route('admin.module-settings.index')
-            ->with('success', 'Kategorie „' . $name . '" gelöscht.');
+            ->with('success', __('management.flash.category_deleted', ['name' => $name]));
     }
 }

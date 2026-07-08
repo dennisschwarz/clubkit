@@ -1,20 +1,20 @@
 @extends('core::admin.layout')
 
-@section('title', 'Module')
+@section('title', __('core.modules.title'))
 
 @section('content')
 
 <div class="ck-page-header">
     <div>
-        <h1 class="ck-page-title">Module</h1>
-        <p class="ck-page-subtitle">Installierte und verfügbare Module verwalten.</p>
+        <h1 class="ck-page-title">{{ __('core.modules.title') }}</h1>
+        <p class="ck-page-subtitle">{{ __('core.modules.subtitle') }}</p>
     </div>
 </div>
 
 {{-- Installed modules --}}
 <div>
     <div class="ck-section-label ck-mb-3">
-        Installiert ({{ count($installed) }})
+        {{ __('core.modules.installed_count', ['count' => count($installed)]) }}
     </div>
 
     @forelse($installed as $slug => $module)
@@ -34,7 +34,7 @@
                     @endif
                 </div>
                 <div class="ck-module-card__meta">
-                    Installiert: {{ \Carbon\Carbon::parse($module->installed_at)->format('d.m.Y H:i') }}
+                    {{ __('core.modules.installed_at', ['date' => \Carbon\Carbon::parse($module->installed_at)->format('d.m.Y H:i')]) }}
                 </div>
             </div>
 
@@ -55,7 +55,7 @@
                     @else
                     <div class="ck-module-card__deps-blocked">
                         <span class="ck-module-card__deps-hint">
-                            Benötigt aktiv: {{ implode(', ', $depsStatus[$slug]) }}
+                            {{ __('core.modules.requires_active', ['modules' => implode(', ', $depsStatus[$slug])]) }}
                         </span>
                         <x-ck-button type="button" variant="secondary" size="sm" disabled>{{ __('Activate') }}</x-ck-button>
                     </div>
@@ -73,7 +73,7 @@
     </div>
     @empty
     <div class="ck-module-card__empty">
-        Keine Module installiert.
+        {{ __('core.modules.none') }}
     </div>
     @endforelse
 </div>
@@ -86,7 +86,7 @@
 @if(!empty($notInstalled))
 <div class="ck-mt-5">
     <div class="ck-section-label ck-mb-3">
-        Verfügbar – nicht installiert ({{ count($notInstalled) }})
+        {{ __('core.modules.available_count', ['count' => count($notInstalled)]) }}
     </div>
 
     @foreach($notInstalled as $slug => $config)
@@ -103,13 +103,13 @@
                 @endif
                 @if(!empty(array_filter($config['requires'] ?? [], fn($r) => $r !== 'core')))
                 <div class="ck-module-card__requires">
-                    Benötigt: {{ implode(', ', array_filter($config['requires'], fn($r) => $r !== 'core')) }}
+                    {{ __('core.modules.requires') }} {{ implode(', ', array_filter($config['requires'], fn($r) => $r !== 'core')) }}
                 </div>
                 @endif
                 {{-- Show a clear warning when required modules are not active --}}
                 @if(!empty($missingDeps))
                 <div class="ck-module-card__deps-warning">
-                    ⚠ Nicht installierbar: {{ implode(', ', $missingDeps) }} muss zuerst installiert und aktiv sein.
+                    {{ __('core.modules.not_installable', ['reason' => implode(', ', $missingDeps)]) }}
                 </div>
                 @endif
             </div>
@@ -158,13 +158,13 @@
     <div class="ck-modal-content ck-modal-content--sm" onclick="event.stopPropagation()">
 
         <div class="ck-modal__header">
-            <h2 class="ck-modal__title">🗑 Modul entfernen</h2>
+            <h2 class="ck-modal__title">{{ __('core.modules.remove_title') }}</h2>
             <button type="button" class="ck-modal__close" onclick="ckModalClose(null, 'ck-module-remove-modal')">&times;</button>
         </div>
 
         <div class="ck-modal__body">
             <p class="ck-confirm__text">
-                Modul <strong id="ck-module-remove-name"></strong> wirklich entfernen?
+                {!! __('core.modules.remove_confirm', ['name' => '<strong id="ck-module-remove-name"></strong>']) !!}
             </p>
             <div class="ck-alert ck-alert--danger">
                 ⚠️ <strong>Achtung:</strong> Alle Tabellen und Daten dieses Moduls werden

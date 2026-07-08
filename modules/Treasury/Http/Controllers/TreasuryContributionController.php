@@ -38,7 +38,7 @@ class TreasuryContributionController extends Controller
         TreasuryTaskMeta::create($data);
 
         return redirect()->route('treasury.index', ['tab' => 'beitraege'])
-            ->with('success', 'Aufgabe der Kasse zugewiesen.');
+            ->with('success', __('treasury.flash.contribution_assigned'));
     }
 
     /**
@@ -55,7 +55,7 @@ class TreasuryContributionController extends Controller
         $taskMeta->delete();
 
         return redirect()->route('treasury.index', ['tab' => 'beitraege'])
-            ->with('success', 'Aufgabe aus der Kasse entfernt.');
+            ->with('success', __('treasury.flash.contribution_removed'));
     }
 
     /**
@@ -75,7 +75,7 @@ class TreasuryContributionController extends Controller
         );
 
         return redirect()->route('treasury.index', ['tab' => 'beitraege'])
-            ->with('success', 'Mitglied zur Beitragsliste hinzugefügt.');
+            ->with('success', __('treasury.flash.payment_member_added'));
     }
 
     /**
@@ -88,7 +88,7 @@ class TreasuryContributionController extends Controller
     public function markPaid(TreasuryContributionPayment $payment, TreasuryTaskMeta $taskMeta): RedirectResponse
     {
         if ($payment->isPaid()) {
-            return redirect()->back()->with('error', 'Diese Zahlung wurde bereits erfasst.');
+            return redirect()->back()->with('error', __('treasury.flash.payment_already_recorded'));
         }
 
         $member = $payment->member;
@@ -113,7 +113,7 @@ class TreasuryContributionController extends Controller
         });
 
         return redirect()->route('treasury.index', ['tab' => 'beitraege'])
-            ->with('success', 'Zahlung als eingegangen markiert und Buchung erstellt.');
+            ->with('success', __('treasury.flash.payment_marked_paid'));
     }
 
     /**
@@ -126,7 +126,7 @@ class TreasuryContributionController extends Controller
     public function markUnpaid(TreasuryContributionPayment $payment, TreasuryTaskMeta $taskMeta): RedirectResponse
     {
         if (! $payment->isPaid()) {
-            return redirect()->back()->with('error', 'Diese Zahlung ist bereits als ausstehend markiert.');
+            return redirect()->back()->with('error', __('treasury.flash.payment_already_pending'));
         }
 
         DB::transaction(function () use ($payment): void {
@@ -138,7 +138,7 @@ class TreasuryContributionController extends Controller
         });
 
         return redirect()->route('treasury.index', ['tab' => 'beitraege'])
-            ->with('success', 'Zahlung zurückgesetzt.');
+            ->with('success', __('treasury.flash.payment_reset'));
     }
 
     /**
@@ -150,12 +150,12 @@ class TreasuryContributionController extends Controller
     {
         if ($payment->isPaid()) {
             return redirect()->back()
-                ->with('error', 'Bezahlte Einträge können nicht entfernt werden. Zuerst die Zahlung zurücksetzen.');
+                ->with('error', __('treasury.flash.payment_member_paid_no_remove'));
         }
 
         $payment->delete();
 
         return redirect()->route('treasury.index', ['tab' => 'beitraege'])
-            ->with('success', 'Mitglied aus der Beitragsliste entfernt.');
+            ->with('success', __('treasury.flash.payment_member_removed'));
     }
 }

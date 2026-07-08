@@ -328,6 +328,38 @@ select.ck-field__input {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+   Generic filter bar (activity log, etc.)
+   .ck-filter-form:    wraps the whole filter form inside a card
+   .ck-filter-row:     flex row of filter fields
+   .ck-filter-actions: right-aligned submit + reset buttons
+══════════════════════════════════════════════════════════════════════ */
+.ck-filter-form    { padding: var(--ck-space-4); }
+.ck-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ck-space-3);
+  align-items: flex-end;
+}
+.ck-filter-row > * { flex: 1; min-width: 140px; }
+.ck-filter-actions {
+  display: flex;
+  gap: var(--ck-space-2);
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .ck-filter-row > * { flex: 1 1 100%; }
+}
+
+/* ── Collapsible <details> summary (Notes toggle in event form) ──────
+   Replaces the inline style that was present on the <summary> element.
+──────────────────────────────────────────────────────────────────── */
+.ck-details-summary {
+  cursor: pointer;
+  font-size: var(--ck-font-sm);
+  user-select: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
    Member filter bar
    Layout: 50% name field | 50% right side (3 equal columns)
    .ck-filter-bar (treasury.css) is unchanged – flex-based, used by Treasury.

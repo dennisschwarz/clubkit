@@ -186,7 +186,7 @@ class ManagementController extends Controller
         }
 
         return redirect()->route('management.index')
-            ->with('success', 'Funktion „' . $fn->name . '" angelegt.');
+            ->with('success', __('management.flash.function_created', ['name' => $fn->name]));
     }
 
     /**
@@ -212,7 +212,7 @@ class ManagementController extends Controller
         $function->members()->sync($memberPivot);
 
         return redirect()->route('management.index')
-            ->with('success', 'Funktion „' . $function->name . '" gespeichert.');
+            ->with('success', __('management.flash.function_updated', ['name' => $function->name]));
     }
 
     /**
@@ -227,7 +227,7 @@ class ManagementController extends Controller
         $function->delete();
 
         return redirect()->route('management.index')
-            ->with('success', 'Funktion „' . $name . '" gelöscht.');
+            ->with('success', __('management.flash.function_deleted', ['name' => $name]));
     }
 
     // ── Tasks ─────────────────────────────────────────────────────────────────
@@ -267,7 +267,7 @@ class ManagementController extends Controller
         }
 
         return redirect()->route('management.index')
-            ->with('success', 'Aufgabe „' . $task->name . '" angelegt.');
+            ->with('success', __('management.flash.task_created', ['name' => $task->name]));
     }
 
     /**
@@ -298,7 +298,7 @@ class ManagementController extends Controller
         $task->members()->sync($memberPivot);
 
         return redirect()->route('management.index')
-            ->with('success', 'Aufgabe „' . $task->name . '" gespeichert.');
+            ->with('success', __('management.flash.task_updated', ['name' => $task->name]));
     }
 
     /**
@@ -313,7 +313,7 @@ class ManagementController extends Controller
         $task->delete();
 
         return redirect()->route('management.index')
-            ->with('success', 'Aufgabe „' . $name . '" gelöscht.');
+            ->with('success', __('management.flash.task_deleted', ['name' => $name]));
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

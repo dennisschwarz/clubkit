@@ -32,7 +32,7 @@
         memberId = memberId || null;
 
         if (mode === 'create') {
-            if (titleEl) titleEl.textContent = 'Mitglied hinzufügen';
+            if (titleEl) titleEl.textContent = ckUi('member_create', 'Mitglied hinzufügen');
 
             _setField('mFieldFirstName',  '');
             _setField('mFieldLastName',   '');
@@ -60,7 +60,7 @@
             const m = members[memberId];
             if (!m) return;
 
-            if (titleEl) titleEl.textContent = m.last_name + ', ' + m.first_name + ' bearbeiten';
+            if (titleEl) titleEl.textContent = m.last_name + ', ' + m.first_name + ckUi('edit_suffix', ' bearbeiten');
 
             _setField('mFieldFirstName',  m.first_name);
             _setField('mFieldLastName',   m.last_name);

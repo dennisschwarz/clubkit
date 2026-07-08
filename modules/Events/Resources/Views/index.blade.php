@@ -1,23 +1,23 @@
 @extends('core::admin.layout')
-@section('title', 'Termine')
+@section('title', __('events.title'))
 
 @section('content')
 
 <div class="ck-page-header">
     <div>
-        <h1 class="ck-page-title">Termine</h1>
-        <p class="ck-page-subtitle">{{ $events->total() }} Termin{{ $events->total() !== 1 ? 'e' : '' }} gesamt</p>
+        <h1 class="ck-page-title">{{ __('events.title') }}</h1>
+        <p class="ck-page-subtitle">{{ trans_choice('events.count', $events->total(), ['count' => $events->total()]) }}</p>
     </div>
     <x-ck-button variant="primary" onclick="evtModalOpen()">
-        + Termin anlegen
+        {{ __('events.create') }}
     </x-ck-button>
 </div>
 
 @if($events->isEmpty())
 <x-ck-card>
     <p class="ck-empty-state">
-        Noch keine Termine angelegt.
-        <a href="javascript:void(0)" onclick="evtModalOpen()">Jetzt anlegen</a>
+        {{ __('events.empty') }}
+        <a href="javascript:void(0)" onclick="evtModalOpen()">{{ __('core.create_now') }}</a>
     </p>
 </x-ck-card>
 @else
@@ -26,9 +26,9 @@
     <table class="ck-table">
         <thead>
             <tr>
-                <x-ck-sort-header column="starts_at" label="Datum / Zeit" />
-                <x-ck-sort-header column="title"     label="Titel" />
-                <x-ck-sort-header column="location"  label="Ort" />
+                <x-ck-sort-header column="starts_at" :label="__('events.col.date_time')" />
+                <x-ck-sort-header column="title"     :label="__('events.col.title_col')" />
+                <x-ck-sort-header column="location"  :label="__('events.col.location')" />
                 {{--
                     Teams injects the <th> for the teams column here.
                     Extension point: event.table.teams.header
@@ -36,9 +36,9 @@
                     Only present when Teams is active.
                 --}}
                 @ckHook('event.table.teams.header')
-                <th>Besetzung</th>
+                <th>{{ __('events.col.staffing') }}</th>
                 @ckHook('event.table.header')
-                <th class="ck-table__actions">Aktionen</th>
+                <th class="ck-table__actions">{{ __('core.col.actions') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -50,7 +50,7 @@
                 <td class="ck-event-date">
                     <span class="ck-event-date__day">{{ $event->starts_at->format('d.m.Y') }}</span>
                     <span class="ck-event-date__time">
-                        {{ $event->starts_at->format('H:i') }} Uhr
+                        {{ $event->starts_at->format('H:i') }} {{ __('events.time_suffix') }}
                         @if($event->ends_at)– {{ $event->ends_at->format('H:i') }}@endif
                     </span>
                 </td>
@@ -105,7 +105,7 @@
                             @csrf @method('DELETE')
                             <x-ck-button variant="danger" size="icon" type="submit"
                                 title="{{ __('Delete') }}"
-                                :confirm="'Termin »' . $event->title . '« wirklich löschen?'">
+                                :confirm="__('events.confirm.delete_event', ['name' => $event->title])">
                                 <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
                                 </svg>
@@ -153,7 +153,7 @@
 
         {{-- Internal notes hidden by default behind a <details> toggle --}}
         <details class="ck-mt-3">
-            <summary class="ck-text-muted" style="cursor:pointer;font-size:var(--ck-font-sm);user-select:none;">
+            <summary class="ck-text-muted ck-details-summary">
                 {{ __('events.field.notes_toggle') }}
             </summary>
             <div class="ck-mt-2">

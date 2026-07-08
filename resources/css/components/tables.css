@@ -47,7 +47,21 @@
 .ck-table__bold     { font-weight: 600; }
 .ck-table__muted    { color: var(--ck-text-muted); font-size: var(--ck-font-sm); }
 
-.ck-table__actions  { width: 1%; white-space: nowrap; }
+.ck-table__actions     { width: 1%; white-space: nowrap; }
+.ck-table__nowrap      { white-space: nowrap; }
+.ck-table__col--right  { text-align: right; }
+.ck-table__sub {
+  font-size: var(--ck-font-xs);
+  color: var(--ck-text-muted);
+  margin-top: 2px;
+}
+.ck-table__link {
+  color: var(--ck-accent-dark);
+  text-decoration: none;
+  font-weight: 600;
+}
+.ck-table__link:hover { text-decoration: underline; }
+
 .ck-table__action-cell {
   display: flex;
   gap: var(--ck-space-2);

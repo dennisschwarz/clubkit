@@ -20,7 +20,7 @@
         roleId = roleId || null;
 
         if (mode === 'create') {
-            if (titleEl) titleEl.textContent = 'Neue Rolle anlegen';
+            if (titleEl) titleEl.textContent = ckUi('role_create', 'Neue Rolle anlegen');
             _setField('roleFieldName', '');
             _uncheckAll();
             if (nameField) nameField.classList.remove('is-hidden');
@@ -30,7 +30,7 @@
         } else {
             const r = roles[roleId];
             if (!r) return;
-            if (titleEl) titleEl.textContent = r.name + ' bearbeiten';
+            if (titleEl) titleEl.textContent = r.name + ckUi('edit_suffix', ' bearbeiten');
 
             // System roles: hide name field (cannot be renamed)
             const isSystem = systemRoles.indexOf(r.name) !== -1;

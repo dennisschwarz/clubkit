@@ -100,15 +100,15 @@
         const counter = document.getElementById('importSelectedCount');
 
         if (btn) {
-            btn.textContent = checked > 0
-                ? 'Auswahl importieren (' + checked + ')'
-                : 'Auswahl importieren';
+            var btnLabel = ckUi('import_btn', 'Auswahl importieren');
+            btn.textContent = checked > 0 ? btnLabel + ' (' + checked + ')' : btnLabel;
         }
 
         if (counter) {
-            counter.textContent = checked > 0
-                ? checked + ' Datensatz' + (checked !== 1 ? 'e' : '') + ' ausgewählt'
-                : '';
+            var recLabel = checked === 1
+                ? ckUi('import_singular', 'Datensatz ausgewählt')
+                : ckUi('import_plural',   'Datensätze ausgewählt');
+            counter.textContent = checked > 0 ? checked + ' ' + recLabel : '';
         }
     }
 

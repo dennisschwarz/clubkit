@@ -286,7 +286,7 @@ class TreasuryController extends Controller
         TreasuryTransaction::create($data);
 
         return redirect()->route('treasury.index', ['tab' => 'buchungen'])
-            ->with('success', 'Buchung erfasst.');
+            ->with('success', __('treasury.flash.transaction_created'));
     }
 
     /**
@@ -297,7 +297,7 @@ class TreasuryController extends Controller
         $transaction->update($request->validated());
 
         return redirect()->route('treasury.index', ['tab' => 'buchungen'])
-            ->with('success', 'Buchung aktualisiert.');
+            ->with('success', __('treasury.flash.transaction_updated'));
     }
 
     /**
@@ -308,7 +308,7 @@ class TreasuryController extends Controller
         $transaction->delete();
 
         return redirect()->route('treasury.index', ['tab' => 'buchungen'])
-            ->with('success', 'Buchung gelöscht.');
+            ->with('success', __('treasury.flash.transaction_deleted'));
     }
 
     // ── Accounts ──────────────────────────────────────────────────────────────
@@ -330,7 +330,7 @@ class TreasuryController extends Controller
         }
 
         return redirect()->route('treasury.index', ['tab' => 'konten'])
-            ->with('success', 'Konto angelegt.');
+            ->with('success', __('treasury.flash.account_created'));
     }
 
     /**
@@ -351,7 +351,7 @@ class TreasuryController extends Controller
         }
 
         return redirect()->route('treasury.index', ['tab' => 'konten'])
-            ->with('success', 'Konto aktualisiert.');
+            ->with('success', __('treasury.flash.account_updated'));
     }
 
     /**
@@ -363,19 +363,19 @@ class TreasuryController extends Controller
     {
         if ($account->transactions()->exists()) {
             return redirect()->route('treasury.index', ['tab' => 'konten'])
-                ->with('error', 'Konto kann nicht gelöscht werden – es enthält noch Buchungen.');
+                ->with('error', __('treasury.flash.account_has_transactions'));
         }
 
         if ($account->children()->exists()) {
             return redirect()->route('treasury.index', ['tab' => 'konten'])
-                ->with('error', 'Konto kann nicht gelöscht werden – es enthält noch Unterkonten.');
+                ->with('error', __('treasury.flash.account_has_children'));
         }
 
         $account->teams()->detach();
         $account->delete();
 
         return redirect()->route('treasury.index', ['tab' => 'konten'])
-            ->with('success', 'Konto gelöscht.');
+            ->with('success', __('treasury.flash.account_deleted'));
     }
 
     // ── Categories ────────────────────────────────────────────────────────────
@@ -390,7 +390,7 @@ class TreasuryController extends Controller
 
         TreasuryCategory::create($data);
 
-        return redirect()->back()->with('success', 'Kategorie angelegt.');
+        return redirect()->back()->with('success', __('treasury.flash.category_created'));
     }
 
     /**
@@ -400,7 +400,7 @@ class TreasuryController extends Controller
     {
         $category->update($request->validated());
 
-        return redirect()->back()->with('success', 'Kategorie aktualisiert.');
+        return redirect()->back()->with('success', __('treasury.flash.category_updated'));
     }
 
     /**
@@ -412,6 +412,6 @@ class TreasuryController extends Controller
     {
         $category->delete();
 
-        return redirect()->back()->with('success', 'Kategorie gelöscht.');
+        return redirect()->back()->with('success', __('treasury.flash.category_deleted'));
     }
 }

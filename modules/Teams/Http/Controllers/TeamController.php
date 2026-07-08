@@ -169,7 +169,7 @@ class TeamController extends Controller
         $validated['created_by'] = $request->user()->id;
         Team::create($validated);
 
-        return redirect()->route('teams.index')->with('success', 'Team angelegt.');
+        return redirect()->route('teams.index')->with('success', __('teams.flash.created', ['name' => $validated['name']]));
     }
 
     /**
@@ -183,7 +183,7 @@ class TeamController extends Controller
     {
         $team->update($request->validated());
 
-        return redirect()->route('teams.index')->with('success', 'Team aktualisiert.');
+        return redirect()->route('teams.index')->with('success', __('teams.flash.updated', ['name' => $team->name]));
     }
 
     /**
@@ -196,7 +196,7 @@ class TeamController extends Controller
     {
         $team->delete();
 
-        return redirect()->route('teams.index')->with('success', 'Team gelöscht.');
+        return redirect()->route('teams.index')->with('success', __('teams.flash.deleted', ['name' => $team->name]));
     }
 
     /**

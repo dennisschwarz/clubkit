@@ -1,5 +1,5 @@
 @extends('core::admin.layout')
-@section('title', 'Eigene Felder')
+@section('title', __('custom-fields.title'))
 
 @section('content')
 
@@ -11,20 +11,20 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 
 <div class="ck-page-header">
     <div>
-        <h1 class="ck-page-title">Eigene Felder</h1>
-        <p class="ck-page-subtitle">{{ $definitions->count() }} {{ $definitions->count() === 1 ? 'Feld' : 'Felder' }} konfiguriert</p>
+        <h1 class="ck-page-title">{{ __('custom-fields.title') }}</h1>
+        <p class="ck-page-subtitle">{{ trans_choice('custom-fields.count', $definitions->count()) }} konfiguriert</p>
     </div>
     <x-ck-button variant="primary" onclick="cfDefModalOpen('create')">
-        + Feld anlegen
+        {{ __('custom-fields.create') }}
     </x-ck-button>
 </div>
 
 @if($definitions->isEmpty())
 <x-ck-card>
     <p class="ck-empty-state">
-        Noch keine eigenen Felder angelegt.<br>
-        Lege Felder für Mitglieder, Teams oder andere Objekte an.
-        <a href="javascript:void(0)" onclick="cfDefModalOpen('create')">Jetzt anlegen</a>
+        {{ __('custom-fields.empty') }}<br>
+        {{ __('custom-fields.empty_hint') }}
+        <a href="javascript:void(0)" onclick="cfDefModalOpen('create')">{{ __('core.create_now') }}</a>
     </p>
 </x-ck-card>
 @else
@@ -46,17 +46,17 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
         <div class="ck-section-header__text">
             <span class="ck-section-header__title">{{ $typeLabel }}</span>
             <span class="ck-section-header__meta">
-                {{ $defCount }} {{ $defCount === 1 ? 'Feld' : 'Felder' }}
+                {{ trans_choice('custom-fields.count', $defCount) }}
             </span>
         </div>
         <div class="ck-section-header__actions" onclick="event.stopPropagation()">
             <x-ck-button variant="secondary" size="sm"
                 onclick="cfDefModalOpen('create', '{{ $typeKey }}')">
-                + Feld hinzufügen
+                {{ __('custom-fields.add_field') }}
             </x-ck-button>
             <a href="{{ route('custom-fields.values.index', $typeKey) }}"
                class="ck-btn ck-btn--secondary ck-btn--sm">
-                Feldwerte →
+                {{ __('custom-fields.field_values') }}
             </a>
         </div>
         <span class="ck-accordion-chevron ck-accordion-chevron--open"
@@ -66,19 +66,19 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
     <div id="{{ $bodyId }}">
         @if(empty($defsForType))
         <p class="ck-empty-state">
-            Noch keine Felder für {{ $typeLabel }}.
-            <a href="javascript:void(0)" onclick="cfDefModalOpen('create', '{{ $typeKey }}')">Anlegen</a>
+            {{ __('custom-fields.type_empty', ['type' => $typeLabel]) }}
+            <a href="javascript:void(0)" onclick="cfDefModalOpen('create', '{{ $typeKey }}')">{{ __('custom-fields.create_now') }}</a>
         </p>
         @else
         <div class="ck-table-wrap">
             <table class="ck-table">
                 <thead>
                     <tr>
-                        <th>Feldname</th>
-                        <th>Typ</th>
-                        <th>Optionen / Platzhalter</th>
-                        <th>Pflichtfeld</th>
-                        <th class="ck-table__actions">Aktionen</th>
+                        <th>{{ __('custom-fields.col.name') }}</th>
+                        <th>{{ __('custom-fields.col.type') }}</th>
+                        <th>{{ __('custom-fields.col.options') }}</th>
+                        <th>{{ __('custom-fields.col.required') }}</th>
+                        <th class="ck-table__actions">{{ __('core.col.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,9 +106,9 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                         </td>
                         <td>
                             @if($def->is_required)
-                                <x-ck-badge color="red">Pflichtfeld</x-ck-badge>
+                                <x-ck-badge color="red">{{ __('custom-fields.required') }}</x-ck-badge>
                             @else
-                                <span class="ck-text-muted">Optional</span>
+                                <span class="ck-text-muted">{{ __('custom-fields.optional') }}</span>
                             @endif
                         </td>
                         <td class="ck-table__actions">
@@ -126,7 +126,7 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
                                     @csrf @method('DELETE')
                                     <x-ck-button variant="danger" size="icon" type="submit"
                                         title="{{ __('Delete') }}"
-                                        :confirm="'Feld »' . $def->label . '« und alle gespeicherten Werte wirklich löschen?'">
+                                        :confirm="__('custom-fields.confirm_delete', ['name' => $def->label])">
                                         <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
                                         </svg>
@@ -147,39 +147,39 @@ $chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColo
 @endif
 
 {{-- ══ Definitions modal ═════════════════════════════════════════════════ --}}
-<x-ck-modal id="cfDefModal" title="Eigenes Feld" size="md">
+<x-ck-modal id="cfDefModal" :title="__('custom-fields.modal_title')" size="md">
     <div class="ck-modal__section ck-modal__section--active">
         <form id="cfDefForm" method="POST">
             @csrf
             <input type="hidden" name="_method" id="cfDefMethod" value="POST">
 
-            <x-ck-field type="select" label="Für Objekt-Typ" name="object_type"
+            <x-ck-field type="select" :label="__('custom-fields.field.object_type')" name="object_type"
                         id="cfDefObjectType" :required="true"
                         :options="$objectTypes" />
 
             <div class="ck-mt-3">
-                <x-ck-field label="Feldname" name="label" id="cfDefLabel"
+                <x-ck-field :label="__('custom-fields.field.label')" name="label" id="cfDefLabel"
                             placeholder="z.B. Trikotgröße, Verein vorher" :required="true" />
             </div>
 
             <div class="ck-form-grid ck-form-grid--2 ck-mt-3">
-                <x-ck-field type="select" label="Feldtyp" name="field_type"
+                <x-ck-field type="select" :label="__('custom-fields.field.type')" name="field_type"
                             id="cfDefFieldType" :required="true"
                             :options="$fieldTypes" />
-                <x-ck-field label="Platzhaltertext" name="placeholder"
+                <x-ck-field :label="__('custom-fields.field.placeholder')" name="placeholder"
                             id="cfDefPlaceholder" placeholder="z.B. M, L, XL" />
             </div>
 
             {{-- Options (visible only for field_type=select) --}}
             <div class="ck-mt-3 is-hidden" id="cfDefOptionsBlock">
-                <x-ck-field type="textarea" label="Auswahloptionen (eine pro Zeile)"
+                <x-ck-field type="textarea" :label="__('custom-fields.field.options')"
                             name="options_raw" id="cfDefOptionsRaw" rows="4"
                             placeholder="Option A&#10;Option B&#10;Option C" />
             </div>
 
             <div class="ck-mt-3">
                 <x-ck-field type="checkbox" name="is_required" id="cfDefIsRequired" value="1">
-                    Pflichtfeld
+                    {{ __('custom-fields.field.required_checkbox') }}
                 </x-ck-field>
             </div>
 

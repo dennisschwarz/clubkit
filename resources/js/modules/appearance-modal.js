@@ -129,17 +129,17 @@
 
                 if (data.needsReload) {
                     // Reload when emojis, logo or club name changed
-                    showStatus(statusEl, '↺ Wird neu geladen…', 'reload');
+                    showStatus(statusEl, ckUi('appearance_reloading', '↺ Wird neu geladen…'), 'reload');
                     setTimeout(function () { window.location.reload(); }, 1000);
                 } else {
-                    showStatus(statusEl, '✓ Gespeichert', 'success');
+                    showStatus(statusEl, ckUi('appearance_saved', '✓ Gespeichert'), 'success');
                 }
             } else {
-                showStatus(statusEl, '✗ ' + (data.message || 'Fehler'), 'error');
+                showStatus(statusEl, '✗ ' + (data.message || ckUi('appearance_error', 'Fehler')), 'error');
             }
         })
         .catch(function (err) {
-            showStatus(statusEl, '✗ ' + (err.message || 'Netzwerkfehler'), 'error');
+            showStatus(statusEl, '✗ ' + (err.message || ckUi('appearance_network', 'Netzwerkfehler')), 'error');
         })
         .finally(function () {
             btn.classList.remove('ck-btn--loading');

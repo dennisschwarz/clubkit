@@ -112,6 +112,22 @@ class EventController extends Controller
         $eventCfDefs   = $cf['defs'];
         $eventCfValues = $cf['values'];
 
+        // Farben für Aufgaben-Kategorie-Picker — einmalig hier definiert,
+        // damit die View das Array nicht doppelt (create + rename Modal) einbettet.
+        $categoryColors = [
+            ''       => __('teams.color.default'),
+            'blue'   => __('teams.color.blue'),
+            'navy'   => __('teams.color.navy'),
+            'green'  => __('teams.color.green'),
+            'teal'   => __('teams.color.teal'),
+            'red'    => __('teams.color.red'),
+            'orange' => __('teams.color.orange'),
+            'amber'  => __('teams.color.amber'),
+            'purple' => __('teams.color.purple'),
+            'pink'   => __('teams.color.pink'),
+            'slate'  => __('teams.color.slate'),
+        ];
+
         return view('events::show', compact(
             'event',
             'allMembersJs',
@@ -121,6 +137,7 @@ class EventController extends Controller
             'teamsInstalled',
             'eventCfDefs',
             'eventCfValues',
+            'categoryColors',
         ));
     }
 
@@ -135,7 +152,7 @@ class EventController extends Controller
     {
         $event->update($request->validated());
 
-        return redirect()->route('events.show', $event)->with('success', 'Termin gespeichert.');
+        return redirect()->route('events.show', $event)->with('success', __('events.flash.updated'));
     }
 
     /**
@@ -148,7 +165,7 @@ class EventController extends Controller
     {
         $event->delete();
 
-        return redirect()->route('events.index')->with('success', 'Termin gelöscht.');
+        return redirect()->route('events.index')->with('success', __('events.flash.deleted'));
     }
 
     /**
