@@ -68,6 +68,43 @@
   justify-content: flex-end;
 }
 
+/* ── Task member chip with inline remove (event-tasks-panel) ─────────── */
+.ck-task-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--ck-bg-subtle);
+  border: 1px solid var(--ck-border);
+  border-radius: 999px;
+  padding: 1px 6px 1px 8px;
+  font-size: var(--ck-font-xs);
+  color: var(--ck-text);
+  white-space: nowrap;
+  margin: 1px 2px;
+}
+
+/* × remove button inside the chip */
+.ck-etm-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ck-text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ck-etm-remove-btn:hover {
+  background: var(--ck-danger-light, #fee2e2);
+  color: var(--ck-danger, #dc2626);
+}
+
 /* ── Sort link (also used as <button> — full reset so no browser chrome) ── */
 .ck-sort-link {
   display: inline-flex;

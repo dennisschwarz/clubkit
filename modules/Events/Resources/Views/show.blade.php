@@ -331,14 +331,6 @@ Renders: management-functions cards with assigned members.
             data-ck-datetime="1" />
     </div>
 
-    {{-- Responsible member: always shown, options injected by events-detail.js --}}
-    <x-ck-field
-        type="select"
-        :label="__('events.task.field_responsible')"
-        name="new_task_member_id"
-        id="newTaskMemberId"
-        :options="[]" />
-
     <div class="ck-form-actions">
         <x-ck-button variant="primary" type="button" id="newTaskSubmitBtn">
             {{ __('Save') }}
@@ -461,38 +453,21 @@ Renders: management-functions cards with assigned members.
 --}}
 <x-ck-modal id="taskAssignModal" :title="__('events.task.assign_member')" size="lg">
     <p id="taskAssignLabel" class="ck-text-muted ck-mb-4"></p>
-    <p class="ck-text-muted ck-font-sm ck-mb-4">
-        {{ __('events.assign.ctrl_hint') }}
-    </p>
     <div class="ck-dual-listbox">
         <div class="ck-dual-listbox__col">
             <span class="ck-dual-listbox__label">{{ __('events.assign.available') }}</span>
-            <select id="taskAssignAvailableList"
-                    class="ck-dual-listbox__list"
-                    multiple
-                    size="8">
-            </select>
-        </div>
-        <div class="ck-dual-listbox__controls">
-            <x-ck-button variant="secondary" type="button" id="taskAssignAddBtn">→</x-ck-button>
-            <x-ck-button variant="secondary" type="button" id="taskAssignRemoveBtn">←</x-ck-button>
+            {{-- SortableJS source list: drag items → assigned list to add --}}
+            <ul id="taskAssignAvailableList" class="ck-assign-list"></ul>
         </div>
         <div class="ck-dual-listbox__col">
             <span class="ck-dual-listbox__label">{{ __('events.assign.assigned') }}</span>
-            <select id="taskAssignAssignedList"
-                    class="ck-dual-listbox__list"
-                    multiple
-                    size="8">
-            </select>
+            {{-- SortableJS target list: sortable, accepts drops from available --}}
+            <ul id="taskAssignSortList" class="ck-assign-list ck-assign-list--assigned"></ul>
         </div>
     </div>
     <div class="ck-form-actions">
-        <x-ck-button variant="primary" type="button" id="taskAssignSaveBtn">
-            {{ __('Save') }}
-        </x-ck-button>
-        <x-ck-button variant="secondary" type="button"
-            onclick="ckModalClose(null, 'taskAssignModal')">
-            {{ __('Cancel') }}
+        <x-ck-button variant="primary" type="button" id="taskAssignDoneBtn">
+            {{ __('Done') }}
         </x-ck-button>
     </div>
 </x-ck-modal>

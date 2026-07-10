@@ -98,7 +98,16 @@
                         <td class="ck-task-row__notes">{{ $mgmtTask->notes ?: '–' }}</td>
                         <td class="ck-task-row__members">
                             @foreach($mgmtMMap[$mgmtTask->id] ?? [] as $mgmtEtm)
-                            <span class="ck-task-member">{{ $mgmtEtm['name'] }}</span>
+                            <span class="ck-task-member">
+                                {{ $mgmtEtm['name'] }}
+                                <button type="button"
+                                        class="ck-etm-remove-btn"
+                                        data-etm-id="{{ $mgmtEtm['id'] }}"
+                                        data-member-id="{{ $mgmtEtm['member_id'] }}"
+                                        data-member-name="{{ $mgmtEtm['name'] }}"
+                                        data-sort-order="{{ $mgmtEtm['sort_order'] }}"
+                                        title="Entfernen">×</button>
+                            </span>
                             @endforeach
                         </td>
                         <td class="ck-table__col--actions">
@@ -235,7 +244,16 @@
                         <td class="ck-task-row__notes">{{ $mgmtTask->notes ?: '–' }}</td>
                         <td class="ck-task-row__members">
                             @foreach($mgmtMMap[$mgmtTask->id] ?? [] as $mgmtEtm)
-                            <span class="ck-task-member">{{ $mgmtEtm['name'] }}</span>
+                            <span class="ck-task-member">
+                                {{ $mgmtEtm['name'] }}
+                                <button type="button"
+                                        class="ck-etm-remove-btn"
+                                        data-etm-id="{{ $mgmtEtm['id'] }}"
+                                        data-member-id="{{ $mgmtEtm['member_id'] }}"
+                                        data-member-name="{{ $mgmtEtm['name'] }}"
+                                        data-sort-order="{{ $mgmtEtm['sort_order'] }}"
+                                        title="Entfernen">×</button>
+                            </span>
                             @endforeach
                         </td>
                         <td class="ck-table__col--actions">

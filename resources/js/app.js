@@ -6,6 +6,7 @@
 import 'flatpickr/dist/flatpickr.min.css'; // Vite resolves from node_modules
 import flatpickr from 'flatpickr';
 import { German } from 'flatpickr/dist/l10n/de.js';
+import Sortable from 'sortablejs';
 
 // Flatpickr: global defaults for ClubKit
 // German locale, 24h format, 15-minute steps, always custom picker (no mobile native)
@@ -26,8 +27,9 @@ flatpickr.setDefaults({
                                  // must always open the picker via the calendar icon.
 });
 
-// Make globally available for standalone JS modules (events-modal.js etc.)
+// Make globally available for standalone JS modules
 window.flatpickr = flatpickr;
+window.Sortable  = Sortable;
 
 /**
  * Liest einen UI-String aus window.CK_Lang.ui.
@@ -316,7 +318,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 var confirmBtn          = document.createElement('button');
                 confirmBtn.type         = 'button';
                 confirmBtn.className    = 'ck-fp-confirm';
-                confirmBtn.textContent  = ckUi('fp_confirm_btn', '✓ Datum & Uhrzeit übernehmen');
+                confirmBtn.textContent  = '✓ ' + ckUi('fp_confirm_btn', 'Datum und Uhrzeit übernehmen');
                 confirmBtn.disabled     = true; // Disabled until a date is chosen.
                 confirmBtn.classList.add('ck-fp-confirm--disabled');
                 confirmBtn.addEventListener('click', function () { instance.close(); });
@@ -475,8 +477,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!btn) return;
 
         e.preventDefault();
+
+        // Stop all other document-level click handlers from firing for this click.
+        // Without this, AJAX delete handlers (e.g. events/task-modal.js) would fire
+        // immediately alongside the confirm dialog.
+        e.stopImmediatePropagation();
+
         const message   = btn.getAttribute('data-ck-confirm');
         const deleteUrl = btn.getAttribute('data-delete-url');
+        const form      = btn.closest('form');
 
         window.ckConfirm(message, function () {
             if (deleteUrl) {
@@ -489,11 +498,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Strategy B: inline-form fallback.
-            const form = btn.closest('form');
             if (form) {
+                // Strategy B: inline-form fallback.
                 form.requestSubmit();
+                return;
             }
+
+            // Strategy C: pure AJAX button (no form, no data-delete-url).
+            // Remove the attribute so the re-click isn't intercepted again,
+            // then re-trigger the click so the module-level handler fires.
+            btn.removeAttribute('data-ck-confirm');
+            btn.click();
+            // The page will reload after the AJAX call; no need to restore the attribute.
         });
     });
 

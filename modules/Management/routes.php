@@ -114,6 +114,10 @@ Route::middleware(['auth'])->prefix('events/{event}')->name('events.management.'
         ->name('members.store')
         ->middleware('permission:events.manage');
 
+    Route::patch('/tasks/{taskId}/members/reorder', [EventTaskMemberController::class, 'reorder'])
+        ->name('members.reorder')
+        ->middleware('permission:events.manage');
+
     Route::delete('/members/{assignmentId}', [EventTaskMemberController::class, 'destroy'])
         ->name('members.destroy')
         ->middleware('permission:events.manage');
@@ -126,5 +130,12 @@ Route::middleware(['auth'])->prefix('events/{event}')->name('events.management.'
 
     Route::delete('/slots/{slotId}', [EventSlotController::class, 'destroy'])
         ->name('slots.destroy')
+        ->middleware('permission:events.manage');
+
+    // ── Einsatzplan slot configuration per task ───────────────────────────────
+    // Updates the four grid-config columns on event_tasks (start/end/interval/capacity).
+
+    Route::patch('/tasks/{taskId}/slot-config', [EventSlotController::class, 'updateConfig'])
+        ->name('tasks.slot-config.update')
         ->middleware('permission:events.manage');
 });

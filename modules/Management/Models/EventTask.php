@@ -66,12 +66,18 @@ class EventTask extends Model
         'completed',
         'notes',
         'created_by',
+        'slot_start_time',
+        'slot_end_time',
+        'slot_interval_minutes',
+        'slot_capacity',
     ];
 
     protected $casts = [
-        'completed'   => 'boolean',
-        'deadline_at' => 'datetime',
-        'sort_order'  => 'integer',
+        'completed'             => 'boolean',
+        'deadline_at'           => 'datetime',
+        'sort_order'            => 'integer',
+        'slot_interval_minutes' => 'integer',
+        'slot_capacity'         => 'integer',
     ];
 
     /**

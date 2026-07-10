@@ -453,7 +453,7 @@
   position: fixed;
   right: 24px;
   bottom: 24px;
-  z-index: 9100;   /* above modals */
+  z-index: 10000;  /* above modal overlay (9999) and loading overlay (9998) */
   display: flex;
   flex-direction: column;
   gap: 10px;

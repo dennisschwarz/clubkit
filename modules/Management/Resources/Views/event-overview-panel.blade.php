@@ -67,7 +67,7 @@
     <div class="ck-kpi-card ck-kpi-card--success">
         <div class="ck-kpi-card__top">
             <span class="ck-kpi-card__icon">✅</span>
-            <span class="ck-kpi-card__value">{{ $mgmtKpiDoneTasks }}</span>
+            <span class="ck-kpi-card__value" id="ov-kpi-done">{{ $mgmtKpiDoneTasks }}</span>
         </div>
         <div class="ck-kpi-card__bottom">
             <span class="ck-kpi-card__label">{{ __('events.kpi.done_tasks') }}</span>
@@ -77,7 +77,7 @@
     <div class="ck-kpi-card ck-kpi-card--warning">
         <div class="ck-kpi-card__top">
             <span class="ck-kpi-card__icon">⏳</span>
-            <span class="ck-kpi-card__value">{{ $mgmtKpiOpenTasks }}</span>
+            <span class="ck-kpi-card__value" id="ov-kpi-open">{{ $mgmtKpiOpenTasks }}</span>
         </div>
         <div class="ck-kpi-card__bottom">
             <span class="ck-kpi-card__label">{{ __('events.kpi.open_tasks') }}</span>
@@ -101,15 +101,18 @@
     Accent "teal" matches the Tasks tab dot colour (Design System v2).
     Progress bars: 14px height (see event-detail.css .ck-cat-progress__bar).
     Bar fill uses CSS custom property --progress set by events-detail.js.
+    Plain div — no <x-ck-card> to avoid Blade 13.17 compiler bug (@php in component + @foreach in slot).
 --}}
-<x-ck-card accent="teal" :collapsible="true">
-    <x-slot:header>
+<div class="ck-card ck-card--accent-teal ck-card--collapsible">
+    <div class="ck-card__header">
         <span class="ck-card__header-title">📊 {{ __('events.overview.progress_title') }}</span>
-    </x-slot:header>
+    </div>
+    <div class="ck-card__body">
 
     @if(! empty($mgmtOverviewByCategory))
         @foreach($mgmtOverviewByCategory as $mgmtCatName => $mgmtCatData)
-        <div class="ck-cat-progress">
+        {{-- data-section links this bar to .ck-task-row[data-section] for live JS updates --}}
+        <div class="ck-cat-progress" data-section="{{ $mgmtCatData['catSection'] }}">
             <div class="ck-cat-progress__header">
                 <span class="ck-cat-progress__name">{{ $mgmtCatName }}</span>
                 <div class="ck-cat-progress__meta">
@@ -118,13 +121,14 @@
                         ⚠ {{ $mgmtCatData['unstaffedCount'] }} {{ __('events.overview.unstaffed_label') }}
                     </span>
                     @endif
-                    <span class="ck-cat-progress__count">
+                    <span class="ck-cat-progress__count" data-section="{{ $mgmtCatData['catSection'] }}">
                         {{ $mgmtCatData['secDone'] }}/{{ $mgmtCatData['secTotal'] }}
                     </span>
                 </div>
             </div>
             <div class="ck-cat-progress__bar">
                 <div class="ck-cat-progress__fill"
+                     data-section="{{ $mgmtCatData['catSection'] }}"
                      data-progress="{{ $mgmtCatData['secTotal'] > 0 ? round($mgmtCatData['secDone'] / $mgmtCatData['secTotal'] * 100) : 0 }}">
                 </div>
             </div>
@@ -133,7 +137,9 @@
     @else
         <p class="ck-empty-state">{{ __('events.task.empty') }}</p>
     @endif
-</x-ck-card>
+
+    </div>{{-- /.ck-card__body --}}
+</div>{{-- /.ck-card --}}
 
 @endif {{-- $showTasks --}}
 
@@ -152,10 +158,12 @@
       "week" → Wochenplan (KW grid)
       "cat"  → Nach Kategorie (prep task list)
 --}}
-<x-ck-card accent="blue" :collapsible="true">
-    <x-slot:header>
+{{-- Plain div — no <x-ck-card> to avoid Blade 13.17 compiler bug (@php in component + @foreach in slot). --}}
+<div class="ck-card ck-card--accent-blue ck-card--collapsible">
+    <div class="ck-card__header">
         <span class="ck-card__header-title">📅 {{ __('events.overview.zeitplan_title') }}</span>
-    </x-slot:header>
+    </div>
+    <div class="ck-card__body">
 
     {{-- Toolbar: view toggle + KW navigation. data-view drives CSS for KW nav. --}}
     <div class="ck-zeitplan-toolbar" id="ckZeitplanToolbar" data-view="week">
@@ -321,7 +329,8 @@
     </div>
     @endif
 
-</x-ck-card>
+    </div>{{-- /.ck-card__body --}}
+</div>{{-- /.ck-card --}}
 
 {{-- ── 4. Staffing matrix (event-day tasks × hour grid) ───────────────────── --}}
 {{--
@@ -329,10 +338,12 @@
     Shows event-day tasks (those without a prep deadline) mapped across
     hour columns, with member avatars in each cell.
 --}}
-<x-ck-card accent="amber" :collapsible="true">
-    <x-slot:header>
+{{-- Plain div — no <x-ck-card> to avoid Blade 13.17 compiler bug (@php in component + @foreach in slot). --}}
+<div class="ck-card ck-card--accent-amber ck-card--collapsible">
+    <div class="ck-card__header">
         <span class="ck-card__header-title">🗓️ {{ __('events.overview.matrix_title') }}</span>
-    </x-slot:header>
+    </div>
+    <div class="ck-card__body">
 
     @if(! empty($mgmtOvDayTasks) && ! empty($mgmtOvHours))
     <div class="ck-ov-matrix-wrap">
@@ -373,14 +384,16 @@
         @foreach($mgmtOvDayTasks as $mgmtDayTask)
         <div class="ck-ov-matrix-tasks__row">
             <span>{{ $mgmtDayTask['name'] }}</span>
-            <x-ck-badge color="gray">{{ __('events.overview.unstaffed') }}</x-ck-badge>
+            <span class="ck-badge ck-badge--gray">{{ __('events.overview.unstaffed') }}</span>
         </div>
         @endforeach
     </div>
     @else
     <p class="ck-empty-state">{{ __('events.overview.matrix_empty') }}</p>
     @endif
-</x-ck-card>
+
+    </div>{{-- /.ck-card__body --}}
+</div>{{-- /.ck-card --}}
 
 @endif {{-- $showSlots --}}
 
@@ -399,22 +412,27 @@
 
 {{-- ── 6. Teams assigned to this event ────────────────────────────────────── --}}
 {{-- Accent "green" matches the Teams concept colour (Design System v2). --}}
-<x-ck-card accent="green" :collapsible="true">
-    <x-slot:header>
+{{-- Plain div — no <x-ck-card> to avoid Blade 13.17 compiler bug (@php in component + @foreach in slot). --}}
+{{-- Also replaced <x-ck-badge> with plain <span> to avoid nested component + @foreach interaction.    --}}
+<div class="ck-card ck-card--accent-green ck-card--collapsible">
+    <div class="ck-card__header">
         <span class="ck-card__header-title">👥 {{ __('events.overview.teams_title') }}</span>
-    </x-slot:header>
+    </div>
+    <div class="ck-card__body">
 
     @if($mgmtOvTeams->isNotEmpty())
     <div class="ck-tag-list">
         @foreach($mgmtOvTeams as $mgmtOvTeam)
-        <x-ck-badge :color="'team-' . ($mgmtOvTeam->color ?? 'default')">
+        <span class="ck-badge ck-badge--team-{{ $mgmtOvTeam->color ?? 'default' }}">
             {{ $mgmtOvTeam->name }}
-        </x-ck-badge>
+        </span>
         @endforeach
     </div>
     @else
     <p class="ck-empty-state">{{ __('events.teams.empty') }}</p>
     @endif
-</x-ck-card>
+
+    </div>{{-- /.ck-card__body --}}
+</div>{{-- /.ck-card --}}
 
 @endif {{-- $teamsInstalled --}}

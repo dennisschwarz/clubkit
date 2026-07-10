@@ -171,7 +171,7 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
 .ck-task-row--done .ck-task-row__name { text-decoration: line-through; color: var(--ck-text-muted); }
 
 .ck-task-checkbox    { cursor: pointer; width: 1.1rem; height: 1.1rem; accent-color: var(--ck-success, #22c55e); }
-.ck-task-member      { display: block; font-size: var(--ck-font-base); }
+/* .ck-task-member chip styles live in tables.css — no override here */
 .ck-task-row__deadline { white-space: nowrap; font-size: var(--ck-font-base); }
 .ck-task-row__notes  { font-size: var(--ck-font-base); color: var(--ck-text-muted); max-width: 220px; }
 
@@ -181,6 +181,20 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
 /* Table columns */
 .ck-table__col--checkbox { width: 2.5rem; padding: var(--ck-space-2); vertical-align: middle; }
 .ck-table__col--actions  { width: 1%; white-space: nowrap; text-align: right; }
+
+/* ── Task-tab scoped: flush header ↔ table join ──────────────────────────── */
+/* Scoped to #ckEvtPane-tasks so Teams and other pages keep their spacing.    */
+/* Header: no bottom margin + flat bottom corners flush against the table.    */
+/* Table wrap: flat top corners so it sits flush below the coloured header.   */
+#ckEvtPane-tasks .ck-section-header {
+    margin-bottom:              0;
+    border-bottom-left-radius:  0;
+    border-bottom-right-radius: 0;
+}
+#ckEvtPane-tasks .ck-table-wrap {
+    border-top-left-radius:  0;
+    border-top-right-radius: 0;
+}
 
 /* ── Member chip — slot variant (with remove button) ─────────────────────── */
 /* The base .ck-member-chip is in forms.css. This adds the slot-specific remove button. */
@@ -198,6 +212,138 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
 /* ── Drag-and-drop (SortableJS) ─────────────────────────────────────────── */
 .sortable-ghost  { opacity: 0.35; background: var(--ck-blue-tint); outline: 2px dashed var(--ck-accent); outline-offset: -2px; }
 .sortable-chosen { box-shadow: var(--ck-shadow); opacity: 0.9; }
+
+/* ── Task member assign: sortable dual-list ──────────────────────────────── */
+
+/* ── Dual-listbox base layout ─────────────────────────────────────────────── */
+.ck-dual-listbox {
+    display:               grid;
+    grid-template-columns: 1fr 1fr;
+    gap:                   var(--ck-space-4);
+    align-items:           stretch;  /* both columns always the same height */
+}
+
+.ck-dual-listbox__col {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-2);
+}
+
+.ck-dual-listbox__label {
+    display:        block;
+    font-size:      var(--ck-font-xs);
+    font-weight:    700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color:          var(--ck-text-muted);
+}
+
+/* List fills the full column height */
+.ck-dual-listbox__col .ck-assign-list {
+    flex: 1;
+}
+
+/* Done-Button links ausgerichtet (nicht full-width) */
+#taskAssignModal .ck-form-actions {
+    justify-content: flex-start;
+}
+
+.ck-assign-list {
+    list-style:    none;
+    margin:        0;
+    padding:       0;
+    min-height:    240px;
+    max-height:    360px;
+    overflow-y:    auto;
+    border:        1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
+    background:    var(--ck-white);
+}
+.ck-assign-list--assigned { background: var(--ck-bg-subtle); }
+
+/* Drop-target highlight when dragging from available → assigned */
+.ck-assign-list--drop-target {
+    border-color: var(--ck-accent);
+    background:   color-mix(in srgb, var(--ck-accent) 6%, transparent);
+}
+
+.ck-assign-item {
+    display:       flex;
+    align-items:   center;
+    gap:           var(--ck-space-2);
+    padding:       var(--ck-space-2) var(--ck-space-3);
+    border-bottom: 1px solid var(--ck-border-light);
+    background:    var(--ck-white);
+    font-size:     var(--ck-font-base);
+    transition:    background 0.1s;
+    user-select:   none;
+}
+.ck-assign-item:last-child        { border-bottom: none; }
+/* Grab cursor on all items — available (draggable to right) + assigned (reorderable) */
+.ck-assign-item                   { cursor: grab; }
+.ck-assign-item:active            { cursor: grabbing; }
+/* Remove button restores pointer */
+.ck-assign-item .ck-assign-item__remove { cursor: pointer; }
+.ck-assign-item:hover             { background: var(--ck-bg-subtle); }
+
+/* Drag handle (shown only in the assigned list) */
+.ck-assign-drag-handle {
+    color:       var(--ck-text-muted);
+    font-size:   16px;
+    cursor:      grab;
+    flex-shrink: 0;
+    line-height: 1;
+    opacity:     0.5;
+}
+.ck-assign-drag-handle:hover { opacity: 1; }
+
+.ck-assign-item__name { flex: 1; min-width: 0; }
+
+/* Position number badge — shown only in the assigned list */
+.ck-assign-item__num {
+    display:         inline-flex;
+    align-items:     center;
+    justify-content: center;
+    min-width:       20px;
+    height:          20px;
+    padding:         0 5px;
+    border-radius:   999px;
+    background:      var(--ck-primary, #0a1628);
+    color:           var(--ck-white, #fff);
+    font-size:       11px;
+    font-weight:     700;
+    line-height:     1;
+    flex-shrink:     0;
+    user-select:     none;
+}
+
+/* Remove button per assigned item */
+.ck-assign-item__remove {
+    flex-shrink: 0;
+    background:  none;
+    border:      none;
+    color:       var(--ck-text-muted);
+    cursor:      pointer;
+    font-size:   18px;
+    line-height: 1;
+    padding:     0 2px;
+}
+.ck-assign-item__remove:hover { color: var(--ck-danger); }
+
+/* Pending state while AJAX is in-flight */
+.ck-assign-item--pending {
+    opacity:        0.5;
+    pointer-events: none;
+}
+
+/* Empty-state inside a list */
+.ck-assign-list__empty {
+    padding:    var(--ck-space-4);
+    text-align: center;
+    color:      var(--ck-text-muted);
+    font-size:  var(--ck-font-sm);
+    font-style: italic;
+}
 
 /* ── Slot modal: time grid ────────────────────────────────────────────────── */
 .ck-slot-time-row      { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ck-space-4); }
@@ -306,6 +452,246 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
 .ck-zeitplan-unbesetzt         { display: flex; align-items: center; gap: var(--ck-space-3); flex-wrap: wrap; padding: var(--ck-space-3) var(--ck-space-5); border-top: 1px solid var(--ck-border); background: var(--ck-warning-bg); }
 .ck-zeitplan-unbesetzt__label  { font-size: var(--ck-font-md); font-weight: 700; color: var(--ck-warning-text); flex-shrink: 0; }
 .ck-zeitplan-unbesetzt__tag    { font-size: var(--ck-font-xs); color: var(--ck-warning-text); background: #fef3c7; border: 1px solid var(--ck-warning-border); border-radius: var(--ck-radius-full); padding: 2px var(--ck-space-2); }
+
+/* ── Shift plan: horizontal staffing grid ────────────────────────────────── */
+
+/* Scroll wrapper: enables horizontal scroll on narrow screens */
+.ck-shift-grid-wrap {
+    overflow-x:                 auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Grid table base */
+.ck-shift-grid {
+    width:           100%;
+    border-collapse: collapse;
+    font-size:       var(--ck-font-sm);
+    table-layout:    auto;
+}
+
+.ck-shift-grid th {
+    background:  var(--ck-bg);
+    font-weight: 600;
+    white-space: nowrap;
+    color:       var(--ck-text-muted);
+    font-size:   var(--ck-font-xs);
+    padding:     var(--ck-space-2) var(--ck-space-3);
+    border:      1px solid var(--ck-border);
+}
+
+.ck-shift-grid td {
+    padding:        var(--ck-space-2) var(--ck-space-3);
+    border:         1px solid var(--ck-border);
+    vertical-align: top;
+}
+
+/* First column: fixed min-width for task name + meta */
+.ck-shift-grid__task-col { min-width: 180px; }
+
+/* Time columns: fixed width, centred */
+.ck-shift-grid__time-col { min-width: 90px; text-align: center; }
+
+/* Task column inner layout: info (left, grows) | action buttons (right, fixed) */
+.ck-einsatz-task-cell {
+    display:     flex;
+    align-items: center;
+    gap:         var(--ck-space-3);
+}
+.ck-einsatz-task-cell__info    { flex: 1; min-width: 0; }
+.ck-einsatz-task-cell__actions { display: flex; gap: var(--ck-space-2); flex-shrink: 0; }
+
+/* Task name label */
+.ck-shift-task-name { font-weight: 600; color: var(--ck-text); }
+
+/* Grid cells: coloured by capacity fill level */
+.ck-shift-cell {
+    text-align: center;
+    cursor:     pointer;
+    transition: filter 0.1s;
+}
+.ck-shift-cell:hover      { filter: brightness(0.93); }
+.ck-shift-cell--green     { background: var(--ck-success-bg); }
+.ck-shift-cell--amber     { background: var(--ck-warning-bg); }
+.ck-shift-cell--red       { background: var(--ck-danger-bg); }
+/* Out-of-range: task has no slot in this time column */
+.ck-shift-cell--out       { background: var(--ck-bg); cursor: default; }
+.ck-shift-cell--out:hover { filter: none; }
+
+/* Member chip inside a grid cell */
+.ck-shift-member {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    gap:             3px;
+    margin-bottom:   2px;
+}
+.ck-shift-member__name { font-size: var(--ck-font-xs); white-space: nowrap; }
+
+/* Remove button on each member chip */
+.ck-shift-member .ck-slot-remove-btn {
+    border:      none;
+    background:  none;
+    cursor:      pointer;
+    color:       var(--ck-text-muted);
+    font-size:   var(--ck-font-sm);
+    padding:     0;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.ck-shift-member .ck-slot-remove-btn:hover { color: var(--ck-danger); }
+
+/* Count badge at the bottom of a cell: "2/3" */
+.ck-shift-count {
+    display:    block;
+    font-size:  var(--ck-font-xs);
+    color:      var(--ck-text-muted);
+    margin-top: 3px;
+}
+
+/* "+" affordance in empty (red) cells — tells the user the cell is clickable */
+.ck-shift-cell__add-hint {
+    display:     block;
+    font-size:   var(--ck-font-lg);
+    font-weight: 300;
+    color:       var(--ck-danger-text);
+    opacity:     0.5;
+    line-height: 1;
+}
+
+/* Unconfigured tasks use standard .ck-table — no extra classes needed */
+
+/* Sticky first column: keeps task names visible during horizontal scroll */
+.ck-shift-grid th:first-child,
+.ck-shift-grid td:first-child {
+    position: sticky;
+    left:     0;
+    z-index:  2;
+}
+.ck-shift-grid th:first-child { z-index: 3; background: var(--ck-bg); }
+.ck-shift-grid td:first-child { background: var(--ck-white); }
+
+/* Pulse animation on empty cells (0 assigned / capacity) */
+@keyframes ck-shift-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.65; }
+}
+.ck-shift-cell--red       { animation: ck-shift-pulse 2.5s ease-in-out infinite; }
+.ck-shift-cell--red:hover { animation-play-state: paused; }
+
+/* ── Shift assign modal: 2-column grid (member pool + slot zones) ─────────── */
+.ck-slot-assign-grid {
+    display:               grid;
+    grid-template-columns: 210px 1fr;
+    gap:                   var(--ck-space-4);
+    min-height:            260px;
+}
+
+.ck-slot-assign-pool {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-2);
+}
+
+/* Available-members list: fixed height, scrollable. */
+.ck-slot-assign-pool .ck-assign-list {
+    flex:       1;
+    min-height: 180px;
+    max-height: 400px;
+}
+
+.ck-slot-assign-zones {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-3);
+    overflow-y:     auto;
+    max-height:     420px;
+    padding-right:  2px; /* prevents scrollbar clipping */
+}
+
+/* ── Slot zone: one block per time window ────────────────────────────────── */
+.ck-slot-zone {
+    border:      1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
+    overflow:    hidden;
+    transition:  border-color 0.15s;
+    /* flex-shrink: 0 prevents the flex column container (.ck-slot-assign-zones)
+       from compressing zones below their natural height when max-height is reached.
+       Without this, 6 zones × shrink = ~60 px each, clipping the drop list.
+       The container scrolls instead of squashing the zones. */
+    flex-shrink: 0;
+}
+
+/* Border colour reflects fill level. */
+.ck-slot-zone--full    { border-color: var(--ck-success-border); }
+.ck-slot-zone--partial { border-color: var(--ck-warning-border); }
+.ck-slot-zone--empty   { border-color: var(--ck-danger-border); }
+
+/* Zone header: time range label + status badge. */
+.ck-slot-zone__header {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    padding:         var(--ck-space-2) var(--ck-space-3);
+    background:      var(--ck-bg-subtle);
+    border-bottom:   1px solid var(--ck-border);
+}
+.ck-slot-zone__time {
+    font-size:   var(--ck-font-sm);
+    font-weight: 700;
+    color:       var(--ck-text);
+}
+
+/* Status badge pill. */
+.ck-slot-zone__status {
+    font-size:     var(--ck-font-xs);
+    font-weight:   700;
+    padding:       2px var(--ck-space-2);
+    border-radius: var(--ck-radius-full);
+    white-space:   nowrap;
+}
+.ck-slot-zone__status--full    { background: var(--ck-success-bg); color: var(--ck-success-text); }
+.ck-slot-zone__status--partial { background: var(--ck-warning-bg); color: var(--ck-warning-text); }
+.ck-slot-zone__status--empty   { background: var(--ck-danger-bg);  color: var(--ck-danger-text);  }
+
+/* Drop list: member chips + SortableJS drop target.
+   min-height accounts for 2 chip rows (each ~36 px) plus padding. */
+.ck-slot-drop {
+    list-style:  none;
+    margin:      0;
+    padding:     var(--ck-space-2) var(--ck-space-3);
+    min-height:  80px;
+    display:     flex;
+    flex-wrap:   wrap;
+    gap:         var(--ck-space-2);
+    align-items: flex-start;
+    align-content: flex-start;
+    transition:  background 0.15s;
+}
+
+/* Empty-state / drop hint shown when no members are assigned yet. */
+.ck-slot-drop__empty {
+    font-size:  var(--ck-font-xs);
+    color:      var(--ck-text-muted);
+    font-style: italic;
+    padding:    var(--ck-space-1) 0;
+    width:      100%;
+}
+
+/* Chips inside slot zones are not draggable (only removable via ×). */
+.ck-slot-drop .ck-assign-item { cursor: default; }
+
+/* ── Mobile: single-column assign modal ─────────────────────────────────── */
+@media (max-width: 768px) {
+    .ck-slot-assign-grid   { grid-template-columns: 1fr; }
+    .ck-slot-assign-pool .ck-assign-list { min-height: 120px; max-height: 160px; }
+    .ck-slot-assign-zones  { max-height: 280px; }
+
+    /* Compact font + padding for the shift grid on small screens. */
+    .ck-shift-grid th,
+    .ck-shift-grid td          { font-size: var(--ck-font-xs); padding: var(--ck-space-1) var(--ck-space-2); }
+    .ck-shift-grid__task-col   { min-width: 120px; }
+    .ck-shift-grid__time-col   { min-width: 72px;  }
+}
 
 /* ── Print styles ─────────────────────────────────────────────────────────── */
 @media print {

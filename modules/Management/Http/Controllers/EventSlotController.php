@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Modules\Events\Models\Event;
 use Modules\Management\Http\Requests\StoreEventSlotRequest;
+use Modules\Management\Http\Requests\UpdateSlotConfigRequest;
 use Modules\Management\Models\EventTask;
 use Modules\Management\Models\EventTaskMember;
 
@@ -27,7 +28,8 @@ use Modules\Management\Models\EventTaskMember;
  *   - The task must belong to this event.
  *   - The task must be an event-day task: deadline_at IS NULL, or
  *     deadline_at date matches the event start date.
- *   - Duplicate assignment (same task + member) is rejected with 409.
+ *   - Duplicate: same task + member + time_from is rejected with 409.
+ *     A member may hold multiple slots at different times within the same task.
  *
  * Permission is enforced at the route level (permission:events.manage).
  */
@@ -41,7 +43,7 @@ class EventSlotController extends Controller
      *
      * Returns 201 with the formatted times on success.
      * Returns 422 when the task has a future deadline (not an event-day task).
-     * Returns 409 when the member is already assigned to the task.
+     * Returns 409 when the member is already assigned to the same task at the same start time.
      *
      * @param  StoreEventSlotRequest $request
      * @param  Event                 $event
@@ -68,16 +70,19 @@ class EventSlotController extends Controller
             ], 422);
         }
 
-        // Prevent duplicate assignment for this task.
+        // Combine event date with H:i time strings to produce full datetime values.
+        // Resolved before the duplicate guard so $timeFrom can be reused in the query.
+        $timeFrom = Carbon::parse($eventDate . ' ' . $data['time_from']);
+        $timeTo   = Carbon::parse($eventDate . ' ' . $data['time_to']);
+
+        // Prevent duplicate: same member + same task + same start time.
+        // A member may hold slots at different times within the same task.
         if (EventTaskMember::where('event_task_id', $task->id)
             ->where('member_id', $data['member_id'])
+            ->where('time_from', $timeFrom)
             ->exists()) {
             return response()->json(['error' => 'already_assigned'], 409);
         }
-
-        // Combine event date with H:i time strings to produce full datetime.
-        $timeFrom = Carbon::parse($eventDate . ' ' . $data['time_from']);
-        $timeTo   = Carbon::parse($eventDate . ' ' . $data['time_to']);
 
         $slot = EventTaskMember::create([
             'event_task_id' => $task->id,
@@ -117,5 +122,54 @@ class EventSlotController extends Controller
         $slot->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Saves the Einsatzplan slot configuration for an event task.
+     *
+     * Sets slot_start_time, slot_end_time, slot_interval_minutes, slot_capacity
+     * on the EventTask row. These columns drive the grid column generation in
+     * EventEinsatzplanPanelComposer.
+     *
+     * Returns 200 with the updated config on success.
+     * Returns 422 when the task has a future deadline (not an event-day task).
+     *
+     * @param  UpdateSlotConfigRequest $request
+     * @param  Event                   $event
+     * @param  int                     $taskId
+     * @return JsonResponse
+     */
+    public function updateConfig(UpdateSlotConfigRequest $request, Event $event, int $taskId): JsonResponse
+    {
+        $task = EventTask::where('event_id', $event->id)->find($taskId);
+
+        if (! $task) {
+            return response()->json(['error' => 'Task does not belong to this event.'], 422);
+        }
+
+        // Only event-day tasks may have an Einsatzplan grid configuration.
+        $eventDate = $event->starts_at->toDateString();
+        if ($task->deadline_at !== null && $task->deadline_at->toDateString() !== $eventDate) {
+            return response()->json([
+                'error' => 'Only event-day tasks (no deadline or deadline on the event date) can have a slot configuration.',
+            ], 422);
+        }
+
+        $data = $request->validated();
+
+        $task->update([
+            'slot_start_time'       => $data['slot_start_time'],
+            'slot_end_time'         => $data['slot_end_time'],
+            'slot_interval_minutes' => $data['slot_interval_minutes'],
+            'slot_capacity'         => $data['slot_capacity'],
+        ]);
+
+        return response()->json([
+            'success'               => true,
+            'slot_start_time'       => substr((string) $task->slot_start_time, 0, 5),
+            'slot_end_time'         => substr((string) $task->slot_end_time, 0, 5),
+            'slot_interval_minutes' => $task->slot_interval_minutes,
+            'slot_capacity'         => $task->slot_capacity,
+        ]);
     }
 }

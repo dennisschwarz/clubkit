@@ -49,15 +49,15 @@ class StoreEventSlotRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'event_task_id.required'  => 'Please select a task.',
-            'event_task_id.exists'    => 'The selected task does not exist.',
-            'member_id.required'      => 'Please select a member.',
-            'member_id.exists'        => 'The selected member does not exist.',
-            'time_from.required'      => 'Start time is required.',
-            'time_from.date_format'   => 'Start time must be in HH:MM format.',
-            'time_to.required'        => 'End time is required.',
-            'time_to.date_format'     => 'End time must be in HH:MM format.',
-            'time_to.after'           => 'End time must be after start time.',
+            'event_task_id.required' => __('events.slot.validation.task_required'),
+            'event_task_id.exists'   => __('events.slot.validation.task_not_found'),
+            'member_id.required'     => __('events.slot.validation.member_required'),
+            'member_id.exists'       => __('events.slot.validation.member_not_found'),
+            'time_from.required'     => __('events.slot.validation.time_from_required'),
+            'time_from.date_format'  => __('events.slot.validation.time_from_format'),
+            'time_to.required'       => __('events.slot.validation.time_to_required'),
+            'time_to.date_format'    => __('events.slot.validation.time_to_format'),
+            'time_to.after'          => __('events.slot.validation.time_to_after'),
         ];
     }
 }
