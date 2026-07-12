@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Management\Http\Controllers\EventSlotController;
 use Modules\Management\Http\Controllers\EventTaskCategoryController;
 use Modules\Management\Http\Controllers\EventTaskController;
+use Modules\Management\Http\Controllers\EventTaskImportController;
 use Modules\Management\Http\Controllers\EventTaskMemberController;
 use Modules\Management\Http\Controllers\ManagementController;
 use Modules\Management\Http\Controllers\TaskCategoryController;
@@ -132,10 +133,34 @@ Route::middleware(['auth'])->prefix('events/{event}')->name('events.management.'
         ->name('slots.destroy')
         ->middleware('permission:events.manage');
 
+    // Einsatzplan panel HTML fragment — for AJAX refresh without full page reload.
+    // Returns only the panel HTML (no layout). Executed by slot-modal.js after
+    // the Speichern button or close confirmation. GET must come before the DELETE
+    // route to avoid route ambiguity on the /slots/{slotId} wildcard.
+    Route::get('/slots/panel-fragment', [EventSlotController::class, 'panelFragment'])
+        ->name('slots.panel-fragment')
+        ->middleware('permission:events.manage');
+
     // ── Einsatzplan slot configuration per task ───────────────────────────────
     // Updates the four grid-config columns on event_tasks (start/end/interval/capacity).
 
     Route::patch('/tasks/{taskId}/slot-config', [EventSlotController::class, 'updateConfig'])
         ->name('tasks.slot-config.update')
+        ->middleware('permission:events.manage');
+
+    // ── CSV task import ───────────────────────────────────────────────────────
+    // Two-phase: preview (file → JSON) and execute (JSON payload → DB writes).
+    // Template provides a downloadable example CSV for end users.
+
+    Route::post('/tasks/import/preview', [EventTaskImportController::class, 'preview'])
+        ->name('tasks.import.preview')
+        ->middleware('permission:events.manage');
+
+    Route::post('/tasks/import', [EventTaskImportController::class, 'execute'])
+        ->name('tasks.import')
+        ->middleware('permission:events.manage');
+
+    Route::get('/tasks/import/template', [EventTaskImportController::class, 'template'])
+        ->name('tasks.import.template')
         ->middleware('permission:events.manage');
 });

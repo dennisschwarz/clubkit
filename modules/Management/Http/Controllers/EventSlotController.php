@@ -125,6 +125,30 @@ class EventSlotController extends Controller
     }
 
     /**
+     * Returns the Einsatzplan panel HTML fragment for AJAX refresh.
+     *
+     * Used by slot-modal.js after the Speichern button or the close confirmation.
+     * The EventSlotsPanelComposer is registered globally in ManagementServiceProvider
+     * and fires automatically when the view is rendered, so no manual data injection
+     * is needed beyond passing $event (which the composer reads from view data).
+     *
+     * The response is plain HTML (no layout). Inline <script> tags (e.g.
+     * window.CK_ShiftGrid) are included and will be executed by the JS caller
+     * via document.createElement('script').
+     *
+     * @param  Event $event
+     * @return \Illuminate\Http\Response
+     */
+    public function panelFragment(Event $event): \Illuminate\Http\Response
+    {
+        $html = view('management::event-slots-panel')
+            ->with('event', $event)
+            ->render();
+
+        return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+    }
+
+    /**
      * Saves the Einsatzplan slot configuration for an event task.
      *
      * Sets slot_start_time, slot_end_time, slot_interval_minutes, slot_capacity

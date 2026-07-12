@@ -557,6 +557,14 @@
     padding:    0;
 }
 
+/* ── Event tab-aware header action groups ────────────────────────────────── */
+/* Wrapping divs inside .ck-page-header__actions that show/hide per active   */
+/* tab. ckEvtTab() in globals.js adds/removes ck-event-tab-action--active.   */
+/* display:contents makes the wrapper invisible so buttons flow directly      */
+/* into the parent flex gap — no extra spacing layer.                         */
+.ck-event-tab-action         { display: none; }
+.ck-event-tab-action--active { display: contents; }
+
 /* ── Slot badge (time/count indicator in Einsatzplan) ───────────────────── */
 .ck-slot-badge {
     display:              inline-block;

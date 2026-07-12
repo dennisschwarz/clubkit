@@ -176,7 +176,9 @@
 @push('scripts')
 @vite('resources/js/modules/import-preview.js')
 <script>
-    importUpdateCount();
+    {{-- importUpdateCount() is already called inside DOMContentLoaded in import-preview.js.
+         Calling it here synchronously would fail because @vite loads scripts as type="module"
+         (deferred), so the function is not yet defined when this inline script executes. --}}
 
     @if(!empty($teams))
     // Global team dropdown → synchronises all per-row dropdowns.

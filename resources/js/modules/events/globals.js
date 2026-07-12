@@ -93,15 +93,25 @@ export function initGlobals(Sortable) {
         document.querySelectorAll('.ck-local-tab').forEach(function (b) {
             b.classList.remove('ck-local-tab--active');
         });
+
+        // Toggle header action groups.
+        // Single-tab:  id="ckEvtAction-{tabId}"
+        // Multi-tab:   data-ck-tab-actions="tasks slots" (space-separated list of tab IDs)
         document.querySelectorAll('.ck-event-tab-action').forEach(function (a) {
-            a.classList.remove('ck-event-tab-action--active');
+            var multi = (a.dataset.ckTabActions || '').split(' ').filter(Boolean);
+            var match = multi.length > 0
+                ? multi.indexOf(tabId) !== -1
+                : a.id === 'ckEvtAction-' + tabId;
+            if (match) {
+                a.classList.add('ck-event-tab-action--active');
+            } else {
+                a.classList.remove('ck-event-tab-action--active');
+            }
         });
 
-        var pane   = document.getElementById('ckEvtPane-' + tabId);
-        var action = document.getElementById('ckEvtAction-' + tabId);
-        if (pane)   { pane.classList.add('ck-local-section--active'); }
-        if (btn)    { btn.classList.add('ck-local-tab--active'); }
-        if (action) { action.classList.add('ck-event-tab-action--active'); }
+        var pane = document.getElementById('ckEvtPane-' + tabId);
+        if (pane) { pane.classList.add('ck-local-section--active'); }
+        if (btn)  { btn.classList.add('ck-local-tab--active'); }
 
         if (pane) {
             pane.querySelectorAll('.ck-task-sortable:not([data-sortable-init])').forEach(function (tbody) {
@@ -411,5 +421,67 @@ export function initGlobals(Sortable) {
         document.dispatchEvent(new CustomEvent('ck:shift.assign.open', { detail: { taskId: taskId } }));
 
         ckModalOpen('ckShiftAssignModal');
+    };
+
+    /**
+     * Removes a timed member assignment (event_task_members with time_from set)
+     * from the Einsatzplan grid.
+     *
+     * Called via onclick="event.stopPropagation(); ckSlotRemove(this)" on the
+     * .ck-shift-chip__remove button in event-slots-panel.blade.php.
+     *
+     * event.stopPropagation() in the caller prevents the parent <td> onclick
+     * (ckOpenShiftAssign) from firing. This function then executes the DELETE
+     * directly, bypassing the document-level delegation in slot-modal.js.
+     *
+     * @param {HTMLButtonElement} btn  The × button (has data-slot-id).
+     */
+    window.ckSlotRemove = function (btn) {
+        var slotId = btn && btn.dataset.slotId;
+        if (! slotId || btn.disabled) { return; }
+
+        var cfg = window.CK_EventDetail;
+        if (! cfg || ! cfg.routes || ! cfg.routes.slotsBase) { return; }
+
+        btn.disabled = true;
+
+        // Ladeoverlay einblenden — _ckRefreshSlotPanel() blendet ihn aus.
+        if (typeof window.ckShowLoading === 'function') { window.ckShowLoading(); }
+
+        fetch(cfg.routes.slotsBase + '/' + slotId, {
+            method:  'DELETE',
+            headers: {
+                'X-CSRF-TOKEN':     cfg.csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept':           'application/json',
+            },
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.success) {
+                // AJAX Panel-Refresh statt voller Seitenneulade.
+                // _ckRefreshSlotPanel wird von slot-modal.js auf window exponiert.
+                if (typeof window._ckRefreshSlotPanel === 'function') {
+                    window._ckRefreshSlotPanel();
+                } else {
+                    // Fallback falls slot-modal.js noch nicht initialisiert ist.
+                    sessionStorage.setItem('ck_evt_active_tab', 'slots');
+                    window.location.reload();
+                }
+            } else {
+                btn.disabled = false;
+                if (typeof window.ckHideLoading === 'function') { window.ckHideLoading(); }
+                if (typeof ckNotify === 'function') {
+                    ckNotify('error', (window.ckUi && window.ckUi('saveError')) || 'Fehler beim Entfernen.');
+                }
+            }
+        })
+        .catch(function () {
+            btn.disabled = false;
+            if (typeof window.ckHideLoading === 'function') { window.ckHideLoading(); }
+            if (typeof ckNotify === 'function') {
+                ckNotify('error', (window.ckUi && window.ckUi('networkError')) || 'Netzwerkfehler.');
+            }
+        });
     };
 }

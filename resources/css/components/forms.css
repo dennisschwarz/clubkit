@@ -77,7 +77,9 @@ select.ck-field__input {
 }
 .ck-form-grid__span-2 { grid-column: 1 / -1; }
 
-.ck-form-actions { display: flex; gap: var(--ck-space-2); margin-top: var(--ck-space-6); }
+.ck-form-actions               { display: flex; gap: var(--ck-space-2); margin-top: var(--ck-space-6); }
+/* Abbrechen links, Speichern rechts — genutzt im Einsatzplan-Assign-Modal */
+.ck-form-actions--spread       { justify-content: space-between; }
 
 /* ── CF field-add grid ────────────────────────────────────────────── */
 .ck-add-field-grid {

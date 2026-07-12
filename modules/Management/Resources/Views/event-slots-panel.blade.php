@@ -135,18 +135,22 @@
                             title="{{ __('events.slot.click_to_assign') }}">
                             @foreach($mgmtCell['assigned'] as $mgmtSlot)
                             @php
+                                /* Initials from "Nachname, Vorname" format:
+                                   "Müller, Marianne" → "MM" */
                                 $mgmtParts     = explode(', ', $mgmtSlot['name'], 2);
                                 $mgmtFirstName = trim($mgmtParts[1] ?? $mgmtSlot['name']);
-                                $mgmtLastInit  = substr(trim($mgmtParts[0] ?? ''), 0, 1);
-                                $mgmtDisplay   = $mgmtFirstName . ($mgmtLastInit ? ' ' . $mgmtLastInit . '.' : '');
+                                $mgmtLastInit  = strtoupper(substr(trim($mgmtParts[0] ?? ''), 0, 1));
+                                $mgmtFirsInit  = strtoupper(substr($mgmtFirstName, 0, 1));
+                                $mgmtInitials  = $mgmtFirsInit . $mgmtLastInit;
                             @endphp
-                            <span class="ck-shift-member">
-                                <span class="ck-shift-member__name" title="{{ $mgmtSlot['name'] }}">{{ $mgmtDisplay }}</span>
+                            {{-- Avatar chip: circle with initials + compact × remove button --}}
+                            <span class="ck-shift-chip" title="{{ $mgmtSlot['name'] }}">
+                                <span class="ck-avatar ck-avatar--sm" aria-hidden="true">{{ $mgmtInitials }}</span>
                                 <button type="button"
-                                    class="ck-slot-remove-btn"
+                                    class="ck-shift-chip__remove ck-slot-remove-btn"
                                     data-slot-id="{{ $mgmtSlot['id'] }}"
-                                    title="{{ __('Remove') }}"
-                                    onclick="event.stopPropagation()">×</button>
+                                    title="{{ __('Remove') }}: {{ $mgmtSlot['name'] }}"
+                                    onclick="event.stopPropagation(); ckSlotRemove(this)">×</button>
                             </span>
                             @endforeach
                             {{-- Empty-cell affordance: "+" indicates the cell is clickable to assign a member. --}}
@@ -276,9 +280,13 @@
 
     </div>
 
-    <div class="ck-form-actions">
-        <x-ck-button variant="primary" type="button" id="ckShiftAssignDoneBtn">
-            {{ __('Done') }}
+    <div class="ck-form-actions ck-form-actions--spread">
+        <x-ck-button variant="secondary" type="button"
+            onclick="ckModalClose(null, 'ckShiftAssignModal')">
+            {{ __('Cancel') }}
+        </x-ck-button>
+        <x-ck-button variant="success" type="button" id="ckShiftAssignDoneBtn">
+            {{ __('Save') }}
         </x-ck-button>
     </div>
 </x-ck-modal>

@@ -21,6 +21,39 @@ export function initSlotModal(ctx) {
     var closest          = ctx.closest;
     var reloadKeepingTab = ctx.reloadKeepingTab;
 
+    /**
+     * Dirty flag: true after any assignment (POST) or removal (DELETE) in the modal.
+     * Reset to false on modal open and after a successful AJAX panel refresh.
+     * Used by the outside-click interceptor to prompt "reload now?" before close.
+     */
+    var _slotDirty = false;
+
+    // ── Modal-Lock: Race-Condition-Schutz ─────────────────────────────────────
+    //
+    // Solange ein Request (POST Assign / DELETE Remove) läuft, wird:
+    //   - kein weiterer Request zugelassen  (_slotRequestPending-Guard am Anfang jedes Handlers)
+    //   - das Modal-Content via .ck-modal-content--busy gesperrt (pointer-events: none)
+    //   - ein Spinner + halbtransparentes Overlay über den Inhalt gelegt (CSS ::before/::after)
+    //
+    // Drag-Events werden am Anfang von onAdd geprüft — der Clone wird sofort
+    // verworfen (evt.item.remove()) damit kein DOM-Müll entsteht.
+
+    var _slotRequestPending = false;
+
+    function _modalLock() {
+        _slotRequestPending = true;
+        var modal   = document.getElementById('ckShiftAssignModal');
+        var content = modal ? modal.querySelector('.ck-modal-content') : null;
+        if (content) { content.classList.add('ck-modal-content--busy'); }
+    }
+
+    function _modalUnlock() {
+        _slotRequestPending = false;
+        var modal   = document.getElementById('ckShiftAssignModal');
+        var content = modal ? modal.querySelector('.ck-modal-content') : null;
+        if (content) { content.classList.remove('ck-modal-content--busy'); }
+    }
+
     // ── 1. Shift plan config modal submit ────────────────────────────────────
     // PATCH /events/{event}/tasks/{taskId}/slot-config
 
@@ -177,6 +210,8 @@ export function initSlotModal(ctx) {
 
     document.addEventListener('ck:shift.assign.open', function () {
         _destroyEinsatzSortables();
+        _slotDirty           = false;  // Frische Session — Dirty-Flag zurücksetzen.
+        _slotRequestPending  = false;  // Sicherheitshalber entsperren (z.B. nach Netzwerkfehler).
 
         var availList = document.getElementById('shiftAssignAvailableList');
         var slotsPane = document.getElementById('slotAssignZones');
@@ -203,13 +238,19 @@ export function initSlotModal(ctx) {
                      * inserts a permanent chip with the new event_task_member id.
                      */
                     onAdd: function (evt) {
+                        // Race-Condition-Guard: kein zweiter Request während einer läuft.
+                        if (_slotRequestPending) {
+                            evt.item.remove();  // SortableJS-Clone sofort verwerfen
+                            return;
+                        }
+
                         var item     = evt.item;
                         var memberId = parseInt(item.dataset.memberId, 10);
                         var timeFrom = dropList.dataset.timeFrom;
                         var timeTo   = dropList.dataset.timeTo;
                         var cap      = parseInt(dropList.dataset.capacity || 1, 10);
 
-                        // Capacity check.
+                        // Kapazitätsprüfung.
                         var count = dropList.querySelectorAll('.ck-assign-item[data-etm-id]').length;
                         if (count >= cap) {
                             item.remove();
@@ -217,10 +258,7 @@ export function initSlotModal(ctx) {
                             return;
                         }
 
-                        // Duplicate-in-same-slot guard.
-                        // A member may be assigned to multiple DIFFERENT slots, but not
-                        // twice to the exact same slot. The [data-etm-id] selector matches
-                        // only persisted chips (not the temporary clone).
+                        // Duplikat im selben Slot verhindern.
                         var alreadyHere = !! dropList.querySelector(
                             '.ck-assign-item[data-etm-id][data-member-id="' + memberId + '"]'
                         );
@@ -230,11 +268,14 @@ export function initSlotModal(ctx) {
                             return;
                         }
 
-                        // Remove the clone; replaced by a real chip after AJAX success.
+                        // Clone entfernen — echtes Chip erscheint nach AJAX-Erfolg.
                         item.remove();
 
                         var taskIdInp = document.getElementById('ckShiftAssignTaskId');
                         if (! taskIdInp) { return; }
+
+                        // Modal sperren — Spinner + pointer-events: none bis Antwort da.
+                        _modalLock();
 
                         fetch(cfg.routes.slotsBase, {
                             method:  'POST',
@@ -253,15 +294,15 @@ export function initSlotModal(ctx) {
                         })
                         .then(function (res) { return res.json(); })
                         .then(function (data) {
+                            _modalUnlock();  // Immer entsperren, egal ob Erfolg oder Fehler
+
                             if (data.success && data.id) {
                                 var members = (window.CK_EventDetail || {}).members || {};
                                 var name    = members[memberId]
                                     ? members[memberId].name : 'Member';
 
-                                // Insert the permanent chip into the drop zone.
-                                // Note: the available pool is intentionally NOT modified —
-                                // members may be assigned to multiple slots, so they must
-                                // remain visible in the pool at all times.
+                                // Permanentes Chip in den Drop-Bereich einfügen.
+                                // Pool bleibt unverändert — Mitglied darf mehrere Slots haben.
                                 var li  = document.createElement('li');
                                 li.className        = 'ck-assign-item';
                                 li.dataset.etmId    = String(data.id);
@@ -279,6 +320,7 @@ export function initSlotModal(ctx) {
                                 dropList.appendChild(li);
 
                                 _refreshSlotZone(timeFrom);
+                                _slotDirty = true;
 
                             } else if (data.error === 'already_assigned') {
                                 ckNotify('warning', window.ckUi('alreadyAssigned'));
@@ -287,6 +329,7 @@ export function initSlotModal(ctx) {
                             }
                         })
                         .catch(function () {
+                            _modalUnlock();
                             ckNotify('error', window.ckUi('networkError'));
                         });
                     },
@@ -295,96 +338,175 @@ export function initSlotModal(ctx) {
         });
     });
 
-    // ── 2a. Remove member from slot — × button click (delegated) ─────────────
+    // ── 2a. Remove member from slot — × button click ──────────────────────────
     //
-    // Scoped to #slotAssignZones. No page reload: chip removed, member back in pool.
+    // CRITICAL: Attached on #slotAssignZones, NOT on document.
+    //
+    // Root cause of the previous bug:
+    //   .ck-modal-content has onclick="event.stopPropagation()".
+    //   This blocks ALL clicks inside the modal from reaching document-level
+    //   handlers. #slotAssignZones is INSIDE .ck-modal-content but bubbles
+    //   to it BEFORE the stopPropagation fires — so a listener here works.
+    //
+    // No page reload: chip removed optimistically from modal DOM.
+    // _slotDirty = true so Done / outside-click prompts an AJAX panel refresh.
 
-    document.addEventListener('click', function (e) {
-        var slotsPane = document.getElementById('slotAssignZones');
-        if (! slotsPane || ! slotsPane.contains(e.target)) { return; }
+    var _slotsPane = document.getElementById('slotAssignZones');
+    if (_slotsPane) {
+        _slotsPane.addEventListener('click', function (e) {
+            var removeBtn = closest(e.target, '.ck-assign-item__remove');
+            if (! removeBtn) { return; }
 
-        var removeBtn = closest(e.target, '.ck-assign-item__remove');
-        if (! removeBtn) { return; }
-        var item  = closest(removeBtn, '.ck-assign-item');
-        if (! item) { return; }
-        var etmId = item.dataset.etmId;
-        if (! etmId) { return; }
+            // Race-Condition-Guard: kein zweiter Request während einer läuft.
+            if (_slotRequestPending) { return; }
 
-        var dropList = closest(item, '.ck-slot-drop');
-        var timeFrom = dropList ? dropList.dataset.timeFrom : null;
+            var item  = closest(removeBtn, '.ck-assign-item');
+            if (! item) { return; }
+            var etmId = item.dataset.etmId;
+            if (! etmId) { return; }
 
-        item.classList.add('ck-assign-item--pending');
+            var dropList = closest(item, '.ck-slot-drop');
+            var timeFrom = dropList ? dropList.dataset.timeFrom : null;
 
-        fetch(cfg.routes.slotsBase + '/' + etmId, {
-            method:  'DELETE',
+            item.classList.add('ck-assign-item--pending');
+            _modalLock();  // Spinner + Sperre
+
+            fetch(cfg.routes.slotsBase + '/' + etmId, {
+                method:  'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN':     csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                },
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                _modalUnlock();
+                if (data.success) {
+                    item.remove();
+                    if (timeFrom) { _refreshSlotZone(timeFrom); }
+                    _slotDirty = true;
+                } else {
+                    item.classList.remove('ck-assign-item--pending');
+                    ckNotify('error', window.ckUi('saveError'));
+                }
+            })
+            .catch(function () {
+                _modalUnlock();
+                item.classList.remove('ck-assign-item--pending');
+                ckNotify('error', window.ckUi('networkError'));
+            });
+        });
+    }
+
+    // ── 2b. AJAX panel refresh ────────────────────────────────────────────────
+    //
+    // Fetches GET /events/{event}/slots/panel-fragment and replaces the
+    // #ckEvtPane-slots content without a full page reload. Inline <script>
+    // tags (e.g. window.CK_ShiftGrid update) are re-executed manually.
+    //
+    // Falls back to reloadKeepingTab() on network / server error.
+
+    function _refreshSlotPanel() {
+        // Ladeoverlay einblenden — wird nach erfolgreicher Injektion ausgeblendet.
+        if (typeof window.ckShowLoading === 'function') { window.ckShowLoading(); }
+
+        fetch(cfg.routes.slotsBase + '/panel-fragment', {
             headers: {
-                'X-CSRF-TOKEN':     csrf,
                 'X-Requested-With': 'XMLHttpRequest',
-                'Accept':           'application/json',
+                'Accept':           'text/html',
+                'X-CSRF-TOKEN':     csrf,
             },
         })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-            if (data.success) {
-                var memberId = item.dataset.memberId;
-                var members  = (window.CK_EventDetail || {}).members || {};
-                var member   = members[memberId];
+        .then(function (res) {
+            if (! res.ok) { throw new Error('HTTP ' + res.status); }
+            return res.text();
+        })
+        .then(function (html) {
+            if (typeof window.ckHideLoading === 'function') { window.ckHideLoading(); }
 
-                item.remove();
-                if (timeFrom) { _refreshSlotZone(timeFrom); }
-                // Note: pool is not modified on remove — member is already
-                // visible there (pool always shows all members).
-            } else {
-                item.classList.remove('ck-assign-item--pending');
-                ckNotify('error', window.ckUi('saveError'));
-            }
+            var slotPane = document.getElementById('ckEvtPane-slots');
+            if (! slotPane) { reloadKeepingTab(); return; }
+
+            // KRITISCH: Modal-Overlays aus dem Fragment entfernen bevor sie injiziert werden.
+            //
+            // Das Panel-HTML enthält ckShiftAssignModal + ckShiftConfigModal.
+            // app.js teleportiert alle .ck-modal-overlay beim Seitenload in #ck-modal-root
+            // (einmalig, mit den Event-Handlern). Ein erneutes Injizieren erzeugt doppelte
+            // IDs → getElementById() löst auf das falsche (leere, nicht-teleportierte)
+            // Element auf, alle Handler und das Modal-Open hören auf zu funktionieren.
+            var tmp       = document.createElement('div');
+            tmp.innerHTML = html;
+            tmp.querySelectorAll('.ck-modal-overlay').forEach(function (el) { el.remove(); });
+            slotPane.innerHTML = tmp.innerHTML;
+
+            // innerHTML führt keine <script>-Tags aus — neu erstellen damit
+            // window.CK_ShiftGrid und ähnliche Data-Bridges aktualisiert werden.
+            slotPane.querySelectorAll('script').forEach(function (oldScript) {
+                var newScript         = document.createElement('script');
+                newScript.textContent = oldScript.textContent;
+                document.head.appendChild(newScript);
+                document.head.removeChild(newScript);
+            });
+
+            _slotDirty = false;
         })
         .catch(function () {
-            item.classList.remove('ck-assign-item--pending');
-            ckNotify('error', window.ckUi('networkError'));
-        });
-    });
-
-    // ── 2b. Done button: close modal + reload keeping current tab ─────────────
-
-    var shiftAssignDoneBtn = document.getElementById('ckShiftAssignDoneBtn');
-    if (shiftAssignDoneBtn) {
-        shiftAssignDoneBtn.addEventListener('click', function () {
-            ckModalClose(null, 'ckShiftAssignModal');
+            if (typeof window.ckHideLoading === 'function') { window.ckHideLoading(); }
             reloadKeepingTab();
         });
     }
 
-    // ── 3. Remove slot (delegated, any .ck-slot-remove-btn in the DOM) ────────
-    // DELETE /events/{event}/slots/{slotId}
+    // Expose _refreshSlotPanel globally so window.ckSlotRemove (globals.js) can
+    // call it without a full page reload. Prefixed with underscore to signal
+    // "internal, not for general use outside this module family".
+    window._ckRefreshSlotPanel = _refreshSlotPanel;
+
+    // ── 2c. Speichern button: close modal + AJAX panel refresh ────────────────
+
+    var shiftAssignDoneBtn = document.getElementById('ckShiftAssignDoneBtn');
+    if (shiftAssignDoneBtn) {
+        shiftAssignDoneBtn.addEventListener('click', function () {
+            // Kein Schließen während ein Request läuft.
+            if (_slotRequestPending) { return; }
+            ckModalClose(null, 'ckShiftAssignModal');
+            _slotDirty = false;
+            _refreshSlotPanel();
+        });
+    }
+
+    // ── 2d. Outside-click interception — confirm before closing with dirty state
+    //
+    // The overlay's inline onclick="ckModalClose(event, 'ckShiftAssignModal')"
+    // fires when the user clicks the backdrop. To intercept BEFORE that inline
+    // handler runs, we use useCapture: true on document. capture-phase handlers
+    // at document level run before target-phase handlers at the element.
+    //
+    // If dirty: show confirm dialog → user can apply (refresh + close) or cancel.
+    // If clean: do nothing → ckModalClose runs normally.
 
     document.addEventListener('click', function (e) {
-        var btn = closest(e.target, '.ck-slot-remove-btn');
-        if (! btn) { return; }
+        var assignModal = document.getElementById('ckShiftAssignModal');
+        if (! assignModal) { return; }
+        if (! assignModal.classList.contains('ck-modal--open')) { return; }
+        if (e.target !== assignModal) { return; }  // Only backdrop, not modal content
+        if (! _slotDirty) { return; }              // Nothing to confirm
 
-        var slotId = btn.dataset.slotId;
-        if (! slotId) { return; }
+        e.stopPropagation();  // Prevent ckModalClose from firing
 
-        // Prevent the parent cell's onclick="ckOpenEinsatzAssign(...)" from firing.
-        e.stopPropagation();
+        window.ckConfirm(
+            'Es wurden Zuweisungen gespeichert, die noch nicht im Einsatzplan sichtbar sind. Jetzt aktualisieren?',
+            function () {
+                ckModalClose(null, 'ckShiftAssignModal');
+                _refreshSlotPanel();
+            }
+        );
+    }, true);  // useCapture → runs before overlay's inline onclick
 
-        btn.disabled = true;
-
-        fetch(cfg.routes.slotsBase + '/' + slotId, {
-            method:  'DELETE',
-            headers: {
-                'X-CSRF-TOKEN':     csrf,
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept':           'application/json',
-            },
-        })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-            if (data.success) { reloadKeepingTab(); }
-            else              { btn.disabled = false; }
-        })
-        .catch(function () { btn.disabled = false; });
-    });
+    // ── 3. Grid-× remove: handled by window.ckSlotRemove (globals.js) ─────────
+    // .ck-shift-chip__remove uses onclick="event.stopPropagation(); ckSlotRemove(this)"
+    // and triggers ckSlotRemove directly — no document-level delegation needed.
+    // The old section-3 document listener has been removed.
 
     // ── (Legacy) Old slotModal handler ────────────────────────────────────────
     // The slotModal is still present in show.blade.php (not removed from Events module).

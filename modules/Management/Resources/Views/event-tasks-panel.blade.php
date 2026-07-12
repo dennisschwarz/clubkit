@@ -26,6 +26,34 @@
     $mgmtPriColors  = $mgmtPriorityColors ?? [];
     $mgmtPriLabels  = $mgmtPriorityLabels ?? [];
     $mgmtMMap       = $mgmtMemberMap      ?? [];
+
+    // Flat list of existing event tasks for duplicate detection in import.js.
+    // Each entry: {name, category} — category is null for uncategorised tasks.
+    $mgmtExistingTasksJs = [];
+    foreach ($mgmtAllgTasks as $mgmtEt) {
+        $mgmtExistingTasksJs[] = ['name' => $mgmtEt->name, 'category' => null];
+    }
+    foreach ($mgmtByCategory ?? [] as $mgmtCatSec) {
+        foreach ($mgmtCatSec['tasks'] ?? [] as $mgmtEt) {
+            $mgmtExistingTasksJs[] = [
+                'name'     => $mgmtEt->name,
+                'category' => $mgmtCatSec['category']->name,
+            ];
+        }
+    }
+
+    // Calendar days spanned by this event — passed to import.js for the
+    // slot-task deadline picker. [{value: 'YYYY-MM-DD', label: 'Mo., 12.08.2026'}, ...]
+    $mgmtEventDates = [];
+    $mgmtDayNames   = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'];
+    $mgmtEvtStart   = $event->starts_at->copy()->startOfDay();
+    $mgmtEvtEnd     = ($event->ends_at ?? $event->starts_at)->copy()->startOfDay();
+    for ($mgmtDay = $mgmtEvtStart->copy(); $mgmtDay <= $mgmtEvtEnd; $mgmtDay->addDay()) {
+        $mgmtEventDates[] = [
+            'value' => $mgmtDay->format('Y-m-d'),
+            'label' => $mgmtDayNames[$mgmtDay->dayOfWeek] . ', ' . $mgmtDay->format('d.m.Y'),
+        ];
+    }
 @endphp
 
 {{-- General section: hardcoded, always rendered first --}}
@@ -294,14 +322,7 @@
 
 @endforeach
 
-{{-- Add section button: below all sections --}}
-<div class="ck-pane-footer">
-    <div class="ck-flex ck-justify-end ck-mt-4">
-        <x-ck-button variant="success" onclick="ckModalOpen('newCatModal')">
-            {{ __('events.cat.add_category') }}
-        </x-ck-button>
-    </div>
-</div>
+@include('management::event-tasks-import-modal')
 
 @push('scripts')
 <script>
@@ -309,5 +330,18 @@
 if (window.CK_EventDetail) {
     window.CK_EventDetail.globalTasks = @json($mgmtGlobalTasksJs ?? []);
 }
+// Data bridge for the CSV import modal (events/import.js).
+window.CK_Import = {
+    routes: {
+        import:   "{{ route('events.management.tasks.import', $event) }}",
+        template: "{{ route('events.management.tasks.import.template', $event) }}",
+    },
+    // Existing event tasks for duplicate detection: [{name, category|null}, ...]
+    existingTasks: @json($mgmtExistingTasksJs),
+    // Calendar days of this event for the slot-task deadline picker:
+    // [{value: 'YYYY-MM-DD', label: 'Mo., 12.08.2026'}, ...]
+    // One entry = single date (shown as fixed text); multiple = select dropdown.
+    eventDates: @json($mgmtEventDates),
+};
 </script>
 @endpush

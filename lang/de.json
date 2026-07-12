@@ -680,5 +680,14 @@
   "appearance.status.network_error": "Netzwerkfehler",
   "import.btn_select": "Auswahl importieren",
   "import.records_singular": "Datensatz ausgewaehlt",
-  "import.records_plural": "Datensaetze ausgewaehlt"
+  "import.records_plural": "Datensaetze ausgewaehlt",
+  "events.import.modal_title": "Tasks aus CSV importieren",
+  "events.import.open_btn": "📥 CSV importieren",
+  "events.import.drop_or_click": "CSV-Datei hier ablegen oder klicken",
+  "events.import.drop_hint": "CSV · UTF-8 · max. 2 MB",
+  "events.import.template_hint": "Noch keine CSV?",
+  "events.import.download_template": "Vorlage herunterladen",
+  "events.import.back": "← Zurück",
+  "events.import.submit": "Tasks importieren",
+  "events.import.selected": ":count ausgewählt"
 }

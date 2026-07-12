@@ -13,6 +13,7 @@
  *   events/slot-modal.js    — Einsatzplan slot add / remove
  *   events/functions-tab.js — Funktionen tab AJAX
  *   events/teams-tab.js     — Teams tab AJAX
+ *   events/import.js        — CSV import modal (Management module hook; IIFE, no ctx needed)
  *
  * Rules:
  *   - No el.style.property assignments → use classList only
@@ -30,6 +31,7 @@ import { initAssignModal }  from './events/assign-modal.js';
 import { initSlotModal }    from './events/slot-modal.js';
 import { initFunctionsTab } from './events/functions-tab.js';
 import { initTeamsTab }     from './events/teams-tab.js';
+import                           './events/import.js';      // CSV import modal (Management hook)
 
 // Register global onclick="..." targets on window.
 initGlobals(Sortable);

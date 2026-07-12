@@ -27,14 +27,35 @@
         </a>
     </div>
     <div class="ck-page-header__actions">
-        <x-ck-button variant="secondary" type="button" onclick="window.print()">
-            🖨 {{ __('Print') }}
-        </x-ck-button>
-        <x-ck-button variant="danger"
-            :confirm="__('events.confirm.delete_event', ['name' => $event->title])"
-            :form="'deleteEventForm'">
-            {{ __('Delete') }}
-        </x-ck-button>
+
+        {{-- Overview: Print + Delete. Active by default (overview is the initial active pane). --}}
+        <div id="ckEvtAction-overview" class="ck-event-tab-action ck-event-tab-action--active">
+            <x-ck-button variant="secondary" type="button" onclick="window.print()">
+                🖨 {{ __('Print') }}
+            </x-ck-button>
+            <x-ck-button variant="danger"
+                :confirm="__('events.confirm.delete_event', ['name' => $event->title])"
+                :form="'deleteEventForm'">
+                {{ __('Delete') }}
+            </x-ck-button>
+        </div>
+
+        {{-- Tasks + Einsatzplan: CSV Import + New Category. --}}
+        {{-- data-ck-tab-actions lists the tab IDs that activate this group (space-separated). --}}
+        @if($showTasks || $showSlots)
+        @php
+            $mgmtActionTabs = trim(($showTasks ? 'tasks' : '') . ' ' . ($showSlots ? 'slots' : ''));
+        @endphp
+        <div class="ck-event-tab-action" data-ck-tab-actions="{{ $mgmtActionTabs }}">
+            <x-ck-button variant="secondary" onclick="ckModalOpen('ckImportModal')">
+                {{ __('events.import.open_btn') }}
+            </x-ck-button>
+            <x-ck-button variant="success" onclick="ckModalOpen('newCatModal')">
+                {{ __('events.cat.add_category') }}
+            </x-ck-button>
+        </div>
+        @endif
+
     </div>
 </div>
 

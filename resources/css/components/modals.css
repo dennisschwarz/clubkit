@@ -47,6 +47,47 @@
 .ck-modal-content--md { max-width: 600px; }
 .ck-modal-content--sm { max-width: 400px; }
 
+/* ── Busy-State: ein Request läuft, Modal gesperrt ───────────────────
+   Gesetzt via JS (_modalLock / _modalUnlock in slot-modal.js).
+   pointer-events: none blockiert alle Klicks und Drag-Events.
+   ::after  = halbtransparentes weißes Overlay (z-index 10)
+   ::before = CSS-Spinner (z-index 11, oben drauf)
+   overflow: hidden auf .ck-modal-content clipped beides auf die Radius-Form.
+──────────────────────────────────────────────────────────────────── */
+.ck-modal-content--busy {
+    position:       relative;     /* Positioning-Kontext für ::before / ::after */
+    pointer-events: none;         /* Alle Interaktionen blockieren               */
+}
+
+/* Halbtransparentes Overlay über dem gesamten Modal-Inhalt */
+.ck-modal-content--busy::after {
+    content:    '';
+    position:   absolute;
+    inset:      0;
+    background: rgba(255, 255, 255, 0.72);
+    z-index:    10;
+}
+
+/* CSS-Spinner, zentriert über dem Overlay */
+.ck-modal-content--busy::before {
+    content:       '';
+    position:      absolute;
+    top:           50%;
+    left:          50%;
+    transform:     translate(-50%, -50%);
+    width:         40px;
+    height:        40px;
+    border:        4px solid var(--ck-border);
+    border-top-color: var(--ck-accent);
+    border-radius: 50%;
+    z-index:       11;
+    animation:     ckModalBusySpin 0.65s linear infinite;
+}
+
+@keyframes ckModalBusySpin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
 /* ── Modal-Header ────────────────────────────────────────────────── */
 .ck-modal__header {
   display: flex;
