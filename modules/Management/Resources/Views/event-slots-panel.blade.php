@@ -128,36 +128,42 @@
                             Slot data is read from window.CK_ShiftGrid[taskId] (set below).
                             colspan > 1 for tasks whose interval is larger than the grid minimum.
                         --}}
+                        {{-- IMPORTANT: display:flex must NOT be set on <td> directly.
+                             Doing so causes some browsers to ignore the colspan attribute,
+                             placing all cells in column 1. Flex layout is applied on the
+                             inner <div class="ck-shift-cell__chips"> instead. --}}
                         <td class="ck-shift-cell {{ $mgmtMod }}"
                             @if($mgmtColspan > 1) colspan="{{ $mgmtColspan }}" @endif
                             data-task-name="{{ $mgmtCTask->name }}"
                             onclick="ckOpenShiftAssign({{ $mgmtCTask->id }}, this)"
                             title="{{ __('events.slot.click_to_assign') }}">
-                            @foreach($mgmtCell['assigned'] as $mgmtSlot)
-                            @php
-                                /* Initials from "Nachname, Vorname" format:
-                                   "Müller, Marianne" → "MM" */
-                                $mgmtParts     = explode(', ', $mgmtSlot['name'], 2);
-                                $mgmtFirstName = trim($mgmtParts[1] ?? $mgmtSlot['name']);
-                                $mgmtLastInit  = strtoupper(substr(trim($mgmtParts[0] ?? ''), 0, 1));
-                                $mgmtFirsInit  = strtoupper(substr($mgmtFirstName, 0, 1));
-                                $mgmtInitials  = $mgmtFirsInit . $mgmtLastInit;
-                            @endphp
-                            {{-- Avatar chip: circle with initials + compact × remove button --}}
-                            <span class="ck-shift-chip" title="{{ $mgmtSlot['name'] }}">
-                                <span class="ck-avatar ck-avatar--sm" aria-hidden="true">{{ $mgmtInitials }}</span>
-                                <button type="button"
-                                    class="ck-shift-chip__remove ck-slot-remove-btn"
-                                    data-slot-id="{{ $mgmtSlot['id'] }}"
-                                    title="{{ __('Remove') }}: {{ $mgmtSlot['name'] }}"
-                                    onclick="event.stopPropagation(); ckSlotRemove(this)">×</button>
-                            </span>
-                            @endforeach
-                            {{-- Empty-cell affordance: "+" indicates the cell is clickable to assign a member. --}}
-                            @if(count($mgmtCell['assigned']) === 0)
-                            <span class="ck-shift-cell__add-hint">+</span>
-                            @endif
+                            {{-- Count badge: positioned absolute top-left on the <td> (position:relative) --}}
                             <span class="ck-shift-count">{{ count($mgmtCell['assigned']) }}/{{ $mgmtCell['capacity'] }}</span>
+                            {{-- Chips wrapper: flex-wrap applied here, NOT on the <td> --}}
+                            <div class="ck-shift-cell__chips">
+                                @foreach($mgmtCell['assigned'] as $mgmtSlot)
+                                @php
+                                    /* Initials from "LastName, FirstName" format → "FL" */
+                                    $mgmtParts     = explode(', ', $mgmtSlot['name'], 2);
+                                    $mgmtFirstName = trim($mgmtParts[1] ?? $mgmtSlot['name']);
+                                    $mgmtLastInit  = strtoupper(substr(trim($mgmtParts[0] ?? ''), 0, 1));
+                                    $mgmtFirsInit  = strtoupper(substr($mgmtFirstName, 0, 1));
+                                    $mgmtInitials  = $mgmtFirsInit . $mgmtLastInit;
+                                @endphp
+                                <span class="ck-shift-chip" title="{{ $mgmtSlot['name'] }}">
+                                    <span class="ck-avatar ck-avatar--sm" aria-hidden="true">{{ $mgmtInitials }}</span>
+                                    <button type="button"
+                                        class="ck-shift-chip__remove ck-slot-remove-btn"
+                                        data-slot-id="{{ $mgmtSlot['id'] }}"
+                                        title="{{ __('Remove') }}: {{ $mgmtSlot['name'] }}"
+                                        onclick="event.stopPropagation(); ckSlotRemove(this)">×</button>
+                                </span>
+                                @endforeach
+                                {{-- "+" affordance in empty cells --}}
+                                @if(count($mgmtCell['assigned']) === 0)
+                                <span class="ck-shift-cell__add-hint">+</span>
+                                @endif
+                            </div>
                         </td>
                         @else
                         <td class="ck-shift-cell ck-shift-cell--out"></td>

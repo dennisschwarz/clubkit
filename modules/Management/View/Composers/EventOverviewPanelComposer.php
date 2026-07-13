@@ -224,29 +224,56 @@ class EventOverviewPanelComposer
     private function buildFunctions(mixed $event): array
     {
         $result = [];
-        if (! Schema::hasTable('management_functions') || ! Schema::hasTable('event_management_function')) {
-            return $result;
+
+        // ── 1. Club functions (event_management_function) ─────────────────────
+
+        if (Schema::hasTable('management_functions') && Schema::hasTable('event_management_function')) {
+            $funcRows      = DB::table('event_management_function')->where('event_id', $event->id)->get();
+            $assignedFnIds = $funcRows->pluck('management_function_id')->toArray();
+            $functions     = ! empty($assignedFnIds)
+                ? ManagementFunction::whereIn('id', $assignedFnIds)->orderBy('name')->get()->keyBy('id')
+                : collect();
+
+            $memberIds = $funcRows->pluck('member_id')->filter()->unique()->toArray();
+            $members   = ! empty($memberIds) && Schema::hasTable('members')
+                ? DB::table('members')->whereIn('id', $memberIds)->select('id', 'first_name', 'last_name')->get()->keyBy('id')
+                : collect();
+
+            foreach ($funcRows as $row) {
+                $fn = $functions[$row->management_function_id] ?? null;
+                if (! $fn) { continue; }
+                $m = $row->member_id ? ($members[$row->member_id] ?? null) : null;
+                $result[] = [
+                    'name'        => $fn->name,
+                    'member_name' => $m ? $m->last_name . ', ' . $m->first_name : null,
+                ];
+            }
         }
 
-        $funcRows      = DB::table('event_management_function')->where('event_id', $event->id)->get();
-        $assignedFnIds = $funcRows->pluck('management_function_id')->toArray();
-        $functions     = ! empty($assignedFnIds)
-            ? ManagementFunction::whereIn('id', $assignedFnIds)->orderBy('name')->get()->keyBy('id')
-            : collect();
+        // ── 2. Ad-hoc event functions (event_functions) ───────────────────────
 
-        $memberIds = $funcRows->pluck('member_id')->filter()->unique()->toArray();
-        $members   = ! empty($memberIds) && Schema::hasTable('members')
-            ? DB::table('members')->whereIn('id', $memberIds)->select('id', 'first_name', 'last_name')->get()->keyBy('id')
-            : collect();
+        if (Schema::hasTable('event_functions')) {
+            $adHocRows = DB::table('event_functions')
+                ->where('event_id', $event->id)
+                ->orderBy('name')
+                ->get();
 
-        foreach ($funcRows as $row) {
-            $fn = $functions[$row->management_function_id] ?? null;
-            if (! $fn) { continue; }
-            $m = $row->member_id ? ($members[$row->member_id] ?? null) : null;
-            $result[] = [
-                'name'        => $fn->name,
-                'member_name' => $m ? $m->last_name . ', ' . $m->first_name : null,
-            ];
+            $adHocMemberIds = $adHocRows->pluck('member_id')->filter()->unique()->toArray();
+            $adHocMembers   = ! empty($adHocMemberIds) && Schema::hasTable('members')
+                ? DB::table('members')
+                    ->whereIn('id', $adHocMemberIds)
+                    ->select('id', 'first_name', 'last_name')
+                    ->get()
+                    ->keyBy('id')
+                : collect();
+
+            foreach ($adHocRows as $row) {
+                $m = $row->member_id ? ($adHocMembers[$row->member_id] ?? null) : null;
+                $result[] = [
+                    'name'        => $row->name,
+                    'member_name' => $m ? $m->last_name . ', ' . $m->first_name : null,
+                ];
+            }
         }
 
         return $result;

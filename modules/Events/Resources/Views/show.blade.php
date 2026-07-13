@@ -56,6 +56,17 @@
         </div>
         @endif
 
+        {{-- Functions tab: "+ Eigene Funktion" (ad-hoc event-scoped function). --}}
+        {{-- newEventFuncModal is rendered in event-functions-panel.blade.php   --}}
+        {{-- and teleported to #ck-modal-root by app.js on DOMContentLoaded.    --}}
+        @if($showFunctions)
+        <div class="ck-event-tab-action" data-ck-tab-actions="functions">
+            <x-ck-button variant="success" onclick="ckModalOpen('newEventFuncModal')">
+                {{ __('events.function.new_event_btn') }}
+            </x-ck-button>
+        </div>
+        @endif
+
     </div>
 </div>
 
@@ -230,7 +241,8 @@ Renders: management-functions cards with assigned members.
     newTaskModal    — POST   /events/{event}/tasks          (AJAX, wired in events-detail.js)
     newCatModal     — POST   /management/task-categories    (AJAX, wired in events-detail.js)
     slotModal       — POST   /events/{event}/slots          (AJAX, wired in events-detail.js)
-    newFuncModal    — POST   /events/{event}/functions      (AJAX, assigns existing function to event)
+    newFuncModal    — POST   /events/{event}/functions       (AJAX, assigns existing ManagementFunction)
+    newEventFuncModal — POST /events/{event}/event-functions (AJAX, creates ad-hoc function; rendered in event-functions-panel.blade.php)
 --}}
 <x-ck-modal id="editEventModal" title="{{ __('events.modal.edit_title') }}" size="md">
 <form method="POST" action="{{ route('events.update', $event) }}">
@@ -544,8 +556,10 @@ Renders: management-functions cards with assigned members.
             membersBase:    "{{ url('events/' . $event->id . '/members') }}",
             mgmtTasksBase:  "{{ url('management/tasks') }}",
             categoriesBase: "{{ url('events/' . $event->id . '/task-categories') }}",
-            funcAddBase:    "{{ url('events/' . $event->id . '/functions') }}",
-            funcAssignBase: "{{ url('events/' . $event->id . '/functions') }}",
+            funcAddBase:       "{{ url('events/' . $event->id . '/functions') }}",
+            funcAssignBase:    "{{ url('events/' . $event->id . '/functions') }}",
+            funcPanelFragment: "{{ url('events/' . $event->id . '/functions/panel-fragment') }}",
+            eventFuncBase:     "{{ url('events/' . $event->id . '/event-functions') }}",
             teamsBase:      "{{ url('events/' . $event->id . '/teams') }}"
         },
         tasks:   {},

@@ -12,11 +12,13 @@ use Modules\Management\Models\ManagementFunction;
 /**
  * View Composer: management::event-functions-panel
  *
- * Provides data for the Funktionen tab (management functions with assigned members).
+ * Merges two function sources into a single list (Option C):
+ *   1. Club functions  — rows in event_management_function (ManagementFunction, reusable)
+ *   2. Ad-hoc functions — rows in event_functions (EventFunction, event-scoped)
  *
  * Provides:
- *   $mgmtFuncItems            → array<array{function, member, member_id}>
- *   $mgmtAvailableFunctionsJs → array<id, array{id, name}>
+ *   $mgmtFuncItems            → array<array{source, id, name, member_id, member}>
+ *   $mgmtAvailableFunctionsJs → array<id, array{id, name}>  (club functions not yet assigned)
  */
 class EventFunctionsPanelComposer
 {
@@ -38,51 +40,83 @@ class EventFunctionsPanelComposer
             return;
         }
 
-        $eventRows = [];
+        // ── 1. Club functions (event_management_function) ─────────────────────
+
+        $clubRows = [];
         if (Schema::hasTable('event_management_function')) {
             foreach (DB::table('event_management_function')
                 ->where('event_id', $event->id)
                 ->get() as $row) {
-                $eventRows[$row->management_function_id] = $row->member_id;
+                $clubRows[$row->management_function_id] = $row->member_id;
             }
         }
 
+        // Available club functions = all global functions minus already-assigned ones
         $allFunctions = ManagementFunction::orderBy('name')->get();
         $availableJs  = [];
         foreach ($allFunctions as $fn) {
-            if (! array_key_exists($fn->id, $eventRows)) {
+            if (! array_key_exists($fn->id, $clubRows)) {
                 $availableJs[$fn->id] = ['id' => $fn->id, 'name' => $fn->name];
             }
         }
 
-        if (empty($eventRows)) {
-            $view->with(['mgmtFuncItems' => [], 'mgmtAvailableFunctionsJs' => $availableJs]);
-            return;
+        // ── 2. Ad-hoc event functions (event_functions) ───────────────────────
+
+        $adHocRows = [];
+        if (Schema::hasTable('event_functions')) {
+            $adHocRows = DB::table('event_functions')
+                ->where('event_id', $event->id)
+                ->orderBy('name')
+                ->get()
+                ->all();
         }
 
-        $assignedFunctionIds = array_keys($eventRows);
-        $assignedFunctions   = ManagementFunction::whereIn('id', $assignedFunctionIds)
-            ->orderBy('name')
-            ->get();
+        // ── 3. Resolve all referenced member IDs in one query ─────────────────
 
-        $allMemberIds  = array_filter(array_values($eventRows));
+        $clubMemberIds  = array_values(array_filter($clubRows));
+        $adHocMemberIds = array_filter(array_map(static fn ($r) => $r->member_id, $adHocRows));
+
+        $allMemberIds  = array_unique(array_merge($clubMemberIds, $adHocMemberIds));
         $memberRecords = [];
         if (! empty($allMemberIds) && Schema::hasTable('members')) {
             foreach (DB::table('members')
-                ->whereIn('id', array_unique($allMemberIds))
+                ->whereIn('id', $allMemberIds)
                 ->select('id', 'first_name', 'last_name')
                 ->get() as $m) {
                 $memberRecords[$m->id] = $m;
             }
         }
 
+        // ── 4. Build unified item list ─────────────────────────────────────────
+
         $items = [];
-        foreach ($assignedFunctions as $fn) {
-            $memberId = $eventRows[$fn->id] ?? null;
-            $items[]  = [
-                'function'  => $fn,
-                'member'    => $memberId ? ($memberRecords[$memberId] ?? null) : null,
-                'member_id' => $memberId,
+
+        // Club functions (sorted by ManagementFunction name)
+        if (! empty($clubRows)) {
+            $assignedFns = ManagementFunction::whereIn('id', array_keys($clubRows))
+                ->orderBy('name')
+                ->get();
+
+            foreach ($assignedFns as $fn) {
+                $memberId = $clubRows[$fn->id] ?? null;
+                $items[]  = [
+                    'source'    => 'club',
+                    'id'        => $fn->id,
+                    'name'      => $fn->name,
+                    'member_id' => $memberId,
+                    'member'    => $memberId ? ($memberRecords[$memberId] ?? null) : null,
+                ];
+            }
+        }
+
+        // Ad-hoc event functions (already sorted by name from DB query)
+        foreach ($adHocRows as $row) {
+            $items[] = [
+                'source'    => 'event',
+                'id'        => $row->id,
+                'name'      => $row->name,
+                'member_id' => $row->member_id,
+                'member'    => $row->member_id ? ($memberRecords[$row->member_id] ?? null) : null,
             ];
         }
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Modules\Management\Http\Controllers\EventFunctionController;
 use Modules\Management\Http\Controllers\EventSlotController;
 use Modules\Management\Http\Controllers\EventTaskCategoryController;
 use Modules\Management\Http\Controllers\EventTaskController;
@@ -72,6 +73,31 @@ Route::middleware(['auth'])->prefix('management')->name('management.')->group(fu
 // The Event route model binding resolves via Events module (implicit dependency).
 
 Route::middleware(['auth'])->prefix('events/{event}')->name('events.management.')->group(function () {
+
+    // ── Ad-hoc event functions (Option C) ─────────────────────────────────────
+    // GET    /events/{event}/functions/panel-fragment          → panelFragment (JSON {panel,hero})
+    // POST   /events/{event}/event-functions                  → store (name, optional member_id)
+    // PATCH  /events/{event}/event-functions/{eventFunctionId} → update (member_id only)
+    // DELETE /events/{event}/event-functions/{eventFunctionId} → destroy
+    //
+    // panel-fragment uses the /functions/ prefix to match the existing funcAddBase URL namespace.
+    // GET must be registered before any wildcard routes to avoid ambiguity.
+
+    Route::get('/functions/panel-fragment', [EventFunctionController::class, 'panelFragment'])
+        ->name('functions.panel-fragment')
+        ->middleware('permission:events.manage');
+
+    Route::post('/event-functions', [EventFunctionController::class, 'store'])
+        ->name('event-functions.store')
+        ->middleware('permission:events.manage');
+
+    Route::patch('/event-functions/{eventFunctionId}', [EventFunctionController::class, 'update'])
+        ->name('event-functions.update')
+        ->middleware('permission:events.manage');
+
+    Route::delete('/event-functions/{eventFunctionId}', [EventFunctionController::class, 'destroy'])
+        ->name('event-functions.destroy')
+        ->middleware('permission:events.manage');
 
     // ── Event task categories ─────────────────────────────────────────────────
 

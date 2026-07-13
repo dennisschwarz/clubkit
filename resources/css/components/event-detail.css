@@ -74,13 +74,13 @@
 
 /* Description block */
 .ck-event-hero__body       { padding-top: var(--ck-space-4); border-top: 1px solid var(--ck-border-light); }
-.ck-event-hero__body-label { font-size: var(--ck-font-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--ck-text-muted); margin-bottom: var(--ck-space-1); }
+.ck-event-hero__body-label { font-size: var(--ck-font-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--ck-text-muted); }
 .ck-event-hero__body-text  { font-size: var(--ck-font-base); color: var(--ck-text); line-height: 1.5; white-space: pre-wrap; }
 .ck-event-hero__info       { flex: 1; min-width: 0; }
 
 /* ── Vereinsfunktionen (hero right column) ───────────────────────────────── */
-.ck-hero-functions       { display: flex; flex-direction: column; gap: var(--ck-space-3); }
-.ck-hero-functions__label { font-size: var(--ck-font-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ck-text-muted); margin-bottom: var(--ck-space-1); }
+.ck-hero-functions       { display: flex; flex-direction: column; }
+.ck-hero-functions__label { font-size: var(--ck-font-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ck-text-secondary); margin-bottom: var(--ck-space-2); }
 
 .ck-hero-function {
     display:         flex;
@@ -89,6 +89,7 @@
     padding:         var(--ck-space-2) var(--ck-space-3);
     border-radius:   var(--ck-radius);
     gap:             var(--ck-space-2);
+    margin-bottom:   var(--ck-space-1);
 }
 .ck-hero-function--filled { background: var(--ck-success-bg); border: 1px solid var(--ck-success-border); }
 .ck-hero-function--empty  { background: var(--ck-danger-bg);  border: 1px solid var(--ck-danger-border); }
@@ -166,6 +167,13 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
 /* Restore pointer cursor on interactive elements inside the row */
 .ck-task-row .ck-btn,
 .ck-task-row .ck-task-checkbox { cursor: pointer; }
+
+/* ── Available club function rows (drag source, Funktionen tab) ────────────── */
+.ck-func-avail-row        { cursor: grab; transition: background 0.12s; }
+.ck-func-avail-row:active { cursor: grabbing; }
+.ck-func-avail-row:hover  { background: var(--ck-bg-subtle); }
+/* Interactive elements inside the draggable row need pointer cursor restored */
+.ck-func-avail-row .ck-btn { cursor: pointer; }
 
 .ck-task-row--done                    { opacity: 0.65; }
 .ck-task-row--done .ck-task-row__name { text-decoration: line-through; color: var(--ck-text-muted); }
@@ -503,23 +511,28 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
 /* Task name label */
 .ck-shift-task-name { font-weight: 600; color: var(--ck-text); }
 
-/* Grid cells: flex-wrap so avatar chips flow horizontally and wrap naturally.
-   position: relative so .ck-shift-count can be pinned top-left absolutely.
+/* Grid cells — WICHTIG: kein display:flex auf <td>.
+   Wird display:flex auf ein <td> gesetzt, ignoriert der Browser teilweise das
+   colspan-Attribut und alle Zellen landen in Spalte 1 statt in ihren korrekten
+   Spalten. Das Flex-Layout wird daher auf .ck-shift-cell__chips verlagert.
    Coloured background reflects fill level (green / amber / red). */
 .ck-shift-cell {
+    padding:        var(--ck-space-3) var(--ck-space-1) var(--ck-space-2);
+    min-height:     52px;
+    position:       relative;  /* Positioning-Kontext für .ck-shift-count */
+    vertical-align: middle;
+    cursor:         pointer;
+    transition:     filter 0.1s;
+}
+
+/* Chips-Container: flex-wrap hier, NICHT auf dem <td> */
+.ck-shift-cell__chips {
     display:         flex;
     flex-wrap:       wrap;
     align-items:     center;
     justify-content: center;
     gap:             4px;
-    padding:         var(--ck-space-3) var(--ck-space-1) var(--ck-space-2);
-    /* min-height: at least one avatar row so empty and filled cells have the
-       same base height. 28px avatar + padding-top + padding-bottom ≈ 52px. */
-    min-height:      52px;
-    position:        relative;
-    vertical-align:  middle;
-    cursor:          pointer;
-    transition:      filter 0.1s;
+    min-height:      36px;  /* Mindesthöhe für leere Zellen mit add-hint */
 }
 .ck-shift-cell:hover      { filter: brightness(0.93); }
 .ck-shift-cell--green     { background: var(--ck-success-bg); }

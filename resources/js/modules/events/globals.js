@@ -445,7 +445,7 @@ export function initGlobals(Sortable) {
 
         btn.disabled = true;
 
-        // Ladeoverlay einblenden — _ckRefreshSlotPanel() blendet ihn aus.
+        // Show loading overlay — _ckRefreshSlotPanel() hides it when the panel is refreshed.
         if (typeof window.ckShowLoading === 'function') { window.ckShowLoading(); }
 
         fetch(cfg.routes.slotsBase + '/' + slotId, {
@@ -459,12 +459,12 @@ export function initGlobals(Sortable) {
         .then(function (res) { return res.json(); })
         .then(function (data) {
             if (data.success) {
-                // AJAX Panel-Refresh statt voller Seitenneulade.
-                // _ckRefreshSlotPanel wird von slot-modal.js auf window exponiert.
+                // AJAX panel refresh instead of a full page reload.
+                // _ckRefreshSlotPanel is exposed on window by slot-modal.js.
                 if (typeof window._ckRefreshSlotPanel === 'function') {
                     window._ckRefreshSlotPanel();
                 } else {
-                    // Fallback falls slot-modal.js noch nicht initialisiert ist.
+                    // Fallback if slot-modal.js has not been initialised yet.
                     sessionStorage.setItem('ck_evt_active_tab', 'slots');
                     window.location.reload();
                 }

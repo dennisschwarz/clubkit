@@ -77,12 +77,15 @@ initGlobals(Sortable);
 
     /**
      * Persists the active tab ID to sessionStorage and reloads the page.
+     * Shows the global loading overlay (app.js → window.ckShowLoading) before
+     * reloading so the brief Overview-tab flash during location.reload() is hidden.
      */
     function reloadKeepingTab() {
         var activePane = document.querySelector('.ck-local-section.ck-local-section--active');
         if (activePane) {
             sessionStorage.setItem('ck_evt_active_tab', activePane.id.replace('ckEvtPane-', ''));
         }
+        if (typeof window.ckShowLoading === 'function') { window.ckShowLoading(); }
         window.location.reload();
     }
 
