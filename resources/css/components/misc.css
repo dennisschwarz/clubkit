@@ -577,3 +577,16 @@
     margin:               2px 2px 2px 0;
     white-space:          nowrap;
 }
+
+/* ── Flush accordion: header connects directly to the body below it ─────────
+   Add .ck-section-header--flush to the header and .ck-body--flush-top to the
+   body wrapper. Used on Teams index and Management function/task lists.     */
+.ck-section-header--flush {
+    margin-bottom:              0;
+    border-bottom-left-radius:  0;
+    border-bottom-right-radius: 0;
+}
+.ck-body--flush-top .ck-table-wrap:first-child {
+    border-top-left-radius:  0;
+    border-top-right-radius: 0;
+}

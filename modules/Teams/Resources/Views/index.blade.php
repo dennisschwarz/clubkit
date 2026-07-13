@@ -28,7 +28,7 @@ $teamColors = [
         <h1 class="ck-page-title">{{ __('teams.title') }}</h1>
         <p class="ck-page-subtitle">{{ __('teams.count', ['count' => $teams->count()]) }}</p>
     </div>
-    <x-ck-button variant="primary" onclick="teamsModalOpen('create')">
+    <x-ck-button variant="success" onclick="teamsModalOpen('create')">
         {{ __('teams.create') }}
     </x-ck-button>
 </div>
@@ -67,7 +67,7 @@ $teamColors = [
 @endphp
 
 <div class="ck-mb-5">
-    <div class="ck-section-header ck-section-header--collapsible {{ $colorClass }}"
+    <div class="ck-section-header ck-section-header--flush ck-section-header--collapsible {{ $colorClass }}"
          onclick="ckSectionToggle('{{ $bodyId }}', '{{ $chevronId }}')">
         <div class="ck-section-header__icon {{ $team->color ? '' : ($team->is_competition ? 'ck-section-header__icon--blue' : 'ck-section-header__icon--slate') }}">
             🏆
@@ -79,42 +79,39 @@ $teamColors = [
                 @if(!$team->is_active) · <span class="ck-section-header__meta--inactive">{{ __('teams.inactive') }}</span>@endif
             </span>
         </div>
-        {{-- Action buttons: stop propagation so clicks don't toggle the accordion --}}
+        {{-- Action buttons (plain HTML — avoids Blade 13.17 compiler bug: x-ck-* + @forelse) --}}
         <div class="ck-section-header__actions" onclick="event.stopPropagation()">
-            {{-- Edit team data --}}
-            <x-ck-button variant="warning" size="icon"
-                title="{{ __('Edit') }}"
-                onclick="teamsModalOpen('edit', {{ $team->id }})">
+            <button type="button" class="ck-btn ck-btn--warning ck-btn--icon"
+                    title="{{ __('Edit') }}"
+                    onclick="teamsModalOpen('edit', {{ $team->id }})">
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path d="M13.586 3.586a2 2 0 112.828 2.828l-8 8a2 2 0 01-.9.52l-3 .75a.5.5 0 01-.607-.606l.75-3a2 2 0 01.52-.9l8-8z"/>
                 </svg>
-            </x-ck-button>
-            {{-- Manage roster via Dual Listbox modal --}}
+            </button>
             @if($team->is_active)
-            <x-ck-button variant="secondary" size="icon"
-                :title="__('teams.manage_roster')"
-                onclick="openRosterModal({{ $team->id }})">
+            <button type="button" class="ck-btn ck-btn--secondary ck-btn--icon"
+                    title="{{ __('teams.manage_roster') }}"
+                    onclick="openRosterModal({{ $team->id }})">
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
                 </svg>
-            </x-ck-button>
+            </button>
             @endif
-            {{-- Delete team --}}
             <form method="POST" action="{{ route('teams.destroy', $team) }}" class="ck-inline-form">
                 @csrf @method('DELETE')
-                <x-ck-button variant="danger" size="icon" type="submit"
-                    title="{{ __('Delete') }}"
-                    :confirm="__('teams.confirm_delete', ['name' => $team->name])">
+                <button type="submit" class="ck-btn ck-btn--danger ck-btn--icon"
+                        title="{{ __('Delete') }}"
+                        data-ck-confirm="{{ __('teams.confirm_delete', ['name' => $team->name]) }}">
                     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
                     </svg>
-                </x-ck-button>
+                </button>
             </form>
         </div>
         <span class="ck-accordion-chevron ck-accordion-chevron--open" id="{{ $chevronId }}">{!! $chevronSvg !!}</span>
     </div>
 
-    <div id="{{ $bodyId }}">
+    <div id="{{ $bodyId }}" class="ck-body--flush-top">
         <div class="ck-table-wrap">
             <table class="ck-table">
                 <thead>
@@ -140,9 +137,9 @@ $teamColors = [
                         @endif
                         <td>
                             @if($member->eligible_to_play)
-                                <x-ck-badge color="green">{{ __('teams.eligible') }}</x-ck-badge>
+                                <span class="ck-badge ck-badge--green">{{ __('teams.eligible') }}</span>
                             @else
-                                <x-ck-badge color="gray">{{ __('teams.not_eligible') }}</x-ck-badge>
+                                <span class="ck-badge ck-badge--gray">{{ __('teams.not_eligible') }}</span>
                             @endif
                         </td>
                         @if($team->is_active)
@@ -152,10 +149,10 @@ $teamColors = [
                                       action="{{ route('teams.removeMember', [$team, $member]) }}"
                                       class="ck-inline-form">
                                     @csrf @method('DELETE')
-                                    <x-ck-button size="sm" variant="danger" type="submit"
-                                        :confirm="__('teams.confirm_remove_member', ['name' => $member->last_name])">
+                                    <button type="submit" class="ck-btn ck-btn--danger ck-btn--sm"
+                                            data-ck-confirm="{{ __('teams.confirm_remove_member', ['name' => $member->last_name]) }}">
                                         {{ __('Remove') }}
-                                    </x-ck-button>
+                                    </button>
                                 </form>
                             </div>
                         </td>
@@ -179,9 +176,9 @@ $teamColors = [
 <x-ck-card>
     <p class="ck-empty-state">
         {{ __('teams.empty') }}
-        <x-ck-button type="button" variant="primary" size="sm" onclick="teamsModalOpen('create')">
+        <button type="button" class="ck-btn ck-btn--success ck-btn--sm" onclick="teamsModalOpen('create')">
             {{ __('core.create_now') }}
-        </x-ck-button>
+        </button>
     </p>
 </x-ck-card>
 @endforelse

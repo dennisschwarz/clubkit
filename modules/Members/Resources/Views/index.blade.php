@@ -10,7 +10,7 @@
     </div>
     <div class="ck-row ck-row--gap">
         @ckHook('member.page.actions')
-        <x-ck-button variant="primary" onclick="membersModalOpen('create')">
+        <x-ck-button variant="success" onclick="membersModalOpen('create')">
             {{ __('members.create') }}
         </x-ck-button>
     </div>

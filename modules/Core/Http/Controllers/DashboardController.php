@@ -4,102 +4,104 @@ declare(strict_types=1);
 
 namespace Modules\Core\Http\Controllers;
 
-use App\Models\User;
 use App\Services\ModuleLoader;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
+use Spatie\Activitylog\Models\Activity;
 
 /**
- * Dashboard controller – system overview with quick-stats tiles.
+ * Dashboard controller – system overview with quick-stats, recent activity
+ * and module-specific summary sections.
  *
- * Important: DB::table() is used instead of Eloquent models so the dashboard
- * remains functional even when individual modules are not installed.
- *
+ * DB::table() is used throughout instead of Eloquent models so the dashboard
+ * remains functional even when individual modules are not fully installed.
  * Schema::hasTable() guards prevent errors from missing tables.
  * moduleLoader->isActive() guards prevent route() calls for modules whose
- * ServiceProvider was not loaded (routes are only registered for active modules).
- * A module's table can exist even when the module is not active (e.g. after a
- * direct migration run without going through the module installer).
+ * ServiceProvider was not loaded.
  */
 class DashboardController extends Controller
 {
-    /**
-     * @param ModuleLoader $moduleLoader
-     */
     public function __construct(private readonly ModuleLoader $moduleLoader) {}
 
-    /**
-     * @return View
-     */
     public function index(): View
     {
-        $stats   = $this->buildStats();
-        $modules = $this->moduleLoader->getInstalled();
-
-        return view('core::dashboard', compact('stats', 'modules'));
+        return view('core::dashboard', [
+            'recentActivity'     => $this->buildRecentActivity(),
+            'upcomingEvents'     => $this->buildUpcomingEvents(),
+            'recentMembers'      => $this->buildRecentMembers(),
+            'recentTransactions' => $this->buildRecentTransactions(),
+        ]);
     }
 
+    // ── Right column sections ─────────────────────────────────────────────────
+
     /**
-     * Collects stat tiles from all installed and active modules.
-     *
-     * Each tile is only included when both conditions are met:
-     *  1. The module is active (its ServiceProvider is loaded, routes are registered).
-     *  2. The backing database table exists (defensive guard against stale state).
-     *
-     * @return array<string, array{label: string, value: int, icon: string, color: string, link: string}>
+     * Last 10 activity log entries with causer eager-loaded.
+     * Uses the Activity Eloquent model so the properties JSON-collection cast
+     * and the causer() morph relation are available in the view.
      */
-    private function buildStats(): array
+    private function buildRecentActivity(): Collection
     {
-        $stats = [];
-
-        // Users are always present (core table)
-        $stats['users'] = [
-            'label' => 'Nutzer',
-            'value' => User::count(),
-            'icon'  => '👤',
-            'color' => '',
-            'link'  => route('admin.users.index'),
-        ];
-
-        // Members module – only when module is active AND table exists.
-        // moduleLoader->isActive() ensures route('members.index') is registered.
-        if ($this->moduleLoader->isActive('members') && Schema::hasTable('members')) {
-            $stats['members'] = [
-                'label' => 'Mitglieder',
-                'value' => DB::table('members')->whereNull('deleted_at')->count(),
-                'icon'  => '🧑‍🤝‍🧑',
-                'color' => '',
-                'link'  => route('members.index'),
-            ];
-
-            // Eligible to play = eligible_to_play_date is set AND is not in the future.
-            // Replaced the old boolean `eligible_to_play` column after migration 2026_06_26_000002.
-            $stats['eligible'] = [
-                'label' => 'Spielberechtigt',
-                'value' => DB::table('members')
-                    ->whereNull('deleted_at')
-                    ->whereNotNull('eligible_to_play_date')
-                    ->whereDate('eligible_to_play_date', '<=', now())
-                    ->count(),
-                'icon'  => '✅',
-                'color' => 'ok',
-                'link'  => route('members.index'),
-            ];
+        if (! Schema::hasTable('activity_log')) {
+            return collect();
         }
 
-        // Teams module – only when module is active AND table exists.
-        if ($this->moduleLoader->isActive('teams') && Schema::hasTable('teams')) {
-            $stats['teams'] = [
-                'label' => 'Teams',
-                'value' => DB::table('teams')->where('is_active', true)->count(),
-                'icon'  => '⚽',
-                'color' => '',
-                'link'  => route('teams.index'),
-            ];
+        return Activity::with('causer')
+            ->latest()
+            ->take(10)
+            ->get();
+    }
+
+    /** Next 3 upcoming events ordered by start date. */
+    private function buildUpcomingEvents(): Collection
+    {
+        if (! $this->moduleLoader->isActive('events') || ! Schema::hasTable('events')) {
+            return collect();
         }
 
-        return $stats;
+        return DB::table('events')
+            ->where('starts_at', '>=', now())
+            ->orderBy('starts_at')
+            ->take(3)
+            ->select(['id', 'title', 'starts_at', 'location'])
+            ->get();
+    }
+
+    /** Last 3 created members. Permission-gated: members.view required. */
+    private function buildRecentMembers(): Collection
+    {
+        if (! auth()->user()->can('members.view')) {
+            return collect();
+        }
+        if (! $this->moduleLoader->isActive('members') || ! Schema::hasTable('members')) {
+            return collect();
+        }
+
+        return DB::table('members')
+            ->whereNull('deleted_at')
+            ->orderByDesc('created_at')
+            ->take(3)
+            ->select(['id', 'first_name', 'last_name', 'status', 'created_at'])
+            ->get();
+    }
+
+    /** Last 5 treasury transactions. Permission-gated: treasury.view required. */
+    private function buildRecentTransactions(): Collection
+    {
+        if (! auth()->user()->can('treasury.view')) {
+            return collect();
+        }
+        if (! $this->moduleLoader->isActive('treasury') || ! Schema::hasTable('treasury_transactions')) {
+            return collect();
+        }
+
+        return DB::table('treasury_transactions')
+            ->orderByDesc('transaction_date')
+            ->take(5)
+            ->select(['id', 'description', 'amount', 'type', 'transaction_date'])
+            ->get();
     }
 }
