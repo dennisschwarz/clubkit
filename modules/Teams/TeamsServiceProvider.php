@@ -99,13 +99,9 @@ class TeamsServiceProvider extends ServiceProvider
 
         // ── Extend Management ─────────────────────────────────────────────────
 
-        $hooks->register('management.function.header.filter', 'teams::management-function-header-filter', 10);
-        $hooks->register('management.function.list',          'teams::management-function-list', 10);
-        $hooks->register('management.function.modal.teams',   'teams::management-function-modal-teams', 10);
-        $hooks->register('management.task.header.filter',     'teams::management-task-header-filter', 10);
-        $hooks->register('management.task.list',              'teams::management-task-list', 10);
-        $hooks->register('management.task.modal.teams',       'teams::management-task-modal-teams', 10);
-        $hooks->register('management.page.scripts',           'teams::management-page-scripts', 10);
+        // Team-grouped list views — replaces the flat default table entirely.
+        $hooks->register('management.function.list', 'teams::management-function-list', 10);
+        $hooks->register('management.task.list',     'teams::management-task-list', 10);
 
         // ── Extend Events ─────────────────────────────────────────────────────
 
@@ -185,16 +181,7 @@ class TeamsServiceProvider extends ServiceProvider
             $view->with('ckMemberTeamMap', $teamMap);
         });
 
-        // ── Management: Function header team filter ────────────────────────────
-        View::composer('teams::management-function-header-filter', function (ViewContract $view): void {
-            if (! Schema::hasTable('teams')) {
-                return;
-            }
-            $view->with([
-                'ckFilterTeams' => Team::orderBy('name')->get(),
-                'ckFilterValue' => request()->integer('team_id', 0) ?: null,
-            ]);
-        });
+
 
         // ── Management: Function list grouped by team ──────────────────────────
         View::composer('teams::management-function-list', function (ViewContract $view): void {
@@ -211,36 +198,29 @@ class TeamsServiceProvider extends ServiceProvider
                 : $functions;
 
             $ckGeneral = $ckDisplay->filter(fn ($f) => $f->teams->isEmpty());
-            $ckByTeam  = [];
+
+            // Seed $ckByTeam with ALL teams so empty sections are always visible.
+            $ckAllTeams = Team::orderBy('name')->get();
+            $ckByTeam   = [];
+            foreach ($ckAllTeams as $ckTeam) {
+                $ckByTeam[$ckTeam->id] = [
+                    'name'      => $ckTeam->name,
+                    'color'     => $ckTeam->color ?? 'blue',
+                    'functions' => [],
+                ];
+            }
             foreach ($ckDisplay->filter(fn ($f) => $f->teams->isNotEmpty()) as $ckFn) {
                 foreach ($ckFn->teams as $ckTeam) {
-                    $ckByTeam[$ckTeam->id]['name']        ??= $ckTeam->name;
-                    $ckByTeam[$ckTeam->id]['color']       ??= $ckTeam->color ?? 'blue';
-                    $ckByTeam[$ckTeam->id]['functions'][]   = $ckFn;
+                    if (isset($ckByTeam[$ckTeam->id])) {
+                        $ckByTeam[$ckTeam->id]['functions'][] = $ckFn;
+                    }
                 }
             }
 
             $view->with(compact('ckDisplay', 'ckGeneral', 'ckByTeam'));
         });
 
-        // ── Management: Function modal team checkboxes ─────────────────────────
-        View::composer('teams::management-function-modal-teams', function (ViewContract $view): void {
-            if (! Schema::hasTable('teams')) {
-                return;
-            }
-            $view->with('ckTeams', Team::orderBy('name')->get());
-        });
 
-        // ── Management: Task header team filter ────────────────────────────────
-        View::composer('teams::management-task-header-filter', function (ViewContract $view): void {
-            if (! Schema::hasTable('teams')) {
-                return;
-            }
-            $view->with([
-                'ckFilterTeams' => Team::orderBy('name')->get(),
-                'ckFilterValue' => request()->integer('team_id', 0) ?: null,
-            ]);
-        });
 
         // ── Management: Task list grouped by team ──────────────────────────────
         View::composer('teams::management-task-list', function (ViewContract $view): void {
@@ -249,7 +229,11 @@ class TeamsServiceProvider extends ServiceProvider
             }
 
             $tasks = $view->getData()['tasks'] ?? collect();
-            $tasks->load('teams');
+
+            // load() existiert nur auf Eloquent\Collection – bei plain Collection überspringen
+            if ($tasks instanceof \Illuminate\Database\Eloquent\Collection && $tasks->isNotEmpty()) {
+                $tasks->load('teams');
+            }
 
             $ckTeamFilter = request()->integer('team_id', 0) ?: null;
             $ckDisplay    = $ckTeamFilter
@@ -257,64 +241,29 @@ class TeamsServiceProvider extends ServiceProvider
                 : $tasks;
 
             $ckGeneral = $ckDisplay->filter(fn ($t) => $t->teams->isEmpty());
-            $ckByTeam  = [];
+
+            // Seed $ckByTeam with ALL teams so empty sections are always visible.
+            $ckAllTeams = Team::orderBy('name')->get();
+            $ckByTeam   = [];
+            foreach ($ckAllTeams as $ckTeam) {
+                $ckByTeam[$ckTeam->id] = [
+                    'name'  => $ckTeam->name,
+                    'color' => $ckTeam->color ?? 'blue',
+                    'tasks' => [],
+                ];
+            }
             foreach ($ckDisplay->filter(fn ($t) => $t->teams->isNotEmpty()) as $ckTask) {
                 foreach ($ckTask->teams as $ckTeam) {
-                    $ckByTeam[$ckTeam->id]['name']    ??= $ckTeam->name;
-                    $ckByTeam[$ckTeam->id]['color']   ??= $ckTeam->color ?? 'blue';
-                    $ckByTeam[$ckTeam->id]['tasks'][]   = $ckTask;
+                    if (isset($ckByTeam[$ckTeam->id])) {
+                        $ckByTeam[$ckTeam->id]['tasks'][] = $ckTask;
+                    }
                 }
             }
 
             $view->with(compact('ckDisplay', 'ckGeneral', 'ckByTeam'));
         });
 
-        // ── Management: Task modal team checkboxes ─────────────────────────────
-        View::composer('teams::management-task-modal-teams', function (ViewContract $view): void {
-            if (! Schema::hasTable('teams')) {
-                return;
-            }
-            $view->with('ckTeams', Team::orderBy('name')->get());
-        });
 
-        // ── Management: Page scripts JS data bridge ────────────────────────────
-        View::composer('teams::management-page-scripts', function (ViewContract $view): void {
-            if (! Schema::hasTable('teams')) {
-                return;
-            }
-
-            $data      = $view->getData();
-            $functions = $data['functions'] ?? collect();
-            $tasks     = $data['tasks']     ?? collect();
-
-            $ckFunctionIds = $functions->pluck('id')->toArray();
-            $ckFnTeamRows  = DB::table('management_function_team')
-                ->whereIn('role_id', $ckFunctionIds)
-                ->get()
-                ->groupBy('role_id');
-
-            $ckFunctionTeamIds = [];
-            foreach ($ckFunctionIds as $ckFnId) {
-                $ckFunctionTeamIds[$ckFnId] = $ckFnTeamRows->has($ckFnId)
-                    ? $ckFnTeamRows[$ckFnId]->pluck('team_id')->values()->toArray()
-                    : [];
-            }
-
-            $ckTaskIds      = $tasks->pluck('id')->toArray();
-            $ckTaskTeamRows = DB::table('management_task_team')
-                ->whereIn('task_id', $ckTaskIds)
-                ->get()
-                ->groupBy('task_id');
-
-            $ckTaskTeamIds = [];
-            foreach ($ckTaskIds as $ckTaskId) {
-                $ckTaskTeamIds[$ckTaskId] = $ckTaskTeamRows->has($ckTaskId)
-                    ? $ckTaskTeamRows[$ckTaskId]->pluck('team_id')->values()->toArray()
-                    : [];
-            }
-
-            $view->with(compact('ckFunctionTeamIds', 'ckTaskTeamIds'));
-        });
 
         // ── Events: Event detail page teams panel ──────────────────────────────
         View::composer('teams::event-show-teams-panel', function (ViewContract $view): void {

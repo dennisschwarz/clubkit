@@ -124,6 +124,10 @@
   --ck-team-slate-bg:    #f1f5f9;
   --ck-team-slate-text:  #475569;
 
+  /* Steel — used for the "Allgemein" management section header.
+     Deliberately not part of the team colour picker palette. */
+  --ck-team-steel:       #455a64;
+
   /* Text */
   --ck-text:             #1e293b;
   --ck-text-secondary:   #64748b;
@@ -220,6 +224,13 @@ body {
   min-height: 100vh;
   line-height: 1.5;
 }
+
+/* ── Local tab sections ─────────────────────────── */
+/* Used on Event-Detail, Treasury, Management pages.
+   JS (ckEvtTab / ckLocalTab) toggles ck-local-section--active.
+   Blade must mark the default-active section with ck-local-section--active. */
+.ck-local-section               { display: none; }
+.ck-local-section--active       { display: block; }
 
 /* ── Utility classes ────────────────────────────── */
 .is-hidden         { display: none !important; }

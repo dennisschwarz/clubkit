@@ -183,8 +183,8 @@ window.ckLocalTab = function (sectionId, btn) {
         });
         if (btn) btn.classList.add('ck-local-tab--active');
 
-        // 3. Hide all .ck-local-section children of the parent container.
-        const parent = tabBar.parentElement;
+        // 3. Hide all .ck-local-section siblings of the tab bar's parent container.
+        const parent = tabBar.closest('.ck-local-tabs-bar') || tabBar.parentElement;
         if (parent) {
             parent.querySelectorAll(':scope > .ck-local-section').forEach(function (s) {
                 s.classList.remove('ck-local-section--active');
@@ -192,7 +192,19 @@ window.ckLocalTab = function (sectionId, btn) {
         }
     }
 
-    // 4. Show the target section.
+    // 4. Toggle .ck-event-tab-action header groups — same pattern as ckEvtTab()
+    //    in events/globals.js.  The tab ID is the part of the sectionId after the
+    //    first dash (e.g. "mgmtTab-funktionen" → "funktionen").
+    var tabId = sectionId.replace(/^[^-]+-/, '');
+    document.querySelectorAll('.ck-event-tab-action').forEach(function (a) {
+        var multi = (a.dataset.ckTabActions || '').split(' ').filter(Boolean);
+        var match = multi.length > 0
+            ? multi.indexOf(tabId) !== -1
+            : a.id === 'ckEvtAction-' + tabId;
+        a.classList.toggle('ck-event-tab-action--active', match);
+    });
+
+    // 5. Show the target section.
     const section = document.getElementById(sectionId);
     if (section) section.classList.add('ck-local-section--active');
 };

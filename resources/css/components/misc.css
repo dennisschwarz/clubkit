@@ -146,6 +146,7 @@
   align-items: center;
   gap: var(--ck-space-2);
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* ── Team colours – section header modifiers ─────────── */
@@ -168,6 +169,8 @@
 .ck-section-header--team-purple { background: var(--ck-team-purple-dot); }
 .ck-section-header--team-pink   { background: var(--ck-team-pink); }
 .ck-section-header--team-slate  { background: var(--ck-team-slate); }
+/* Steel — only used for the "Allgemein" management section header, not in team picker */
+.ck-section-header--team-steel  { background: var(--ck-team-steel); }
 
 /* Amber is light – override text and icon to dark for legibility */
 .ck-section-header--team-amber .ck-section-header__title,
@@ -589,4 +592,32 @@
 .ck-body--flush-top .ck-table-wrap:first-child {
     border-top-left-radius:  0;
     border-top-right-radius: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Local tabs bar: wrapper for tab row + right-aligned action buttons.
+   .ck-local-tabs stays unchanged (forms.css) — only margin and border
+   are reset when nested inside this wrapper.
+══════════════════════════════════════════════════════════════════════ */
+.ck-local-tabs-bar {
+    display:         flex;
+    align-items:     flex-end;
+    justify-content: space-between;
+    gap:             var(--ck-space-3);
+    border-bottom:   2px solid var(--ck-border);
+    margin-bottom:   var(--ck-space-6);
+}
+
+/* Inside the bar, the tab group must not add its own bottom border/margin */
+.ck-local-tabs-bar .ck-local-tabs {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.ck-local-tabs__actions {
+    display:        flex;
+    align-items:    center;
+    gap:            var(--ck-space-2);
+    padding-bottom: var(--ck-space-2);
+    flex-shrink:    0;
 }

@@ -9,6 +9,7 @@ use App\Repositories\CustomFieldRepository;
 use App\Services\ModuleLoader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Modules\Management\Http\Requests\StoreFunctionRequest;
@@ -142,13 +143,21 @@ class ManagementController extends Controller
         $mgmtTaskCfDefs       = $cfData['management_task']['defs'];
         $mgmtTaskCfValues     = $cfData['management_task']['values'];
 
+        $membersJs = [];
+        foreach ($members as $m) {
+            $membersJs[$m->id] = ['id' => $m->id, 'name' => $m->last_name . ', ' . $m->first_name];
+        }
+
+        $chevronSvg = self::chevronSvg();
+
         return view('management::index', compact(
             'functions', 'tasks', 'members', 'categories',
             'functionsJs', 'tasksJs', 'membersJs', 'categoriesJs',
             'membersActive',
             'mgmtFunctionCfDefs', 'mgmtFunctionCfValues',
             'mgmtTaskCfDefs',     'mgmtTaskCfValues',
-            'fnSortRaw', 'taskSortRaw'
+            'fnSortRaw', 'taskSortRaw',
+            'chevronSvg'
         ));
     }
 
@@ -171,7 +180,11 @@ class ManagementController extends Controller
             'created_by' => $userId,
         ]);
 
-        $this->syncFunctionTeams($fn->id, $validated['team_ids'] ?? [], $userId);
+        // team_id comes from the hidden field set by mgmtModalOpen() when clicking
+        // a section "+" button; falls back to team_ids[] from the form (legacy/non-JS).
+        $teamId  = $request->integer('team_id') ?: null;
+        $teamIds = $teamId ? [$teamId] : ($validated['team_ids'] ?? []);
+        $this->syncFunctionTeams($fn->id, $teamIds, $userId);
 
         if (! empty($validated['member_ids'])) {
             $pivot = [];
@@ -196,36 +209,38 @@ class ManagementController extends Controller
      * @param  ManagementFunction    $function
      * @return RedirectResponse
      */
-    public function updateFunction(UpdateFunctionRequest $request, ManagementFunction $function): RedirectResponse
+    public function updateFunction(UpdateFunctionRequest $request, ManagementFunction $function): JsonResponse|RedirectResponse
     {
         $validated = $request->validated();
         $userId    = $request->user()->id;
 
         $function->update(['name' => $validated['name']]);
-
         $this->syncFunctionTeams($function->id, $validated['team_ids'] ?? [], $userId);
 
-        $memberPivot = [];
-        foreach ($validated['member_ids'] ?? [] as $id) {
-            $memberPivot[(int) $id] = ['created_by' => $userId];
+        // Only sync members when explicitly sent — the assign modal manages them separately.
+        if ($request->has('member_ids')) {
+            $pivot = [];
+            foreach ($validated['member_ids'] ?? [] as $id) {
+                $pivot[(int) $id] = ['created_by' => $userId];
+            }
+            $function->members()->sync($pivot);
         }
-        $function->members()->sync($memberPivot);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'id' => $function->id, 'name' => $function->name]);
+        }
         return redirect()->route('management.index')
             ->with('success', __('management.flash.function_updated', ['name' => $function->name]));
     }
 
-    /**
-     * Delete a management function (cascades to all pivot assignments).
-     *
-     * @param  ManagementFunction $function
-     * @return RedirectResponse
-     */
-    public function destroyFunction(ManagementFunction $function): RedirectResponse
+    public function destroyFunction(ManagementFunction $function): JsonResponse|RedirectResponse
     {
         $name = $function->name;
         $function->delete();
 
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true, 'name' => $name]);
+        }
         return redirect()->route('management.index')
             ->with('success', __('management.flash.function_deleted', ['name' => $name]));
     }
@@ -252,7 +267,11 @@ class ManagementController extends Controller
             'created_by'  => $userId,
         ]);
 
-        $this->syncTaskTeams($task->id, $validated['team_ids'] ?? [], $userId);
+        // team_id comes from the hidden field set by mgmtModalOpen() when clicking
+        // a section "+" button; falls back to team_ids[] from the form (legacy/non-JS).
+        $teamId  = $request->integer('team_id') ?: null;
+        $teamIds = $teamId ? [$teamId] : ($validated['team_ids'] ?? []);
+        $this->syncTaskTeams($task->id, $teamIds, $userId);
 
         if (! empty($validated['member_ids'])) {
             $pivot = [];
@@ -277,7 +296,7 @@ class ManagementController extends Controller
      * @param  ManagementTask     $task
      * @return RedirectResponse
      */
-    public function updateTask(UpdateTaskRequest $request, ManagementTask $task): RedirectResponse
+    public function updateTask(UpdateTaskRequest $request, ManagementTask $task): JsonResponse|RedirectResponse
     {
         $validated = $request->validated();
         $userId    = $request->user()->id;
@@ -291,29 +310,168 @@ class ManagementController extends Controller
 
         $this->syncTaskTeams($task->id, $validated['team_ids'] ?? [], $userId);
 
-        $memberPivot = [];
-        foreach ($validated['member_ids'] ?? [] as $id) {
-            $memberPivot[(int) $id] = ['created_by' => $userId];
+        // Only sync members when explicitly sent — the assign modal manages them separately.
+        if ($request->has('member_ids')) {
+            $pivot = [];
+            foreach ($validated['member_ids'] ?? [] as $id) {
+                $pivot[(int) $id] = ['created_by' => $userId];
+            }
+            $task->members()->sync($pivot);
         }
-        $task->members()->sync($memberPivot);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'id' => $task->id, 'name' => $task->name]);
+        }
         return redirect()->route('management.index')
             ->with('success', __('management.flash.task_updated', ['name' => $task->name]));
     }
 
-    /**
-     * Delete a management task.
-     *
-     * @param  ManagementTask $task
-     * @return RedirectResponse
-     */
-    public function destroyTask(ManagementTask $task): RedirectResponse
+    public function destroyTask(ManagementTask $task): JsonResponse|RedirectResponse
     {
         $name = $task->name;
         $task->delete();
 
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true, 'name' => $name]);
+        }
         return redirect()->route('management.index')
             ->with('success', __('management.flash.task_deleted', ['name' => $name]));
+    }
+
+    // ── HTML fragments (AJAX tab refresh) ────────────────────────────────────
+
+    /**
+     * Returns the rendered function list section for AJAX DOM-swap.
+     * Muss dieselben Daten mitgeben wie index(), damit View Composer und
+     * Hooks korrekt arbeiten (z. B. TeamsServiceProvider).
+     */
+    public function functionsFragment(): \Illuminate\Http\Response
+    {
+        $fnSortRaw = request('fn_sort', 'name');
+        $fnSortCol = ltrim($fnSortRaw, '-');
+        $fnSortDir = str_starts_with($fnSortRaw, '-') ? 'desc' : 'asc';
+        if (! in_array($fnSortCol, ['name'], true)) {
+            $fnSortCol = 'name';
+            $fnSortDir = 'asc';
+        }
+
+        $functions  = ManagementFunction::with(['members', 'creator'])
+            ->orderBy($fnSortCol, $fnSortDir)
+            ->get();
+        $chevronSvg = self::chevronSvg();
+
+        return response(
+            view('management::_functions-fragment', compact('functions', 'fnSortRaw', 'chevronSvg'))->render(),
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8']
+        );
+    }
+
+    /**
+     * Returns the rendered task list section for AJAX DOM-swap.
+     * Muss dieselben Daten mitgeben wie index(), damit View Composer und
+     * Hooks korrekt arbeiten (z. B. TeamsServiceProvider lädt ->teams).
+     */
+    public function tasksFragment(): \Illuminate\Http\Response
+    {
+        $taskSortRaw = request('task_sort', 'name');
+        $taskSortCol = ltrim($taskSortRaw, '-');
+        $taskSortDir = str_starts_with($taskSortRaw, '-') ? 'desc' : 'asc';
+        if (! in_array($taskSortCol, ['name', 'priority'], true)) {
+            $taskSortCol = 'name';
+            $taskSortDir = 'asc';
+        }
+
+        $tasks      = ManagementTask::with(['members', 'creator', 'category'])
+            ->orderBy($taskSortCol, $taskSortDir)
+            ->get();
+        $categories = ManagementTaskCategory::orderBy('name')->get();
+        $chevronSvg = self::chevronSvg();
+
+        return response(
+            view('management::_tasks-fragment', compact('tasks', 'categories', 'taskSortRaw', 'chevronSvg'))->render(),
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8']
+        );
+    }
+
+    // ── Drag & drop: move function/task to a different team section ──────────────
+
+    /**
+     * Moves a ManagementFunction into a team section (or "Allgemein").
+     * Replaces all current team assignments with the given team_id (or none).
+     */
+    public function moveFunction(Request $request, ManagementFunction $function): JsonResponse
+    {
+        $teamId = $request->integer('team_id') ?: null;
+        $function->teams()->sync($teamId ? [$teamId] : []);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Moves a ManagementTask into a team section (or "Allgemein").
+     * Replaces all current team assignments with the given team_id (or none).
+     */
+    public function moveTask(Request $request, ManagementTask $task): JsonResponse
+    {
+        $teamId = $request->integer('team_id') ?: null;
+        $task->teams()->sync($teamId ? [$teamId] : []);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Returns the chevron SVG icon as an HTML string.
+     * Shared between index() and the fragment endpoints so the string
+     * is forwarded via @ckHook into the Teams hook views.
+     */
+    private static function chevronSvg(): string
+    {
+        return '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">'
+             . '<path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293'
+             . 'a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>'
+             . '</svg>';
+    }
+
+    // ── Member assignment (individual add/remove via mgmtAssignModal) ─────────
+
+    public function addFunctionMember(Request $request, ManagementFunction $function): JsonResponse
+    {
+        $memberId = (int) $request->input('member_id');
+        if (! $memberId) {
+            return response()->json(['success' => false, 'message' => 'member_id required'], 422);
+        }
+        if ($function->members()->where('member_id', $memberId)->exists()) {
+            return response()->json(['success' => false, 'error' => 'already_assigned'], 422);
+        }
+        $function->members()->attach($memberId, ['created_by' => $request->user()->id]);
+        return response()->json(['success' => true, 'member_id' => $memberId]);
+    }
+
+    public function removeFunctionMember(ManagementFunction $function, int $memberId): JsonResponse
+    {
+        $function->members()->detach($memberId);
+        return response()->json(['success' => true, 'member_id' => $memberId]);
+    }
+
+    public function addTaskMember(Request $request, ManagementTask $task): JsonResponse
+    {
+        $memberId = (int) $request->input('member_id');
+        if (! $memberId) {
+            return response()->json(['success' => false, 'message' => 'member_id required'], 422);
+        }
+        if ($task->members()->where('member_id', $memberId)->exists()) {
+            return response()->json(['success' => false, 'error' => 'already_assigned'], 422);
+        }
+        $task->members()->attach($memberId, ['created_by' => $request->user()->id]);
+        return response()->json(['success' => true, 'member_id' => $memberId]);
+    }
+
+    public function removeTaskMember(ManagementTask $task, int $memberId): JsonResponse
+    {
+        $task->members()->detach($memberId);
+        return response()->json(['success' => true, 'member_id' => $memberId]);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

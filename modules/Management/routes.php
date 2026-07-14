@@ -48,6 +48,44 @@ Route::middleware(['auth'])->prefix('management')->name('management.')->group(fu
         ->name('tasks.destroy')
         ->middleware('permission:management.tasks.manage');
 
+    // ── Drag & drop: move to a different team section ─────────────────────────
+
+    Route::patch('/functions/{function}/move', [ManagementController::class, 'moveFunction'])
+        ->name('functions.move')
+        ->middleware('permission:management.functions.manage');
+
+    Route::patch('/tasks/{task}/move', [ManagementController::class, 'moveTask'])
+        ->name('tasks.move')
+        ->middleware('permission:management.tasks.manage');
+
+    // ── HTML fragments for AJAX tab refresh (no page reload) ──────────────────
+
+    Route::get('/fragments/functions', [ManagementController::class, 'functionsFragment'])
+        ->name('fragments.functions')
+        ->middleware('permission:management.view');
+
+    Route::get('/fragments/tasks', [ManagementController::class, 'tasksFragment'])
+        ->name('fragments.tasks')
+        ->middleware('permission:management.view');
+
+    // ── Individual member assignment (used by mgmtAssignModal) ────────────────
+
+    Route::post('/functions/{function}/members', [ManagementController::class, 'addFunctionMember'])
+        ->name('functions.members.add')
+        ->middleware('permission:management.functions.manage');
+
+    Route::delete('/functions/{function}/members/{memberId}', [ManagementController::class, 'removeFunctionMember'])
+        ->name('functions.members.remove')
+        ->middleware('permission:management.functions.manage');
+
+    Route::post('/tasks/{task}/members', [ManagementController::class, 'addTaskMember'])
+        ->name('tasks.members.add')
+        ->middleware('permission:management.tasks.manage');
+
+    Route::delete('/tasks/{task}/members/{memberId}', [ManagementController::class, 'removeTaskMember'])
+        ->name('tasks.members.remove')
+        ->middleware('permission:management.tasks.manage');
+
     // ── Task Categories (managed via Module Settings) ─────────────────────────
 
     Route::post('/task-categories', [TaskCategoryController::class, 'store'])

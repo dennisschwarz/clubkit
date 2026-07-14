@@ -153,6 +153,11 @@
 .ck-table__row--expandable { cursor: pointer; }
 .ck-table__row--expandable:hover { background: var(--ck-bg-subtle); }
 
+/* ── Sortable table rows (drag & drop between sections) ───────────── */
+.ck-mgmt-fn-sortable   tr,
+.ck-mgmt-task-sortable tr { cursor: grab; }
+.sortable-chosen           { cursor: grabbing; }
+
 /* No hover highlight on the expanded detail row */
 .ck-expand-row:hover { background: transparent !important; }
 
