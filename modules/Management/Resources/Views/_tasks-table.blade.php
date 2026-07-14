@@ -11,7 +11,14 @@
     $priorityOrder  = ['high' => 1, 'normal' => 2, 'low' => 3];
 @endphp
 <div class="ck-table-wrap">
-    <table class="ck-table">
+    <table class="ck-table ck-table--fixed ck-mgmt-task-table">
+        <colgroup>
+            <col class="ck-mgmt-col--name">
+            <col class="ck-mgmt-col--priority">
+            <col class="ck-mgmt-col--members">
+            <col class="ck-mgmt-col--creator">
+            <col class="ck-mgmt-col--actions">
+        </colgroup>
         <thead data-sort-col="name" data-sort-dir="asc">
             <tr>
                 <th>
@@ -104,7 +111,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="5" class="ck-empty-state">{{ __('management.tasks_empty') }}</td>
+                <td colspan="5" class="ck-empty-state">–</td>
             </tr>
             @endforelse
         </tbody>

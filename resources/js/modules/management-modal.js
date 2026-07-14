@@ -62,8 +62,9 @@
         // If the source tbody has no real rows left, insert an empty-state row.
         // .ck-mgmt-real-row is only on real data rows — never on the empty-state row.
         if (fromTbody.querySelectorAll('.ck-mgmt-real-row').length === 0) {
-            var emptyRow       = document.createElement('tr');
-            emptyRow.innerHTML = '<td colspan="5" class="ck-empty-state">–</td>';
+            var colCount = fromTbody.closest('table').querySelectorAll('thead th').length || 99;
+            var emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = '<td colspan="' + colCount + '" class="ck-empty-state">–</td>';
             fromTbody.appendChild(emptyRow);
         }
 
@@ -492,7 +493,9 @@
 
             _setField(isFunction ? 'mgmtFunctionFieldName' : 'mgmtTaskFieldName', item.name);
 
-            if (! isFunction) {
+            if (isFunction) {
+                _setField('mgmtFunctionFieldDesc', item.description || '');
+            } else {
                 _setField('mgmtTaskFieldDesc',     item.description || '');
                 _setField('mgmtTaskFieldPriority', item.priority    || 'normal');
                 _setField('mgmtTaskFieldCategory', item.category_id || '');

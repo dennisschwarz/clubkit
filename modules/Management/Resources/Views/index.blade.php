@@ -100,6 +100,9 @@
                     <x-ck-field :label="__('management.field.function_name')" name="name" id="mgmtFunctionFieldName" :required="true"
                                 placeholder="z.B. Trainer, Co-Trainer, Betreuer, Kassenwart" />
 
+                    <x-ck-field type="textarea" :label="__('management.field.description')" name="description"
+                                id="mgmtFunctionFieldDesc" rows="3" />
+
                     <div class="ck-form-actions">
                         <button type="submit" class="ck-btn ck-btn--primary">{{ __('Save') }}</button>
                         <button type="button" class="ck-btn ck-btn--secondary"

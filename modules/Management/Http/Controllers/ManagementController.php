@@ -108,9 +108,10 @@ class ManagementController extends Controller
 
         foreach ($functions as $fn) {
             $functionsJs[$fn->id] = [
-                'id'         => $fn->id,
-                'name'       => $fn->name,
-                'member_ids' => $fn->members->pluck('id')->values()->toArray(),
+                'id'          => $fn->id,
+                'name'        => $fn->name,
+                'description' => $fn->description ?? '',
+                'member_ids'  => $fn->members->pluck('id')->values()->toArray(),
             ];
         }
 
@@ -176,8 +177,9 @@ class ManagementController extends Controller
         $userId    = $request->user()->id;
 
         $fn = ManagementFunction::create([
-            'name'       => $validated['name'],
-            'created_by' => $userId,
+            'name'        => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'created_by'  => $userId,
         ]);
 
         // team_id comes from the hidden field set by mgmtModalOpen() when clicking
@@ -214,7 +216,10 @@ class ManagementController extends Controller
         $validated = $request->validated();
         $userId    = $request->user()->id;
 
-        $function->update(['name' => $validated['name']]);
+        $function->update([
+            'name'        => $validated['name'],
+            'description' => $validated['description'] ?? null,
+        ]);
         $this->syncFunctionTeams($function->id, $validated['team_ids'] ?? [], $userId);
 
         // Only sync members when explicitly sent — the assign modal manages them separately.

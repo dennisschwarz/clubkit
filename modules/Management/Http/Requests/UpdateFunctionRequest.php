@@ -31,7 +31,8 @@ class UpdateFunctionRequest extends FormRequest
         ]));
 
         return [
-            'name'         => ['required', 'string', 'max:100'],
+            'name'        => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string', 'max:1000'],
             'team_ids'     => ['nullable', 'array'],
             'team_ids.*'   => $teamIdRule,
             'member_ids'   => ['nullable', 'array'],

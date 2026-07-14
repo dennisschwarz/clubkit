@@ -2,13 +2,20 @@
     Partial: function list within a group (team or general).
     Variables:
       $groupFunctions  Collection  Functions for this group.
+      $teamId          int|null    Team ID for sortable context.
       $fnSortRaw       string      Current sort key ('name' | '-name'). Optional.
 
     Plain HTML throughout — no x-ck-* components inside @foreach (Blade 13.17).
     Buttons use delegated click handlers in management-modal.js.
 --}}
 <div class="ck-table-wrap">
-    <table class="ck-table">
+    <table class="ck-table ck-table--fixed ck-mgmt-fn-table">
+        <colgroup>
+            <col class="ck-mgmt-col--name">
+            <col class="ck-mgmt-col--members">
+            <col class="ck-mgmt-col--creator">
+            <col class="ck-mgmt-col--actions">
+        </colgroup>
         <thead data-sort-col="name" data-sort-dir="asc">
             <tr>
                 <th>
@@ -17,7 +24,6 @@
                         {{ __('management.col.name') }}<span class="ck-sort-icon">↑</span>
                     </button>
                 </th>
-                <th>{{ __('management.col.teams') }}</th>
                 <th>{{ __('management.col.members') }}</th>
                 <th>{{ __('management.col.creator') }}</th>
                 <th class="ck-table__actions">{{ __('core.col.actions') }}</th>
@@ -26,16 +32,10 @@
         <tbody class="ck-mgmt-fn-sortable" data-team-id="{{ $teamId ?? 'allgemein' }}">
             @forelse($groupFunctions as $fn)
             <tr class="ck-mgmt-real-row" data-id="{{ $fn->id }}" data-sort-name="{{ strtolower($fn->name) }}">
-                <td class="ck-table__bold">{{ $fn->name }}</td>
-
-                {{-- Teams column: only when relation was eager-loaded. --}}
-                <td>
-                    @if($fn->relationLoaded('teams') && $fn->teams->isNotEmpty())
-                        @foreach($fn->teams as $team)
-                        <span class="ck-badge ck-badge--{{ $team->color ?? 'blue' }}">{{ $team->name }}</span>
-                        @endforeach
-                    @else
-                        <span class="ck-text-muted">–</span>
+                <td class="ck-table__bold">
+                    {{ $fn->name }}
+                    @if($fn->description)
+                    <div class="ck-text-muted ck-text-sm">{{ $fn->description }}</div>
                     @endif
                 </td>
 
@@ -99,7 +99,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="5" class="ck-empty-state">{{ __('management.functions_empty') }}</td>
+                <td colspan="4" class="ck-empty-state">–</td>
             </tr>
             @endforelse
         </tbody>

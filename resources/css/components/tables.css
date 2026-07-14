@@ -153,10 +153,30 @@
 .ck-table__row--expandable { cursor: pointer; }
 .ck-table__row--expandable:hover { background: var(--ck-bg-subtle); }
 
+/* ── Fixed-layout management tables (consistent column widths across
+      all sections regardless of content / empty state) ─────────────── */
+.ck-table--fixed                 { table-layout: fixed; width: 100%; }
+
+/* Function table — 4 columns */
+.ck-mgmt-fn-table   .ck-mgmt-col--name    { width: 42%; }
+.ck-mgmt-fn-table   .ck-mgmt-col--members { width: 28%; }
+.ck-mgmt-fn-table   .ck-mgmt-col--creator { width: 18%; }
+.ck-mgmt-fn-table   .ck-mgmt-col--actions { width: 12%; }
+
+/* Task table — 5 columns */
+.ck-mgmt-task-table .ck-mgmt-col--name     { width: 35%; }
+.ck-mgmt-task-table .ck-mgmt-col--priority { width: 12%; }
+.ck-mgmt-task-table .ck-mgmt-col--members  { width: 25%; }
+.ck-mgmt-task-table .ck-mgmt-col--creator  { width: 16%; }
+.ck-mgmt-task-table .ck-mgmt-col--actions  { width: 12%; }
+
 /* ── Sortable table rows (drag & drop between sections) ───────────── */
-.ck-mgmt-fn-sortable   tr,
-.ck-mgmt-task-sortable tr { cursor: grab; }
-.sortable-chosen           { cursor: grabbing; }
+.ck-mgmt-fn-sortable   tr.ck-mgmt-real-row,
+.ck-mgmt-task-sortable tr.ck-mgmt-real-row { cursor: grab; }
+.sortable-chosen                            { cursor: grabbing; }
+/* Empty-state rows are not draggable — reset cursor */
+.ck-mgmt-fn-sortable   tr:not(.ck-mgmt-real-row),
+.ck-mgmt-task-sortable tr:not(.ck-mgmt-real-row) { cursor: default; }
 
 /* No hover highlight on the expanded detail row */
 .ck-expand-row:hover { background: transparent !important; }

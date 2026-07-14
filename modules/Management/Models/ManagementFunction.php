@@ -35,6 +35,7 @@ class ManagementFunction extends Model
 
     protected $fillable = [
         'name',
+        'description',
         'created_by',
     ];
 
