@@ -44,6 +44,12 @@ Route::middleware(['auth'])->prefix('teams')->name('teams.')->group(function () 
         ->name('syncMemberTeams')
         ->middleware('permission:teams.members.manage');
 
+    // Sorted member rows fragment — used by ckTeamSort() AJAX column sort.
+    // Returns rendered <tr> rows (text/html) for the given team, sorted by ?sort=column.
+    Route::get('/{team}/members/sort-fragment', [TeamController::class, 'membersFragment'])
+        ->name('membersFragment')
+        ->middleware('permission:teams.view');
+
     // Add single member to squad with optional squad number (teams::show page)
     Route::post('/{team}/members',  [TeamController::class, 'addMember'])
         ->name('addMember')

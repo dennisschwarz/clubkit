@@ -75,7 +75,8 @@ $teamColors = [
         <div class="ck-section-header__text">
             <span class="ck-section-header__title">{{ $team->name }}</span>
             <span class="ck-section-header__meta">
-                {{ implode(' · ', $metaParts) }}
+                {{ implode(' · ', array_slice($metaParts, 0, -1)) }}
+                · <span data-team-member-count="{{ $team->id }}">{{ $team->members_count }}</span> {{ __('teams.col.member') }}
                 @if(!$team->is_active) · <span class="ck-section-header__meta--inactive">{{ __('teams.inactive') }}</span>@endif
             </span>
         </div>
@@ -114,58 +115,40 @@ $teamColors = [
     <div id="{{ $bodyId }}" class="ck-body--flush-top">
         <div class="ck-table-wrap">
             <table class="ck-table">
-                <thead>
+                {{-- thead: sort buttons; data-sort-col/dir track current sort state for ckTeamSort() --}}
+                <thead data-team-id="{{ $team->id }}" data-sort-col="last_name" data-sort-dir="asc">
                     <tr>
-                        <th>{{ __('teams.col.member') }}</th>
-                        @if($team->is_competition)<th>{{ __('teams.col.squad_number') }}</th>@endif
-                        <th>{{ __('teams.col.eligible') }}</th>
+                        <th>
+                            <button type="button" class="ck-sort-link ck-sort-link--active"
+                                    onclick="ckTeamSort({{ $team->id }}, 'last_name', this)">
+                                {{ __('teams.col.member') }}<span class="ck-sort-icon">↑</span>
+                            </button>
+                        </th>
+                        <th>
+                            <button type="button" class="ck-sort-link"
+                                    onclick="ckTeamSort({{ $team->id }}, 'date_of_birth', this)">
+                                {{ __('members.col.birthdate') }}<span class="ck-sort-icon">⇅</span>
+                            </button>
+                        </th>
+                        @if($team->is_competition)
+                        <th>
+                            <button type="button" class="ck-sort-link"
+                                    onclick="ckTeamSort({{ $team->id }}, 'squad_number', this)">
+                                {{ __('teams.col.squad_number') }}<span class="ck-sort-icon">⇅</span>
+                            </button>
+                        </th>
+                        @endif
+                        <th>
+                            <button type="button" class="ck-sort-link"
+                                    onclick="ckTeamSort({{ $team->id }}, 'eligible_to_play_date', this)">
+                                {{ __('teams.col.eligible') }}<span class="ck-sort-icon">⇅</span>
+                            </button>
+                        </th>
                         @if($team->is_active)<th class="ck-table__actions">{{ __('core.col.actions') }}</th>@endif
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($team->members as $member)
-                    <tr>
-                        <td class="ck-table__bold">{{ $member->last_name }}, {{ $member->first_name }}</td>
-                        @if($team->is_competition)
-                        <td>
-                            @if($member->pivot->squad_number)
-                                <span class="ck-accordion-member__number">#{{ $member->pivot->squad_number }}</span>
-                            @else
-                                <span class="ck-text-muted">—</span>
-                            @endif
-                        </td>
-                        @endif
-                        <td>
-                            @if($member->eligible_to_play)
-                                <span class="ck-badge ck-badge--green">{{ __('teams.eligible') }}</span>
-                            @else
-                                <span class="ck-badge ck-badge--gray">{{ __('teams.not_eligible') }}</span>
-                            @endif
-                        </td>
-                        @if($team->is_active)
-                        <td class="ck-table__actions">
-                            <div class="ck-table__action-cell">
-                                <form method="POST"
-                                      action="{{ route('teams.removeMember', [$team, $member]) }}"
-                                      class="ck-inline-form">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="ck-btn ck-btn--danger ck-btn--sm"
-                                            data-ck-confirm="{{ __('teams.confirm_remove_member', ['name' => $member->last_name]) }}">
-                                        {{ __('Remove') }}
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                        @endif
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="{{ ($team->is_competition ? 1 : 0) + ($team->is_active ? 1 : 0) + 2 }}"
-                            class="ck-empty-state">
-                            {{ __('teams.roster_empty') }}
-                        </td>
-                    </tr>
-                    @endforelse
+                    @include('teams::_member-rows', ['team' => $team, 'members' => $team->members])
                 </tbody>
             </table>
         </div>
@@ -183,43 +166,25 @@ $teamColors = [
 </x-ck-card>
 @endforelse
 
-{{-- ══ Roster Dual Listbox Modal ═══════════════════════════════════════════ --}}
+{{-- ══ Roster Modal (SortableJS drag & drop, same pattern as taskAssignModal) ══ --}}
+{{-- Lists are populated by openRosterModal() in teams-modal.js.               --}}
+{{-- Add/Remove fires real-time AJAX. Done button closes + refreshes tbody.    --}}
 <x-ck-modal id="teamRosterModal" :title="__('teams.modal_roster')" size="lg">
-    <form id="rosterForm" method="POST">
-        @csrf
-        @method('PUT')
-
-        <p class="ck-text-muted ck-font-sm ck-mb-4">{{ __('events.assign.ctrl_hint') }}</p>
-
-        <div class="ck-dual-listbox">
-            <div class="ck-dual-listbox__col">
-                <span class="ck-dual-listbox__label">{{ __('teams.available') }}</span>
-                <select id="rosterAvail" multiple class="ck-dual-listbox__list">
-                    {{-- populated by openRosterModal() in teams-modal.js --}}
-                </select>
-            </div>
-            <div class="ck-dual-listbox__controls">
-                <x-ck-button type="button" variant="secondary" onclick="ckRosterMove('right')">→</x-ck-button>
-                <x-ck-button type="button" variant="secondary" onclick="ckRosterMove('left')">←</x-ck-button>
-            </div>
-            <div class="ck-dual-listbox__col">
-                <span class="ck-dual-listbox__label">{{ __('teams.in_roster') }}</span>
-                {{--
-                    name="member_ids[]" – all options are selected before submit
-                    by the rosterForm submit handler in teams-modal.js.
-                --}}
-                <select id="rosterCurrent" name="member_ids[]" multiple class="ck-dual-listbox__list">
-                    {{-- populated by openRosterModal() in teams-modal.js --}}
-                </select>
-            </div>
+    <div class="ck-dual-listbox">
+        <div class="ck-dual-listbox__col">
+            <span class="ck-dual-listbox__label">{{ __('teams.available') }}</span>
+            <ul id="teamRosterAvailList" class="ck-assign-list"></ul>
         </div>
-
-        <div class="ck-form-actions">
-            <x-ck-button type="submit" variant="primary">{{ __('teams.save_roster') }}</x-ck-button>
-            <x-ck-button type="button" variant="secondary"
-                onclick="ckModalClose(null, 'teamRosterModal')">{{ __('Cancel') }}</x-ck-button>
+        <div class="ck-dual-listbox__col">
+            <span class="ck-dual-listbox__label">{{ __('teams.in_roster') }}</span>
+            <ul id="teamRosterAssignList" class="ck-assign-list ck-assign-list--assigned"></ul>
         </div>
-    </form>
+    </div>
+    <div class="ck-form-actions">
+        <button type="button" class="ck-btn ck-btn--primary" id="teamRosterDoneBtn">{{ __('Done') }}</button>
+        <button type="button" class="ck-btn ck-btn--secondary"
+                onclick="ckModalClose(null, 'teamRosterModal')">{{ __('Cancel') }}</button>
+    </div>
 </x-ck-modal>
 
 {{-- ══ Team Edit Modal ═════════════════════════════════════════════════════ --}}
@@ -316,7 +281,8 @@ $teamColors = [
         routes: {
             store:      "{{ route('teams.store') }}",
             update:     "{{ url('teams') }}",
-            syncRoster: "{{ url('teams') }}"
+            addMemberBase:    "{{ url('teams') }}",
+            sortFragmentBase: "{{ url('teams') }}"
         }
     };
 </script>

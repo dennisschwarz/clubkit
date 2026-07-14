@@ -46,14 +46,14 @@ class TeamController extends Controller
         $teams = QueryBuilder::for(Team::class)
             ->withCount('members')
             ->with(['members' => function ($q) {
-                $q->select('members.id', 'first_name', 'last_name', 'eligible_to_play_date')
+                $q->select('members.id', 'first_name', 'last_name', 'date_of_birth', 'eligible_to_play_date')
                   ->orderBy('members.last_name');
             }])
             ->allowedSorts('name', 'season', 'league', 'age_class', 'is_active', 'is_competition')
             ->defaultSort('name')
             ->get();
 
-        $allMembers = Member::select('id', 'first_name', 'last_name', 'eligible_to_play_date')
+        $allMembers = Member::select('id', 'first_name', 'last_name', 'date_of_birth', 'eligible_to_play_date')
             ->orderBy('last_name')
             ->get();
 
@@ -122,6 +122,49 @@ class TeamController extends Controller
             'rosterByTeamJs', 'availableByTeamJs',
             'teamCfDefs', 'teamCfValues',
         ));
+    }
+
+    /**
+     * Return sorted member rows as an HTML fragment for AJAX column sort.
+     *
+     * GET /teams/{team}/members/sort-fragment?sort=last_name|-last_name|squad_number|...
+     * Response: text/html — just the <tr> rows, no <tbody> wrapper.
+     * Consumed by window.ckTeamSort() in teams-modal.js.
+     *
+     * Allowed sort columns: last_name, squad_number, eligible_to_play_date
+     * Prefix with '-' for descending (e.g. ?sort=-last_name).
+     */
+    public function membersFragment(Team $team, Request $request): \Illuminate\Http\Response
+    {
+        $sort    = $request->get('sort', 'last_name');
+        $desc    = str_starts_with($sort, '-');
+        $col     = ltrim($sort, '-');
+        $allowed = ['last_name', 'squad_number', 'date_of_birth', 'eligible_to_play_date'];
+
+        if (! in_array($col, $allowed)) {
+            $col  = 'last_name';
+            $desc = false;
+        }
+
+        $dir   = $desc ? 'desc' : 'asc';
+        $query = $team->members()->whereNull('members.deleted_at');
+
+        if ($col === 'squad_number') {
+            // Push NULLs last regardless of direction.
+            $query->orderByRaw('ISNULL(team_member.squad_number) ASC')
+                  ->orderBy('team_member.squad_number', $dir)
+                  ->orderBy('members.last_name');
+        } else {
+            $query->orderBy('members.' . $col, $dir);
+        }
+
+        $members = $query->get();
+
+        return response(
+            view('teams::_member-rows', compact('team', 'members'))->render(),
+            200,
+            ['Content-Type' => 'text/html; charset=UTF-8']
+        );
     }
 
     /**
@@ -263,21 +306,30 @@ class TeamController extends Controller
      * @param  Team                   $team
      * @return RedirectResponse
      */
-    public function addMember(StoreTeamMemberRequest $request, Team $team): RedirectResponse
+    public function addMember(StoreTeamMemberRequest $request, Team $team): JsonResponse|RedirectResponse
     {
         if (! $team->is_active) {
-            return back()->with('error', 'Inaktive Teams können keine Mitglieder aufnehmen.');
+            $msg = 'Inaktive Teams können keine Mitglieder aufnehmen.';
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => $msg], 422)
+                : back()->with('error', $msg);
         }
 
         $memberId = $request->validated()['member_id'];
         $member   = Member::findOrFail($memberId);
 
         if ($team->eligible_only && ! $member->eligible_to_play) {
-            return back()->with('error', 'Dieses Mitglied ist nicht spielberechtigt.');
+            $msg = 'Dieses Mitglied ist nicht spielberechtigt.';
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => $msg, 'error' => 'not_eligible'], 422)
+                : back()->with('error', $msg);
         }
 
         if ($team->members()->where('member_id', $memberId)->exists()) {
-            return back()->with('error', 'Mitglied ist bereits im Team.');
+            $msg = 'Mitglied ist bereits im Team.';
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => $msg, 'error' => 'already_assigned'], 422)
+                : back()->with('error', $msg);
         }
 
         $team->members()->attach($memberId, [
@@ -285,34 +337,33 @@ class TeamController extends Controller
             'joined_at'    => now(),
         ]);
 
-        // Manual activity log: team_member pivot does not use LogsActivity trait.
         activity()->useLog('teams')
             ->on($team)
             ->withProperties(['member_id' => $memberId, 'member_name' => $member->full_name])
             ->log('member_added');
 
-        return back()->with('success', 'Mitglied hinzugefügt.');
+        return $request->wantsJson()
+            ? response()->json(['success' => true, 'member_id' => $memberId])
+            : back()->with('success', 'Mitglied hinzugefügt.');
     }
 
     /**
      * Remove a member from a team roster.
-     *
-     * @param  Team $team
-     * @param  int  $memberId
-     * @return RedirectResponse
+     * Supports both form redirect and JSON (AJAX roster modal).
      */
-    public function removeMember(Team $team, int $memberId): RedirectResponse
+    public function removeMember(Team $team, int $memberId): JsonResponse|RedirectResponse
     {
         $member = Member::findOrFail($memberId);
 
         $team->members()->detach($memberId);
 
-        // Manual activity log: team_member pivot does not use LogsActivity trait.
         activity()->useLog('teams')
             ->on($team)
             ->withProperties(['member_id' => $memberId, 'member_name' => $member->full_name])
             ->log('member_removed');
 
-        return back()->with('success', 'Mitglied entfernt.');
+        return request()->wantsJson()
+            ? response()->json(['success' => true, 'member_id' => $memberId])
+            : back()->with('success', 'Mitglied entfernt.');
     }
 }
