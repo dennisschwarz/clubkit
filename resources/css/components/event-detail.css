@@ -758,8 +758,16 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
 ══════════════════════════════════════════════════════════════════════ */
 
 /* Phase containers: only the active one is shown */
-.ck-import-phase              { display: none; }
-.ck-import-phase--active      { display: block; }
+.ck-import-phase         { display: none; }
+/* Active phase: flex column so it can fill the modal body height and hand
+   remaining space down to the scrollable groups container. */
+.ck-import-phase--active {
+    display:        flex;
+    flex-direction: column;
+    flex:           1;
+    min-height:     0;
+    overflow:       hidden;
+}
 
 /* ── Upload phase ─────────────────────────────────────── */
 
@@ -835,6 +843,14 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
 }
 .ck-import-template-link:hover { text-decoration: none; }
 
+/* ── Import modal: disable body scroll, delegate to groups container ─ */
+/* Targets the import modal specifically so other modals are unaffected. */
+#ckTaskImportModal .ck-modal__body {
+    overflow:        hidden;
+    display:         flex;
+    flex-direction:  column;
+}
+
 /* ── Preview phase ────────────────────────────────────── */
 
 /* Summary bar */
@@ -849,18 +865,18 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
 }
 
 /* Scrollable groups container.
-   JS accesses this element via getElementById('ck-import-groups') so the ID
-   selector is required. The class selector stays as a fallback in case the
-   Blade template also sets the class on the element. */
+   JS accesses this via getElementById('ck-import-groups') — ID selector required.
+   flex: 1 + min-height: 0 fills whatever height remains after the summary bar
+   and submit button, then scrolls internally. Each group card expands fully. */
 #ck-import-groups,
 .ck-import-groups {
     display:        flex;
     flex-direction: column;
     gap:            var(--ck-space-4);
-    max-height:     calc(100vh - 340px); /* viewport minus modal header + footer + summary bar */
-    min-height:     120px;               /* always show at least one category */
+    flex:           1;
+    min-height:     0;
     overflow-y:     auto;
-    padding-right:  var(--ck-space-1);   /* breathing room for scrollbar */
+    padding-right:  var(--ck-space-1); /* breathing room for scrollbar */
 }
 
 /* Individual group card (rendered by import.js) */

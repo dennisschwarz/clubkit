@@ -36,7 +36,7 @@
   background: var(--ck-white);
   border-radius: var(--ck-radius-xl);
   width: 90%;
-  max-height: calc(100vh - var(--ck-header-height) - 48px);
+  max-height: calc(85vh - var(--ck-header-height));
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -174,6 +174,38 @@
   color: var(--ck-text);
   margin-bottom: var(--ck-space-3);
 }
+
+/* ── Import modal: body does not scroll — only #ck-import-groups scrolls.
+   max-height on .ck-modal-content already caps the modal height correctly.
+   Modal ID: ckImportModal (see import.js ckModalClose call).               */
+#ckImportModal .ck-modal__body {
+    overflow:        hidden;
+    display:         flex;
+    flex-direction:  column;
+}
+.ck-import-phase--active {
+    display:        flex;
+    flex-direction: column;
+    flex:           1;
+    min-height:     0;
+    overflow:       hidden;
+}
+#ck-import-groups,
+.ck-import-groups {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--ck-space-4);
+    flex:           1;
+    min-height:     0;
+    overflow-y:     auto;
+    padding-right:  var(--ck-space-1);
+}
+
+/* ID prefix → specificity 1,1,0 beats event-detail.css 0,1,0 rules. */
+#ckImportModal .ck-import-summary { flex-shrink: 0; }
+#ckImportModal .ck-import-footer  { flex-shrink: 0; margin-top: 0; }
+/* Groups must not shrink — each expands to natural height, the container scrolls. */
+#ckImportModal .ck-import-group   { flex-shrink: 0; }
 
 /* ── Tab-Sections ────────────────────────────────────────────────── */
 .ck-modal__section         { display: none; }

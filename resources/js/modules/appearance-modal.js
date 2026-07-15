@@ -80,16 +80,15 @@
      */
     function saveSection(btn) {
         const card     = btn.closest('.ck-card');
-        const statusEl = card ? card.querySelector('[data-save-status]') : null;
-
-        if (!card) return;
+        const scope    = card || document;
+        const statusEl = scope.querySelector('[data-save-status]');
 
         // Collect form data
         const formData = new FormData();
         formData.append('_method', 'PATCH');
         formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
 
-        card.querySelectorAll('[data-setting]').forEach(function (input) {
+        scope.querySelectorAll('[data-setting]').forEach(function (input) {
             if (input.type === 'checkbox') {
                 // Checkboxes: '1' when checked, '0' when not
                 formData.append(input.name, input.checked ? '1' : '0');
@@ -102,9 +101,8 @@
             }
         });
 
-        // Start spinner
-        btn.classList.add('ck-btn--loading');
-        btn.disabled = true;
+        // Show full-page loading overlay — matches every other AJAX action in ClubKit.
+        if (window.ckShowLoading) ckShowLoading();
 
         // AJAX request
         fetch(window.CK_Appearance.routes.update, {
@@ -122,28 +120,15 @@
         })
         .then(function (data) {
             if (data.success) {
-                // Apply CSS variables immediately in the browser (no reload needed)
-                if (data.cssVars && Object.keys(data.cssVars).length > 0) {
-                    applyCssVars(data.cssVars);
-                }
-
-                if (data.needsReload) {
-                    // Reload when emojis, logo or club name changed
-                    showStatus(statusEl, ckUi('appearance_reloading', '↺ Wird neu geladen…'), 'reload');
-                    setTimeout(function () { window.location.reload(); }, 1000);
-                } else {
-                    showStatus(statusEl, ckUi('appearance_saved', '✓ Gespeichert'), 'success');
-                }
+                window.location.reload();
             } else {
-                showStatus(statusEl, '✗ ' + (data.message || ckUi('appearance_error', 'Fehler')), 'error');
+                if (window.ckHideLoading) ckHideLoading();
+                showStatus(statusEl, '\u2717 ' + (data.message || ckUi('appearance_error', 'Fehler')), 'error');
             }
         })
         .catch(function (err) {
-            showStatus(statusEl, '✗ ' + (err.message || ckUi('appearance_network', 'Netzwerkfehler')), 'error');
-        })
-        .finally(function () {
-            btn.classList.remove('ck-btn--loading');
-            btn.disabled = false;
+            if (window.ckHideLoading) ckHideLoading();
+            showStatus(statusEl, '\u2717 ' + (err.message || ckUi('appearance_network', 'Netzwerkfehler')), 'error');
         });
     }
 
