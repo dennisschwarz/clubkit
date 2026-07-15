@@ -1,17 +1,20 @@
 {{--
-    Hook-View: admin.module-settings.sections → Core-Einstellungen
-    Wird vom CoreServiceProvider als erste Sektion registriert.
-    $ckSettings ist global via View::share verfügbar.
+    Hook view: admin.module-settings.sections — Core settings (priority 5, active by default).
+    $ckSettings is globally shared by CoreServiceProvider via View::share.
 --}}
-<x-ck-card class="ck-mb-5">
+<div id="settings-core" class="ck-local-section ck-local-section--active">
 
-    <x-slot:header>⚙️ Core</x-slot:header>
+    <div class="ck-section-header ck-section-header--colored ck-section-header--team-blue">
+        <div class="ck-section-header__icon">⚙️</div>
+        <div class="ck-section-header__text">
+            <span class="ck-section-header__title">Core – Allgemeine Einstellungen</span>
+        </div>
+    </div>
 
     <form method="POST" action="{{ route('admin.module-settings.core.update') }}">
         @csrf
         @method('PATCH')
 
-        {{-- Registrierung erlauben --}}
         <div class="ck-settings-row">
             <div>
                 <div class="ck-settings-row__label">Registrierung erlauben</div>
@@ -33,9 +36,9 @@
         </div>
 
         <div class="ck-mt-4">
-            <x-ck-button type="submit" variant="primary" size="sm">Speichern</x-ck-button>
+            <x-ck-button type="submit" variant="primary" size="sm">{{ __('Save') }}</x-ck-button>
         </div>
 
     </form>
 
-</x-ck-card>
+</div>

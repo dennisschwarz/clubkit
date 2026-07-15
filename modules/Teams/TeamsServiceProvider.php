@@ -103,6 +103,9 @@ class TeamsServiceProvider extends ServiceProvider
         $hooks->register('management.function.list', 'teams::management-function-list', 10);
         $hooks->register('management.task.list',     'teams::management-task-list', 10);
 
+        // Team dropdown rendered inside the task create/edit form.
+        $hooks->register('management.task.modal.teams', 'teams::management-task-modal-teams', 10);
+
         // ── Extend Events ─────────────────────────────────────────────────────
 
         $hooks->register('event.table.teams.header', 'teams::event-teams-index-header', 10);
@@ -183,6 +186,15 @@ class TeamsServiceProvider extends ServiceProvider
 
 
 
+        // ── Management: Task modal — team dropdown ────────────────────────────
+        View::composer('teams::management-task-modal-teams', function (ViewContract $view): void {
+            if (! Schema::hasTable('teams')) {
+                $view->with('ckAllTeams', collect());
+                return;
+            }
+            $view->with('ckAllTeams', Team::orderBy('name')->get());
+        });
+
         // ── Management: Function list grouped by team ──────────────────────────
         View::composer('teams::management-function-list', function (ViewContract $view): void {
             if (! Schema::hasTable('teams')) {
@@ -261,6 +273,26 @@ class TeamsServiceProvider extends ServiceProvider
             }
 
             $view->with(compact('ckDisplay', 'ckGeneral', 'ckByTeam'));
+
+            // ── Category grouping (for ?task_group=category toggle) ───────────
+            // Seed $ckByCategory with ALL categories so empty sections stay visible.
+            // Uses $categories already in view scope (forwarded by HookRegistry).
+            $categories        = $view->getData()['categories'] ?? collect();
+            $ckCategoryGeneral = $tasks->filter(fn ($t) => is_null($t->category_id));
+            $ckByCategory      = [];
+            foreach ($categories as $cat) {
+                $ckByCategory[$cat->id] = [
+                    'name'  => $cat->name,
+                    'color' => $cat->color ?? 'blue',
+                    'tasks' => [],
+                ];
+            }
+            foreach ($tasks->filter(fn ($t) => ! is_null($t->category_id)) as $ckTask) {
+                if (isset($ckByCategory[$ckTask->category_id])) {
+                    $ckByCategory[$ckTask->category_id]['tasks'][] = $ckTask;
+                }
+            }
+            $view->with(compact('ckCategoryGeneral', 'ckByCategory'));
         });
 
 

@@ -3,8 +3,8 @@
 
 @section('content')
 
-{{-- $chevronSvg kommt vom Controller (ManagementController::chevronSvg()) --}}
-{{-- und wird via @ckHook automatisch in alle Hook-Views weitergegeben.     --}}
+{{-- $chevronSvg is provided by ManagementController::chevronSvg() and is        --}}
+{{-- automatically forwarded to all hook views via @ckHook (get_defined_vars()). --}}
 
 <div class="ck-page-header">
     <div>
@@ -145,11 +145,19 @@
                 <form id="mgmtTaskForm" method="POST">
                     @csrf
                     <input type="hidden" name="_method" id="mgmtTaskFormMethod" value="POST">
-                    <input type="hidden" name="team_id" id="mgmtTaskTeamId" value="">
                     <x-ck-field :label="__('management.field.task_name')" name="name" id="mgmtTaskFieldName" :required="true"
                                 placeholder="z.B. Platzpflege, Materialwart, Schriftführer" />
                     <x-ck-field type="textarea" :label="__('management.field.description')" name="description" id="mgmtTaskFieldDesc"
                                 placeholder="Optionale Beschreibung der Aufgabe" />
+                    @if($categories->isNotEmpty())
+                    @php
+                        $ckCatOptions = ['' => '– ' . __('management.field.no_category') . ' –'];
+                        foreach ($categories as $ckCat) { $ckCatOptions[$ckCat->id] = $ckCat->name; }
+                    @endphp
+                    <x-ck-field type="select" name="category_id" id="mgmtTaskFieldCategory"
+                                :label="__('management.field.category')" :options="$ckCatOptions" />
+                    @endif
+                    @ckHook('management.task.modal.teams')
 
                     <div class="ck-form-actions">
                         <button type="submit" class="ck-btn ck-btn--primary">{{ __('Save') }}</button>

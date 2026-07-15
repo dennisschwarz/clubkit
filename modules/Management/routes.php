@@ -58,6 +58,11 @@ Route::middleware(['auth'])->prefix('management')->name('management.')->group(fu
         ->name('tasks.move')
         ->middleware('permission:management.tasks.manage');
 
+    // Drag & drop: move task to a different category section
+    Route::patch('/tasks/{task}/move-category', [ManagementController::class, 'moveCategoryTask'])
+        ->name('tasks.move-category')
+        ->middleware('permission:management.tasks.manage');
+
     // ── HTML fragments for AJAX tab refresh (no page reload) ──────────────────
 
     Route::get('/fragments/functions', [ManagementController::class, 'functionsFragment'])

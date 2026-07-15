@@ -61,6 +61,7 @@ class CustomFieldsServiceProvider extends ServiceProvider
         $hooks = $this->app->make('ck.hooks');
 
         // Module settings admin section
+        $hooks->register('admin.module-settings.tabs',     'custom-fields::module-settings-tab',     20);
         $hooks->register('admin.module-settings.sections', 'custom-fields::module-settings-section', 20);
 
         // Member modal

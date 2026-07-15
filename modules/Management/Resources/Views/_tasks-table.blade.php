@@ -9,6 +9,7 @@
 @php
     $priorityColors = ['high' => 'red', 'normal' => 'blue', 'low' => 'gray'];
     $priorityOrder  = ['high' => 1, 'normal' => 2, 'low' => 3];
+    $isCategoryMode = isset($categoryId);
 @endphp
 <div class="ck-table-wrap">
     <table class="ck-table ck-table--fixed ck-mgmt-task-table">
@@ -34,11 +35,18 @@
                     </button>
                 </th>
                 <th>{{ __('management.col.members') }}</th>
-                <th>{{ __('management.col.creator') }}</th>
+                @if($isCategoryMode)
+                <th>{{ __('management.col.teams') }}</th>
+                @else
+                <th>{{ __('management.col.category') }}</th>
+                @endif
                 <th class="ck-table__actions">{{ __('core.col.actions') }}</th>
             </tr>
         </thead>
-        <tbody class="ck-mgmt-task-sortable" data-team-id="{{ $teamId ?? 'allgemein' }}">
+        <tbody class="ck-mgmt-task-sortable"
+            @if(isset($categoryId)) data-category-id="{{ $categoryId ?? 'allgemein' }}"
+            @else data-team-id="{{ $teamId ?? 'allgemein' }}"
+            @endif>
             @forelse($groupTasks as $task)
             @php
                 $priColor = $priorityColors[$task->priority] ?? 'gray';
@@ -73,7 +81,25 @@
                     @endif
                 </td>
 
-                <td class="ck-text-muted">{{ $task->creator?->name ?? '–' }}</td>
+                @if($isCategoryMode)
+                <td>
+                    @if($task->relationLoaded('teams') && $task->teams->isNotEmpty())
+                        @foreach($task->teams as $ckTeam)
+                        <span class="ck-badge ck-badge--{{ $ckTeam->color ?? 'blue' }}">{{ $ckTeam->name }}</span>
+                        @endforeach
+                    @else
+                        <span class="ck-muted">–</span>
+                    @endif
+                </td>
+                @else
+                <td>
+                    @if($task->relationLoaded('category') && $task->category)
+                        <span class="ck-badge ck-badge--{{ $task->category->color ?? 'gray' }}">{{ $task->category->name }}</span>
+                    @else
+                        <span class="ck-muted">–</span>
+                    @endif
+                </td>
+                @endif
 
                 <td class="ck-table__actions">
                     <div class="ck-table__action-cell">

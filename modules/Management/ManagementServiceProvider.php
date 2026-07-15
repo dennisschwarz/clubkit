@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Modules\Management\View\Composers\AssignmentsIndexRowComposer;
-use Modules\Management\View\Composers\EventEinsatzplanPanelComposer;
+use Modules\Management\View\Composers\EventSlotsPanelComposer;
 use Modules\Management\View\Composers\EventFunctionsPanelComposer;
 use Modules\Management\View\Composers\EventHeroFunctionsComposer;
 use Modules\Management\View\Composers\EventOverviewPanelComposer;
@@ -78,6 +78,7 @@ class ManagementServiceProvider extends ServiceProvider
         $hooks = $this->app->make('ck.hooks');
 
         // Own settings section (Admin)
+        $hooks->register('admin.module-settings.tabs',     'management::module-settings-tab',     30);
         $hooks->register('admin.module-settings.sections', 'management::module-settings-section', 30);
 
         // ── Extend Events ──────────────────────────────────────────────────
@@ -107,6 +108,9 @@ class ManagementServiceProvider extends ServiceProvider
     /**
      * Registers dedicated View Composer classes for each Management hook view.
      *
+     * The module-settings-section view receives a flat list of all global task
+     * categories via an inline closure composer (no dedicated class needed).
+     *
      * @return void
      */
     private function registerViewComposers(): void
@@ -116,7 +120,14 @@ class ManagementServiceProvider extends ServiceProvider
         View::composer('management::event-hero-functions',        EventHeroFunctionsComposer::class);
         View::composer('management::event-overview-panel',        EventOverviewPanelComposer::class);
         View::composer('management::event-tasks-panel',           EventTasksPanelComposer::class);
-        View::composer('management::event-slots-panel',           EventEinsatzplanPanelComposer::class);
+        View::composer('management::event-slots-panel',           EventSlotsPanelComposer::class);
         View::composer('management::event-functions-panel',       EventFunctionsPanelComposer::class);
+
+        // Supplies global task categories to the module settings admin section.
+        View::composer('management::module-settings-section', function (\Illuminate\View\View $view): void {
+            $view->with([
+                'mgmtTaskCategories' => \Modules\Management\Models\ManagementTaskCategory::orderBy('name')->get(),
+            ]);
+        });
     }
 }

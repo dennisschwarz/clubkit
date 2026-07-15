@@ -51,30 +51,36 @@ class ModuleLoader
             return;
         }
 
-        if (! $this->tableExists()) {
-            return;
-        }
-
-        try {
-            $slugs = DB::table('installed_modules')
-                ->where('is_active', true)
-                ->orderBy('installed_at')
-                ->pluck('slug');
-        } catch (\Throwable) {
-            // Database not ready (e.g. during installation) – skip gracefully
-            return;
-        }
-
-        foreach ($slugs as $slug) {
-            try {
-                $this->bootModule($slug);
-            } catch (\Throwable $e) {
-                // Log individually so one broken module does not prevent others from loading.
-                logger()->error("[ClubKit] Failed to boot module '{$slug}': " . $e->getMessage(), [
-                    'exception' => $e,
-                ]);
+        // Defer module loading until after the application is fully booted.
+        // At that point isBooted() returns true, so app()->register() calls
+        // bootProvider() immediately — no manual boot() call needed, no race
+        // conditions with array_walk, no double-boot risk.
+        app()->booted(function (): void {
+            if (! $this->tableExists()) {
+                return;
             }
-        }
+
+            try {
+                $slugs = DB::table('installed_modules')
+                    ->where('is_active', true)
+                    ->orderBy('installed_at')
+                    ->pluck('slug');
+            } catch (\Throwable) {
+                // Database not ready (e.g. during installation) – skip gracefully.
+                return;
+            }
+
+            foreach ($slugs as $slug) {
+                try {
+                    $this->bootModule($slug);
+                } catch (\Throwable $e) {
+                    // Log individually so one broken module does not block others.
+                    logger()->error("[ClubKit] Failed to boot module '{$slug}': " . $e->getMessage(), [
+                        'exception' => $e,
+                    ]);
+                }
+            }
+        });
     }
 
     /**
@@ -387,10 +393,18 @@ class ModuleLoader
         $folder        = implode('', array_map('ucfirst', explode('-', $slug)));
         $providerClass = 'Modules\\' . $folder . '\\' . $folder . 'ServiceProvider';
 
-        if (class_exists($providerClass)) {
-            app()->register($providerClass);
-            $this->loaded[] = $slug;
+        if (! class_exists($providerClass)) {
+            return;
         }
+
+        // Directly instantiate, register and boot the provider.
+        // Bypassing app()->register() avoids all isBooted() timing issues:
+        // the provider is always fully booted regardless of when bootModule() runs.
+        $provider = new $providerClass(app());
+        $provider->register();
+        $provider->boot();
+
+        $this->loaded[] = $slug;
     }
 
     /**

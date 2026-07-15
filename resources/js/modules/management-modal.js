@@ -22,7 +22,11 @@
     }
 
     function _refreshTasksTab() {
-        _fetchFragment(routes().tasksFragment, 'mgmtTaskList');
+        // Preserve the task_group query param so the category/team toggle survives AJAX refresh.
+        var params = new URLSearchParams(window.location.search);
+        var group  = params.get('task_group');
+        var url    = routes().tasksFragment + (group ? '?task_group=' + encodeURIComponent(group) : '');
+        _fetchFragment(url, 'mgmtTaskList');
     }
 
     function _fetchFragment(url, containerId) {
@@ -68,6 +72,25 @@
             fromTbody.appendChild(emptyRow);
         }
 
+        // Category mode: tbody carries data-category-id instead of data-team-id.
+        if (toTbody.dataset.categoryId !== undefined) {
+            var rawCatId   = toTbody.dataset.categoryId;
+            var categoryId = (rawCatId && rawCatId !== 'allgemein') ? parseInt(rawCatId, 10) : null;
+            _fetch(routes().taskMove + '/' + itemId + '/move-category', 'PATCH', { category_id: categoryId })
+                .then(function (resp) {
+                    if (! resp.success && typeof window.ckNotify === 'function') {
+                        window.ckNotify('error', 'Fehler beim Verschieben.');
+                    }
+                })
+                .catch(function () {
+                    if (typeof window.ckNotify === 'function') {
+                        window.ckNotify('error', 'Netzwerkfehler beim Verschieben.');
+                    }
+                });
+            return;
+        }
+
+        // Team mode (default).
         var rawTeamId = toTbody.dataset.teamId;
         var teamId    = (rawTeamId && rawTeamId !== 'allgemein')
             ? parseInt(rawTeamId, 10)
@@ -451,11 +474,12 @@
 
     // ── Modal open (create / edit) ────────────────────────────────────────────
 
-    // teamId is passed by the "+" buttons in section headers so that a newly
-    // created item is immediately assigned to the correct team section.
-    window.mgmtModalOpen = function (type, mode, id, teamId) {
-        id     = id     || null;
-        teamId = teamId || null;
+    // teamId / categoryId pre-select the respective dropdown when the "+" button
+    // in a section header is clicked so the new item lands in the right section.
+    window.mgmtModalOpen = function (type, mode, id, teamId, categoryId) {
+        id         = id         || null;
+        teamId     = teamId     || null;
+        categoryId = categoryId || null;
         var isFunction = type === 'function';
         var modalId    = isFunction ? 'mgmtFunctionModal' : 'mgmtTaskModal';
         var formId     = isFunction ? 'mgmtFunctionForm'  : 'mgmtTaskForm';
@@ -476,9 +500,10 @@
             if (titleEl) { titleEl.textContent = isFunction ? 'Funktion anlegen' : 'Aufgabe anlegen'; }
             methodEl.value = 'POST';
             form.action    = store;
-            // Pre-set the target team so the controller assigns to the correct section.
+            // Pre-select team or category dropdown based on which section + was clicked.
             var teamFld = el(teamFldId);
             if (teamFld) { teamFld.value = teamId || ''; }
+            if (! isFunction) { _setField('mgmtTaskFieldCategory', categoryId || ''); }
             ckModalOpen(modalId);
 
         } else if (mode === 'edit' && id) {

@@ -23,7 +23,7 @@ use Spatie\Activitylog\Models\Activity;
  *  - Registers the @ckHook Blade directive for the extension-point system
  *  - Shares global application settings with all views
  *  - Attaches the request IP address to every activity log entry
- *  - Registriert die eigene Einstellungssektion in den Modul-Einstellungen
+ *  - Registers the Core settings section and tab on the Module Settings page
  */
 class CoreServiceProvider extends ServiceProvider
 {
@@ -148,20 +148,16 @@ class CoreServiceProvider extends ServiceProvider
     // ── Module Settings Hook ──────────────────────────────────────────────────
 
     /**
-     * Registriert die Core-Einstellungssektion auf der Modul-Einstellungen-Seite.
-     *
-     * Priorität 5: Core erscheint als erste Sektion, da andere Module
-     * typischerweise Priorität 10 (Standard) oder höher verwenden.
+     * Registers the Core settings tab button and section on the Module Settings page.
+     * Priority 5 ensures Core appears first; all other modules use priority 10+.
      *
      * @return void
      */
     private function registerModuleSettingsHook(): void
     {
-        app('ck.hooks')->register(
-            'admin.module-settings.sections',
-            'core::admin.module-settings.core-settings',
-            5
-        );
+        $hooks = app('ck.hooks');
+        $hooks->register('admin.module-settings.tabs',     'core::admin.module-settings.settings-tab',  5);
+        $hooks->register('admin.module-settings.sections', 'core::admin.module-settings.core-settings', 5);
     }
 
     // ── Activity Log ──────────────────────────────────────────────────────────

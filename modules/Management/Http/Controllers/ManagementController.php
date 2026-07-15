@@ -313,7 +313,14 @@ class ManagementController extends Controller
             'priority'    => $validated['priority']    ?? 'normal',
         ]);
 
-        $this->syncTaskTeams($task->id, $validated['team_ids'] ?? [], $userId);
+        // Only update team assignment if team_id was explicitly filled.
+        // Empty/missing = leave current assignment unchanged (drag & drop handles it).
+        if ($request->filled('team_id')) {
+            $teamId = $request->integer('team_id');
+            $this->syncTaskTeams($task->id, $teamId ? [$teamId] : [], $userId);
+        } elseif ($request->has('team_ids')) {
+            $this->syncTaskTeams($task->id, $validated['team_ids'] ?? [], $userId);
+        }
 
         // Only sync members when explicitly sent — the assign modal manages them separately.
         if ($request->has('member_ids')) {
@@ -347,8 +354,7 @@ class ManagementController extends Controller
 
     /**
      * Returns the rendered function list section for AJAX DOM-swap.
-     * Muss dieselben Daten mitgeben wie index(), damit View Composer und
-     * Hooks korrekt arbeiten (z. B. TeamsServiceProvider).
+     * Must pass the same data as index() so View Composers and hooks work correctly.
      */
     public function functionsFragment(): \Illuminate\Http\Response
     {
@@ -374,8 +380,8 @@ class ManagementController extends Controller
 
     /**
      * Returns the rendered task list section for AJAX DOM-swap.
-     * Muss dieselben Daten mitgeben wie index(), damit View Composer und
-     * Hooks korrekt arbeiten (z. B. TeamsServiceProvider lädt ->teams).
+     * Must pass the same data as index() so View Composers and hooks work correctly
+     * (e.g. TeamsServiceProvider eager-loads ->teams).
      */
     public function tasksFragment(): \Illuminate\Http\Response
     {
@@ -422,6 +428,18 @@ class ManagementController extends Controller
     {
         $teamId = $request->integer('team_id') ?: null;
         $task->teams()->sync($teamId ? [$teamId] : []);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Moves a ManagementTask into a category section (or "Allgemein").
+     * Updates the task's category_id FK directly.
+     */
+    public function moveCategoryTask(Request $request, ManagementTask $task): JsonResponse
+    {
+        $categoryId = $request->integer('category_id') ?: null;
+        $task->update(['category_id' => $categoryId]);
 
         return response()->json(['success' => true]);
     }

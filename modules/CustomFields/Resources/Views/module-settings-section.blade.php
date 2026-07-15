@@ -1,18 +1,21 @@
 {{--
-    Hook view: module settings — custom fields
+    Hook view: admin.module-settings.sections — Custom Fields (priority 20).
     Data provided via View Composer in CustomFieldsServiceProvider:
     $cfAllDefs, $cfGrouped, $objectTypes, $fieldTypes, $cfDefsJs
 --}}
+<div id="settings-customfields" class="ck-local-section">
 
-<x-ck-card class="ck-mb-5">
-
-    <x-slot:header>📋 Benutzerdefinierte Felder</x-slot:header>
-
-    <x-slot:headerAction>
-        <x-ck-button variant="primary" size="sm" onclick="cfDefModalOpen('create')">
-            + Feld hinzufügen
-        </x-ck-button>
-    </x-slot:headerAction>
+    <div class="ck-section-header ck-section-header--colored ck-section-header--team-purple">
+        <div class="ck-section-header__icon">📋</div>
+        <div class="ck-section-header__text">
+            <span class="ck-section-header__title">Benutzerdefinierte Felder</span>
+        </div>
+        <div class="ck-section-header__actions">
+            <button type="button" class="ck-btn ck-btn--success ck-btn--icon"
+                    title="{{ __('core.create') }}"
+                    onclick="cfDefModalOpen('create')">+</button>
+        </div>
+    </div>
 
     @if($cfAllDefs->isEmpty())
 
@@ -33,10 +36,10 @@
         @endphp
 
         <div class="ck-mb-4">
-            <div class="ck-section-header ck-section-header--collapsible"
+            <div class="ck-section-header ck-section-header--flush ck-section-header--collapsible ck-section-header--colored ck-section-header--team-slate"
                  onclick="ckSectionToggle('{{ $bodyId }}', '{{ $chevronId }}')">
 
-                <div class="ck-section-header__icon ck-section-header__icon--slate">📋</div>
+                <div class="ck-section-header__icon">📋</div>
 
                 <div class="ck-section-header__text">
                     <span class="ck-section-header__title">{{ $typeLabel }}</span>
@@ -52,7 +55,7 @@
                 </span>
             </div>
 
-            <div id="{{ $bodyId }}">
+            <div id="{{ $bodyId }}" class="ck-body--flush-top">
                 <div class="ck-table-wrap">
                     <table class="ck-table">
                         <thead>
@@ -118,7 +121,7 @@
 
     @endif
 
-</x-ck-card>
+</div>
 
 {{-- ══ Definitions modal ══════════════════════════════════════════════════ --}}
 <x-ck-modal id="cfDefModal" title="Feld anlegen" size="md">

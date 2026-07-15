@@ -48,6 +48,7 @@ class TreasuryServiceProvider extends ServiceProvider
     private function registerHooks(): void
     {
         $hooks = $this->app->make('ck.hooks');
+        $hooks->register('admin.module-settings.tabs',     'treasury::module-settings-tab',     40);
         $hooks->register('admin.module-settings.sections', 'treasury::module-settings-section', 40);
     }
 }

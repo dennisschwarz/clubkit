@@ -10,19 +10,16 @@
     </div>
 </div>
 
-{{--
-    Extension Point: Jedes Modul, das Einstellungen anbietet,
-    registriert hier über den Hook 'admin.module-settings.sections' seine Sektion.
-    Jede Sektion ist eine eigenständige <x-ck-card> mit eigenen Forms.
---}}
+{{-- Tab bar: each installed module with settings registers a button via admin.module-settings.tabs --}}
+<div class="ck-local-tabs ck-mb-5">
+    @ckHook('admin.module-settings.tabs')
+</div>
+
+{{-- Section content: each module renders a ck-local-section div via admin.module-settings.sections --}}
 @ckHook('admin.module-settings.sections')
 
-@if(!app('ck.hooks')->has('admin.module-settings.sections'))
-    <x-ck-card>
-        <div class="ck-empty-state">
-            Kein installiertes Modul hat Einstellungen hinterlegt.
-        </div>
-    </x-ck-card>
+@if(! app('ck.hooks')->has('admin.module-settings.sections'))
+<p class="ck-empty-state">Kein installiertes Modul hat Einstellungen hinterlegt.</p>
 @endif
 
 @endsection
