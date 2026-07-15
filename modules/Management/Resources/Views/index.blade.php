@@ -32,13 +32,13 @@
      class="ck-local-section {{ request('tab') !== 'aufgaben' ? 'ck-local-section--active' : '' }}">
 
     <div id="mgmtFunctionList">
-        @if($functions->isEmpty())
+        @if(app('ck.hooks')->has('management.function.list'))
+            @ckHook('management.function.list')
+        @elseif($functions->isEmpty())
         <p class="ck-empty-state">{{ __('management.functions_empty') }}
             <button type="button" class="ck-btn ck-btn--success ck-btn--sm"
                     onclick="mgmtModalOpen('function', 'create')">{{ __('core.create_now') }}</button>
         </p>
-        @elseif(app('ck.hooks')->has('management.function.list'))
-            @ckHook('management.function.list')
         @else
             @include('management::_functions-table', ['groupFunctions' => $functions, 'fnSortRaw' => $fnSortRaw])
         @endif
@@ -53,13 +53,13 @@
      class="ck-local-section {{ request('tab') === 'aufgaben' ? 'ck-local-section--active' : '' }}">
 
     <div id="mgmtTaskList">
-        @if($tasks->isEmpty())
+        @if(app('ck.hooks')->has('management.task.list'))
+            @ckHook('management.task.list')
+        @elseif($tasks->isEmpty())
         <p class="ck-empty-state">{{ __('management.tasks_empty') }}
             <button type="button" class="ck-btn ck-btn--success ck-btn--sm"
                     onclick="mgmtModalOpen('task', 'create')">{{ __('core.create_now') }}</button>
         </p>
-        @elseif(app('ck.hooks')->has('management.task.list'))
-            @ckHook('management.task.list')
         @else
             @include('management::_tasks-table', ['groupTasks' => $tasks, 'taskSortRaw' => $taskSortRaw])
         @endif

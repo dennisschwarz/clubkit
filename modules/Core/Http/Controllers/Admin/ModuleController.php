@@ -111,10 +111,25 @@ class ModuleController extends Controller
         }
 
         try {
+            // Step 1: Run the new module's own migrations.
             Artisan::call('migrate', [
                 '--path'  => 'modules/' . $this->slugToFolder($slug) . '/Database/Migrations',
                 '--force' => true,
             ]);
+
+            // Step 2: Re-run migrations for all already-installed modules.
+            // Rationale: a migration in another module may have returned early via a
+            // hasTable() guard because a dependency table did not exist yet
+            // (e.g. event_tasks requires the events table). Now that a new module has
+            // been installed we give every other module a second chance to create its
+            // cross-module tables. Safe to call repeatedly — every migration has its
+            // own hasTable() / hasColumn() guard that prevents duplicate execution.
+            foreach ($this->moduleLoader->getInstalled() as $installed) {
+                $path = 'modules/' . $this->slugToFolder($installed->slug) . '/Database/Migrations';
+                if (is_dir(base_path($path))) {
+                    Artisan::call('migrate', ['--path' => $path, '--force' => true]);
+                }
+            }
 
             DB::table('installed_modules')->insert([
                 'slug'         => $slug,

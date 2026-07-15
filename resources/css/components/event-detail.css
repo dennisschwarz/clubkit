@@ -74,7 +74,7 @@
 
 /* Description block */
 .ck-event-hero__body       { padding-top: var(--ck-space-4); border-top: 1px solid var(--ck-border-light); }
-.ck-event-hero__body-label { font-size: var(--ck-font-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--ck-text-muted); }
+.ck-event-hero__body-label { font-size: var(--ck-font-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--ck-text-muted); margin-bottom: var(--ck-space-1); }
 .ck-event-hero__body-text  { font-size: var(--ck-font-base); color: var(--ck-text); line-height: 1.5; white-space: pre-wrap; }
 .ck-event-hero__info       { flex: 1; min-width: 0; }
 
@@ -848,12 +848,17 @@ details[open] .ck-event-section__summary::before { transform: rotate(90deg); }
     color:            var(--ck-text-muted);
 }
 
-/* Scrollable groups container */
+/* Scrollable groups container.
+   JS accesses this element via getElementById('ck-import-groups') so the ID
+   selector is required. The class selector stays as a fallback in case the
+   Blade template also sets the class on the element. */
+#ck-import-groups,
 .ck-import-groups {
     display:        flex;
     flex-direction: column;
     gap:            var(--ck-space-4);
-    max-height:     48vh;
+    max-height:     calc(100vh - 340px); /* viewport minus modal header + footer + summary bar */
+    min-height:     120px;               /* always show at least one category */
     overflow-y:     auto;
     padding-right:  var(--ck-space-1);   /* breathing room for scrollbar */
 }
