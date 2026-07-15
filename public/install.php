@@ -103,6 +103,23 @@ if (isset($_GET['full_reset'])) {
 
 // ── Preflight ─────────────────────────────────────────────────────────────────
 
+function tryFixPermissions(string $path): void
+{
+    if (is_dir($path) && ! is_writable($path)) {
+        // Try 775 first (sufficient when PHP runs as file owner), fall back to 777.
+        @chmod($path, 0775) || @chmod($path, 0777);
+        // Recursively fix sub-directories that Laravel writes to.
+        foreach (new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        ) as $item) {
+            if ($item->isDir()) {
+                @chmod($item->getPathname(), 0775) || @chmod($item->getPathname(), 0777);
+            }
+        }
+    }
+}
+
 function runPreflightChecks(string $base): array
 {
     $checks = [];
@@ -111,18 +128,38 @@ function runPreflightChecks(string $base): array
         $ok = extension_loaded($ext);
         $checks[] = ['label' => "ext-$ext", 'ok' => $ok, 'value' => $ok ? 'OK' : 'fehlt', 'fatal' => true];
     }
+
+    // Attempt to fix permissions before reporting failure.
+    // On shared hosting, PHP-FPM runs as the file owner and can chmod its own files.
+    tryFixPermissions("$base/storage");
+    tryFixPermissions("$base/bootstrap/cache");
+
     foreach ([
         'storage/ schreibbar'         => "$base/storage",
         'bootstrap/cache/ schreibbar' => "$base/bootstrap/cache",
         'Projektordner schreibbar'    => $base,
     ] as $label => $path) {
-        $ok = is_writable($path);
-        $checks[] = ['label' => $label, 'ok' => $ok, 'value' => $ok ? 'OK' : 'Problem', 'fatal' => true];
+        $ok    = is_writable($path);
+        $value = $ok ? 'OK' : 'Keine Schreibrechte — bitte Ordner-Rechte auf 775 setzen';
+        $checks[] = ['label' => $label, 'ok' => $ok, 'value' => $value, 'fatal' => true];
     }
-    $ok = is_dir("$base/vendor");
-    $checks[] = ['label' => 'vendor/ vorhanden', 'ok' => $ok, 'value' => $ok ? 'OK' : 'composer install nötig', 'fatal' => true];
+
+    $vendorOk = is_dir("$base/vendor");
+    $checks[] = [
+        'label' => 'vendor/ vorhanden',
+        'ok'    => $vendorOk,
+        'value' => $vendorOk ? 'OK' : 'Fehlt — Release-ZIP hochladen oder SSH: composer install',
+        'fatal' => true,
+    ];
+
     $envExists = file_exists("$base/.env");
-    $checks[] = ['label' => 'Fresh Install (.env nicht vorhanden)', 'ok' => !$envExists, 'value' => $envExists ? 'Warnung: .env existiert' : 'OK', 'fatal' => false];
+    $checks[] = [
+        'label' => 'Fresh Install (.env nicht vorhanden)',
+        'ok'    => ! $envExists,
+        'value' => $envExists ? 'Warnung: .env existiert (Neuinstallation überschreibt sie)' : 'OK',
+        'fatal' => false,
+    ];
+
     return $checks;
 }
 
@@ -513,25 +550,61 @@ $appUrl      = $data['app']['appUrl'] ?? '';
     <!-- Step 1 -->
     <?php if ($step === 1): ?>
     <h2 class="text-lg font-bold mb-1">System-Check</h2>
-    <p class="text-sm text-gray-500 mb-4">Alles wird geprüft, bevor etwas verändert wird.</p>
+    <p class="text-sm text-gray-500 mb-4">Der Installer versucht Schreibrechte automatisch zu setzen. Falls etwas rot bleibt, auf "Neu prüfen" klicken.</p>
     <div class="space-y-1">
       <?php foreach ($preChecks as $c): ?>
-      <div class="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
-        <span class="text-xs font-bold px-2 py-0.5 rounded <?= $c['ok'] ? 'bg-green-100 text-green-700' : ($c['fatal'] ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700') ?>">
-          <?= $c['ok'] ? 'OK' : ($c['fatal'] ? 'FEHLER' : 'WARNUNG') ?>
+      <div class="flex items-start gap-3 py-2 border-b border-gray-100 last:border-0">
+        <span class="text-xs font-bold px-2 py-0.5 rounded mt-0.5 <?= $c['ok'] ? 'bg-green-100 text-green-700' : ($c['fatal'] ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700') ?>">
+          <?= $c['ok'] ? 'OK' : ($c['fatal'] ? 'FEHLER' : 'WARN') ?>
         </span>
-        <span class="flex-1 text-sm"><?= h($c['label']) ?></span>
-        <span class="text-xs text-gray-400"><?= h($c['value']) ?></span>
+        <div class="flex-1">
+          <div class="text-sm"><?= h($c['label']) ?></div>
+          <?php if (! $c['ok']): ?>
+          <div class="text-xs text-gray-400 mt-0.5"><?= h($c['value']) ?></div>
+          <?php endif; ?>
+        </div>
+        <?php if ($c['ok']): ?>
+        <span class="text-xs text-gray-400 mt-0.5"><?= h($c['value']) ?></span>
+        <?php endif; ?>
       </div>
       <?php endforeach; ?>
     </div>
-    <form method="POST" class="mt-5">
-      <input type="hidden" name="action" value="step1_next">
-      <button class="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg <?= !$allOk ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700' ?>"
-              type="submit" <?= !$allOk ? 'disabled' : '' ?>>
-        Weiter &rarr;
-      </button>
-    </form>
+
+    <?php
+    $permFail   = ! array_filter($preChecks, fn($c) => str_contains($c['label'], 'schreibbar') && ! $c['ok']) === false;
+    $vendorFail = ! empty(array_filter($preChecks, fn($c) => str_contains($c['label'], 'vendor') && ! $c['ok']));
+    ?>
+
+    <?php if ($vendorFail): ?>
+    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+      <strong>vendor/ fehlt</strong> — zwei Möglichkeiten:<br>
+      <span class="text-xs">① Release-ZIP herunterladen (enthält vendor/) und komplett hochladen.<br>
+      ② SSH-Zugang: <code class="bg-amber-100 px-1 rounded">composer install --no-dev --optimize-autoloader</code></span>
+    </div>
+    <?php endif; ?>
+
+    <?php if (! $allOk && ! $vendorFail): ?>
+    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+      <strong>Schreibrechte fehlen</strong> — der Installer hat versucht sie zu setzen.<br>
+      <span class="text-xs">Seite neu laden löst das in den meisten Fällen. Falls nicht:<br>
+      Im Dateimanager (Plesk/cPanel) den Ordner <code class="bg-amber-100 px-1 rounded">storage</code> und
+      <code class="bg-amber-100 px-1 rounded">bootstrap/cache</code> auf Rechte <strong>775</strong> setzen.</span>
+    </div>
+    <?php endif; ?>
+
+    <div class="mt-5 flex gap-3">
+      <a href="<?= h($_SERVER['PHP_SELF']) ?>"
+         class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold rounded-lg">
+        ↻ Neu prüfen
+      </a>
+      <form method="POST">
+        <input type="hidden" name="action" value="step1_next">
+        <button class="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg <?= !$allOk ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700' ?>"
+                type="submit" <?= !$allOk ? 'disabled' : '' ?>>
+          Weiter &rarr;
+        </button>
+      </form>
+    </div>
 
     <!-- Step 2 -->
     <?php elseif ($step === 2): ?>
