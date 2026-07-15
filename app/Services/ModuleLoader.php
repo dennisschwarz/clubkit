@@ -60,12 +60,20 @@ class ModuleLoader
                 ->where('is_active', true)
                 ->orderBy('installed_at')
                 ->pluck('slug');
-
-            foreach ($slugs as $slug) {
-                $this->bootModule($slug);
-            }
         } catch (\Throwable) {
             // Database not ready (e.g. during installation) – skip gracefully
+            return;
+        }
+
+        foreach ($slugs as $slug) {
+            try {
+                $this->bootModule($slug);
+            } catch (\Throwable $e) {
+                // Log individually so one broken module does not prevent others from loading.
+                logger()->error("[ClubKit] Failed to boot module '{$slug}': " . $e->getMessage(), [
+                    'exception' => $e,
+                ]);
+            }
         }
     }
 

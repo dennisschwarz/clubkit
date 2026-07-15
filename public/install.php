@@ -144,11 +144,21 @@ function runPreflightChecks(string $base): array
         $checks[] = ['label' => $label, 'ok' => $ok, 'value' => $value, 'fatal' => true];
     }
 
-    $vendorOk = is_dir("$base/vendor");
+    $vendorOk      = is_dir("$base/vendor") && file_exists("$base/vendor/autoload.php");
+    $composerAvail = ! $vendorOk && (function_exists('exec') || function_exists('shell_exec'));
+    $buildOk       = file_exists("$base/public/build/manifest.json");
     $checks[] = [
-        'label' => 'vendor/ vorhanden',
-        'ok'    => $vendorOk,
-        'value' => $vendorOk ? 'OK' : 'Fehlt — Release-ZIP hochladen oder SSH: composer install',
+        'label'          => 'vendor/ vorhanden',
+        'ok'             => $vendorOk,
+        'value'          => $vendorOk ? 'OK' : ($composerAvail ? 'Fehlt — Composer wird automatisch ausgeführt' : 'Fehlt — Release-ZIP (mit vendor/) hochladen'),
+        'fatal'          => true,
+        'composer_offer' => ! $vendorOk && $composerAvail,
+    ];
+
+    $checks[] = [
+        'label' => 'Frontend-Assets gebaut (public/build/)',
+        'ok'    => $buildOk,
+        'value' => $buildOk ? 'OK' : 'Fehlt — npm run build lokal ausführen und public/build/ hochladen',
         'fatal' => true,
     ];
 
@@ -262,6 +272,37 @@ $_SESSION['ck_errors'] ??= [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
+    if ($action === 'run_composer') {
+        $out    = [];
+        $ok     = false;
+        $phpBin = PHP_BINARY ?: 'php';
+
+        // Download Composer phar if not already present.
+        $composerPhar = sys_get_temp_dir() . '/composer.phar';
+        if (! file_exists($composerPhar)) {
+            $src = @file_get_contents('https://getcomposer.org/composer-stable.phar');
+            if ($src) { file_put_contents($composerPhar, $src); }
+        }
+
+        if (file_exists($composerPhar)) {
+            $cmd = escapeshellcmd($phpBin) . ' ' . escapeshellarg($composerPhar)
+                 . ' install --no-interaction --no-dev --prefer-dist --optimize-autoloader'
+                 . ' --working-dir=' . escapeshellarg($BASE)
+                 . ' 2>&1';
+            if (function_exists('exec')) {
+                exec($cmd, $out, $code);
+                $ok = ($code === 0);
+            } elseif (function_exists('shell_exec')) {
+                $res = shell_exec($cmd);
+                $out = explode("\n", (string) $res);
+                $ok  = is_dir("$BASE/vendor/autoload.php") || is_dir("$BASE/vendor");
+            }
+        }
+
+        $_SESSION['ck_composer_out'] = ['ok' => $ok, 'lines' => $out];
+        header('Location: ' . $_SERVER['PHP_SELF']); exit;
+    }
+
     if ($action === 'step1_next') {
         $checks = runPreflightChecks($BASE);
         $fatal  = array_filter($checks, fn($c) => !$c['ok'] && $c['fatal']);
@@ -338,6 +379,9 @@ $rollbackDone= $_SESSION['ck_rollback_done'] ?? false;
 $resetLog    = $_SESSION['ck_reset_log']   ?? [];
 
 if ($step === 6 && !$installDone) {
+    // Clear any leftover rollback flag from a previous failed attempt.
+    unset($_SESSION['ck_rollback_done'], $_SESSION['ck_install_log']);
+
     $db  = $data['db']      ?? [];
     $app = $data['app']     ?? [];
     $adm = $data['admin']   ?? [];
@@ -447,16 +491,68 @@ if ($step === 6 && !$installDone) {
         $fail('Module-Registrierung fehlgeschlagen', $e->getMessage());
     }
 
-    // G: Optimize
+    // G: Ensure all required Laravel storage subdirectories exist
+    $storageDirs = [
+        "$BASE/storage/app",
+        "$BASE/storage/app/public",
+        "$BASE/storage/framework",
+        "$BASE/storage/framework/cache",
+        "$BASE/storage/framework/cache/data",
+        "$BASE/storage/framework/sessions",
+        "$BASE/storage/framework/testing",
+        "$BASE/storage/framework/views",
+        "$BASE/storage/logs",
+        "$BASE/bootstrap/cache",
+    ];
+    foreach ($storageDirs as $dir) {
+        if (! is_dir($dir)) { @mkdir($dir, 0775, true); }
+        @chmod($dir, 0775);
+    }
+    // Add .gitignore placeholders so the directories are tracked in git.
+    $placeholders = [
+        "$BASE/storage/app/.gitignore"              => "*\n!.gitignore\n",
+        "$BASE/storage/framework/cache/.gitignore"  => "*\n!.gitignore\n",
+        "$BASE/storage/framework/sessions/.gitignore" => "*\n!.gitignore\n",
+        "$BASE/storage/framework/views/.gitignore"  => "*\n!.gitignore\n",
+        "$BASE/storage/logs/.gitignore"             => "*\n!.gitignore\n",
+    ];
+    foreach ($placeholders as $file => $content) {
+        if (! file_exists($file)) { @file_put_contents($file, $content); }
+    }
+    $log[] = ['ok' => true, 'msg' => 'Storage-Verzeichnisse initialisiert', 'detail' => implode(', ', array_map('basename', $storageDirs))];
+
+    // H: Storage symlink (public/storage → storage/app/public)
+    if (! is_link("$BASE/public/storage")) {
+        $r = runArtisan($laravelApp, 'storage:link');
+        // Non-fatal: symlink may fail on some hosts; app still works without it.
+        $log[] = ['ok' => true, 'msg' => 'Storage-Symlink erstellt', 'detail' => $r['out'] ?? ''];
+    } else {
+        $log[] = ['ok' => true, 'msg' => 'Storage-Symlink vorhanden', 'detail' => ''];
+    }
+
+    // H: Optimize (config/route/view cache)
+    $r = runArtisan($laravelApp, 'config:clear');
+    $r = runArtisan($laravelApp, 'view:clear');
     runArtisan($laravelApp, 'optimize');
     $log[] = ['ok' => true, 'msg' => 'Cache optimiert', 'detail' => ''];
 
-    // H: Set file permissions
-    @chmod("$BASE/storage", 0775);
-    @chmod("$BASE/bootstrap/cache", 0775);
+    // I: Set file permissions
+    tryFixPermissions("$BASE/storage");
+    tryFixPermissions("$BASE/bootstrap/cache");
     $log[] = ['ok' => true, 'msg' => 'Berechtigungen gesetzt', 'detail' => ''];
 
-    // I: Marker
+    // J: Self-test — verify the login page is reachable
+    $loginUrl = rtrim($app['appUrl'] ?? '', '/') . '/login';
+    $ctx = @stream_context_create(['http' => ['timeout' => 5, 'ignore_errors' => true]]);
+    $body = @file_get_contents($loginUrl, false, $ctx);
+    $responseOk = ($body !== false && strlen($body) > 100);
+    $log[] = [
+        'ok'     => $responseOk,
+        'msg'    => $responseOk ? 'App antwortet korrekt' : 'App-Selbsttest fehlgeschlagen',
+        'detail' => $responseOk ? '' : 'Login-Seite unter '.$loginUrl.' nicht erreichbar. Prüfe storage/logs/laravel.log auf dem Server.',
+    ];
+
+    // K: Marker
     file_put_contents("$BASE/storage/installed", date('Y-m-d H:i:s')."\nModules: ".implode(',',$mod)."\nVersion: ".INSTALLER_VERSION);
     $log[] = ['ok' => true, 'msg' => 'ClubKit installiert', 'detail' => ''];
 
@@ -576,11 +672,36 @@ $appUrl      = $data['app']['appUrl'] ?? '';
     ?>
 
     <?php if ($vendorFail): ?>
-    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-      <strong>vendor/ fehlt</strong> — zwei Möglichkeiten:<br>
-      <span class="text-xs">① Release-ZIP herunterladen (enthält vendor/) und komplett hochladen.<br>
-      ② SSH-Zugang: <code class="bg-amber-100 px-1 rounded">composer install --no-dev --optimize-autoloader</code></span>
+    <?php $composerOut = $_SESSION['ck_composer_out'] ?? null; ?>
+    <?php if ($composerOut): unset($_SESSION['ck_composer_out']); ?>
+    <div class="mt-4 <?= $composerOut['ok'] ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200' ?> border rounded-lg p-3 text-sm">
+      <p class="font-bold <?= $composerOut['ok'] ? 'text-green-700' : 'text-red-700' ?>">
+        <?= $composerOut['ok'] ? '✔ Composer erfolgreich ausgeführt — Seite neu laden' : '✘ Composer fehlgeschlagen' ?>
+      </p>
+      <?php if (! $composerOut['ok'] && $composerOut['lines']): ?>
+      <pre class="text-xs mt-2 font-mono bg-white rounded p-2 overflow-x-auto max-h-40 text-gray-700"><?= h(implode("\n", array_slice($composerOut['lines'], -20))) ?></pre>
+      <?php endif; ?>
     </div>
+    <?php endif; ?>
+    <?php $offerComposer = ! empty(array_filter($preChecks, fn($c) => ($c['composer_offer'] ?? false))); ?>
+    <?php if ($offerComposer): ?>
+    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+      <strong>vendor/ fehlt</strong> — Composer ist auf diesem Server verfügbar.<br>
+      <span class="text-xs">Klick auf den Button führt <code class="bg-amber-100 px-1 rounded">composer install</code> automatisch aus.</span>
+      <form method="POST" class="mt-2">
+        <input type="hidden" name="action" value="run_composer">
+        <button class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg">
+          ▶ Composer jetzt ausführen
+        </button>
+      </form>
+    </div>
+    <?php else: ?>
+    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+      <strong>vendor/ fehlt</strong> — kein exec() verfügbar.<br>
+      <span class="text-xs">Lade das <strong>Release-ZIP</strong> herunter (enthält vendor/) und lade alle Dateien komplett hoch.<br>
+      Alternativ: SSH-Zugang → <code class="bg-amber-100 px-1 rounded">composer install --no-dev</code></span>
+    </div>
+    <?php endif; ?>
     <?php endif; ?>
 
     <?php if (! $allOk && ! $vendorFail): ?>
@@ -715,9 +836,21 @@ $appUrl      = $data['app']['appUrl'] ?? '';
     <?php elseif ($step === 6): ?>
     <h2 class="text-lg font-bold mb-4">Installation</h2>
     <?php if ($rollbackDone): ?>
+    <?php $failedEntry = array_values(array_filter($installLog, fn($e) => !$e['ok']))[0] ?? null; ?>
     <div class="mb-4 bg-red-50 border border-red-200 rounded-xl p-4">
       <p class="font-bold text-red-700">Fehler – Rollback ausgeführt</p>
       <p class="text-xs text-red-600 mt-1">Alle Änderungen wurden rückgängig gemacht.</p>
+      <?php if ($failedEntry): ?>
+      <div class="mt-2 bg-red-100 rounded-lg p-2">
+        <p class="text-xs font-bold text-red-800"><?= h($failedEntry['msg']) ?></p>
+        <?php if (!empty($failedEntry['detail'])): ?>
+        <p class="text-xs font-mono text-red-700 mt-1 break-all"><?= h($failedEntry['detail']) ?></p>
+        <?php endif; ?>
+      </div>
+      <?php endif; ?>
+      <a href="?reset=1" class="inline-block mt-3 text-xs px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg">
+        Nochmal versuchen →
+      </a>
     </div>
     <?php elseif ($installDone): ?>
     <div class="mb-4 bg-green-50 border border-green-200 rounded-xl p-4 text-center">
