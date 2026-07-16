@@ -82,17 +82,16 @@ class EventSlotsPanelComposer
             return;
         }
 
-        $eventDate = $event->starts_at->toDateString();
-
-        // ── All event-day tasks ───────────────────────────────────────────────
-        // Event-day = no deadline, or deadline falls on the event date itself.
+        // ── Slot-plan tasks only ─────────────────────────────────────────────
+        // Only tasks with complete slot configuration (start + end + interval)
+        // belong on the Einsatzplan tab. Regular event tasks (deadline_at IS NULL,
+        // no slot config) must not appear here — they live on the Tasks tab only.
 
         $shiftTasks = EventTask::with('category')
             ->where('event_id', $event->id)
-            ->where(function ($q) use ($eventDate) {
-                $q->whereNull('deadline_at')
-                  ->orWhereDate('deadline_at', '=', $eventDate);
-            })
+            ->whereNotNull('slot_start_time')
+            ->whereNotNull('slot_end_time')
+            ->whereNotNull('slot_interval_minutes')
             ->orderBy('name')
             ->get();
 

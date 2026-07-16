@@ -111,19 +111,18 @@ export function initCategories(ctx) {
     }
 
     // ── Delete Category ───────────────────────────────────────────────────────
+    // Exposed as a global so Blade onclick= can call it directly.
+    // A document-level listener would never fire here because the parent
+    // .ck-section-header__actions container calls event.stopPropagation(),
+    // which prevents the click from bubbling to document.
 
-    document.addEventListener('click', function (e) {
-        var btn = closest(e.target, '.ck-cat-delete-btn');
-        if (! btn) { return; }
-
-        var catId     = btn.dataset.catId;
-        var catName   = btn.dataset.catName;
-        var taskCount = parseInt(btn.dataset.taskCount || '0', 10);
+    window.ckDeleteCat = function (catId, catName, taskCount) {
         if (! catId) { return; }
 
-        var msg = taskCount > 0
+        var count = parseInt(taskCount || 0, 10);
+        var msg   = count > 0
             ? 'Kategorie \u201e' + catName + '\u201c l\u00f6schen? '
-                + taskCount + ' Aufgabe(n) werden nach \u201eAllgemein\u201c verschoben.'
+                + count + ' Aufgabe(n) werden nach \u201eAllgemein\u201c verschoben.'
             : 'Kategorie \u201e' + catName + '\u201c wirklich l\u00f6schen?';
 
         window.ckConfirm(msg, function () {
@@ -144,5 +143,5 @@ export function initCategories(ctx) {
                 ckNotify('error', 'Netzwerkfehler. Bitte Seite neu laden.');
             });
         });
-    });
+    };
 }

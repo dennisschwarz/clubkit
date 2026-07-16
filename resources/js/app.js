@@ -562,6 +562,8 @@ window.ckModalOpen = function (id) {
 window.ckModalClose = function (e, id) {
     const modal = document.getElementById(id);
     if (!modal) return;
+    // Locked while an async request is in progress — ignore all close attempts.
+    if (modal.classList.contains('ck-modal--locked')) return;
     if (e && e.target !== modal) return;
     modal.classList.remove('ck-modal--open');
     document.body.classList.remove('ck-no-scroll');

@@ -153,6 +153,12 @@ class EventOverviewPanelComposer
         foreach ($assignedTasks as $task) {
             $deadlineAt = $task->deadline_at;
             $isPrep     = $deadlineAt !== null && $deadlineAt->toDateString() < $eventDateStr;
+            // A task belongs to the event-day staffing matrix only when it has complete
+            // slot configuration. Regular tasks (no slot config, no deadline) are counted
+            // in the KPI tiles and progress bars above but not shown in the matrix.
+            $isSlotTask = $task->slot_start_time !== null
+                       && $task->slot_end_time !== null
+                       && $task->slot_interval_minutes !== null;
 
             if ($isPrep) {
                 $catName = $task->category ? $task->category->name : 'Allgemein';
@@ -169,13 +175,15 @@ class EventOverviewPanelComposer
                     'priority'  => $task->priority ?? 'normal',
                     'deadline'  => $deadlineAt->toDateString(),
                 ];
-            } else {
+            } elseif ($isSlotTask) {
                 $mgmtOvDayTasks[] = [
                     'id'        => $task->id,
                     'name'      => $task->name,
                     'completed' => $task->completed,
                 ];
             }
+            // else: general event task — no slot config, no prep deadline.
+            // Visible in KPI tiles and category progress bars only.
         }
 
         ksort($mgmtOvPrepByCategory);

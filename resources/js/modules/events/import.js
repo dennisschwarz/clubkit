@@ -684,6 +684,28 @@
         updateSubmitBtn();
     };
 
+    /* ── Submit busy-state helpers ───────────────────────────────────────────
+       Lock the import modal during the POST request so the user cannot close
+       it accidentally via backdrop click or the × button while tasks are being
+       saved.  Uses the .ck-modal--locked flag (checked in app.js ckModalClose)
+       and .ck-modal-content--busy (CSS spinner + pointer-events:none overlay,
+       defined in modals.css).
+    ─────────────────────────────────────────────────────────────────────── */
+
+    function _importLock() {
+        var overlay = document.getElementById('ckImportModal');
+        var content = overlay && overlay.querySelector('.ck-modal-content');
+        if (overlay) { overlay.classList.add('ck-modal--locked'); }
+        if (content) { content.classList.add('ck-modal-content--busy'); }
+    }
+
+    function _importUnlock() {
+        var overlay = document.getElementById('ckImportModal');
+        var content = overlay && overlay.querySelector('.ck-modal-content');
+        if (overlay) { overlay.classList.remove('ck-modal--locked'); }
+        if (content) { content.classList.remove('ck-modal-content--busy'); }
+    }
+
     /* ── Submit ──────────────────────────────────────────────────────────────── */
 
     window.ckImportSubmit = function () {
@@ -695,7 +717,7 @@
         );
         var tasks = checkedEls
             .map(function (ch) {
-                try { return JSON.parse(ch.closest('.ck-import-row').dataset.rowJson); }
+                try { return JSON.parse(ch.closest('.ck-task-import-row').dataset.rowJson); }
                 catch (e) { return null; }
             })
             .filter(Boolean);
@@ -704,6 +726,9 @@
 
         var btn = document.getElementById('ck-import-submit-btn');
         if (btn) { btn.disabled = true; }
+
+        /* Lock modal: show spinner, block backdrop click and close button. */
+        _importLock();
 
         /* CSRF: prefer CK_EventDetail.csrf, fallback to meta tag */
         var csrf = (window.CK_EventDetail && window.CK_EventDetail.csrf)
@@ -722,6 +747,8 @@
         })
         .then(function (res) { return res.json(); })
         .then(function (data) {
+            /* Page reloads — no need to unlock, but clean up for safety. */
+            _importUnlock();
             ckModalClose(null, 'ckImportModal');
             window.ckImportReset();
             var msg = data.imported + ' Task(s) importiert.';
@@ -732,6 +759,8 @@
             window.location.reload();
         })
         .catch(function () {
+            /* Unlock on error so the user can retry or close the modal. */
+            _importUnlock();
             if (btn) { btn.disabled = false; }
             ckNotify('error', 'Fehler beim Importieren. Bitte versuche es erneut.');
         });
@@ -791,7 +820,9 @@
 
     /* ── Init ────────────────────────────────────────────────────────────────── */
 
-    document.addEventListener('DOMContentLoaded', function () {
+    // When bundled as an ES module via events-detail.js, DOMContentLoaded has
+    // already fired before this code runs. Use readyState to handle both cases.
+    function initImportModule() {
         var cfg = window.CK_Import;
         if (!cfg) { return; }  /* Module not active on this page */
 
@@ -830,6 +861,12 @@
                 handleFile(e.dataTransfer && e.dataTransfer.files[0]);
             });
         }
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initImportModule);
+    } else {
+        initImportModule();
+    }
 
 }());
