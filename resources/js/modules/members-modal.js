@@ -38,9 +38,9 @@
             _setField('mFieldLastName',   '');
             _setField('mFieldPassNumber', '');
             _setField('mFieldGender',     '');
-            _setField('mFieldDob',        '');
+            _setDateField('mFieldDob',      '');
             _setField('mFieldStatus',     'active');
-            _setField('mFieldEligible',   '');  // date field – empty = not eligible
+            _setDateField('mFieldEligible', '');  // date field – empty = not eligible
 
             methodInput.value = 'POST';
             form.action       = routes.store || '';
@@ -66,10 +66,10 @@
             _setField('mFieldLastName',   m.last_name);
             _setField('mFieldPassNumber', m.pass_number    || '');
             _setField('mFieldGender',     m.gender         || '');
-            _setField('mFieldDob',        m.date_of_birth  || '');
+            _setDateField('mFieldDob',      m.date_of_birth  || '');
             _setField('mFieldStatus',     m.status         || 'active');
             // eligible_to_play_date = YYYY-MM-DD or '' (date field, no checkbox)
-            _setField('mFieldEligible',   m.eligible_to_play_date || '');
+            _setDateField('mFieldEligible', m.eligible_to_play_date || '');
 
             methodInput.value = 'PATCH';
             form.action       = (routes.update || '') + '/' + memberId;
@@ -133,6 +133,27 @@
     function _setField(id, value) {
         const el = document.getElementById(id);
         if (el) el.value = value;
+    }
+
+    /**
+     * Set a flatpickr-wrapped date field.
+     *
+     * Plain _setField() only updates the hidden original input; flatpickr's
+     * visible altInput stays stale. This helper calls the flatpickr API so
+     * both the raw value and the formatted display stay in sync.
+     *
+     * @param {string} id    - Element ID of the original date input.
+     * @param {string} value - ISO date string ('YYYY-MM-DD') or empty string.
+     */
+    function _setDateField(id, value) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el._flatpickr) {
+            if (value) { el._flatpickr.setDate(value, false); }
+            else        { el._flatpickr.clear(); }
+        } else {
+            el.value = value || '';
+        }
     }
 
 }());

@@ -613,6 +613,23 @@ window.ckEmit = function (event, detail) {
     document.dispatchEvent(new CustomEvent('ck:' + event, { detail: detail || {} }));
 };
 
+/**
+ * Register a listener for a namespaced ClubKit event.
+ *
+ * Counterpart to ckEmit(). Events are dispatched as CustomEvents on document
+ * with a 'ck:' prefix; ckOn() subscribes a callback to that CustomEvent.
+ * Must be defined before any module calls ckOn() at script-load time
+ * (e.g. custom-fields-modal.js registers listeners outside DOMContentLoaded).
+ *
+ * @param {string}   event    - Short event name, e.g. 'member.modal.open'.
+ * @param {Function} callback - Receives the event's detail object.
+ */
+window.ckOn = function (event, callback) {
+    document.addEventListener('ck:' + event, function (e) {
+        callback(e.detail || {});
+    });
+};
+
 // ── Section / card accordion ─────────────────────────────────────────────────
 // Shared toggle used by Teams accordion (ckSectionToggle) and collapsible
 // x-ck-card components (delegated click on .ck-card__header--collapsible).
